@@ -1,11 +1,103 @@
+// ───────────────────────────────────────────────────────────
+//  Asta Collections — Production Schema (Neon Postgres)
+//  ─────────────────────────────────────────────────────────
+//  Design notes:
+//  • Money stored as `Float` (DOUBLE PRECISION). PKR pricing
+//    is whole-rupee — IEEE-754 precision (~15 digits) is safe.
+//    To switch to true Decimal later: `Float` → `Decimal @db.Decimal(10,2)`.
+//  • All status fields use Prisma enums for type-safety.
+//  • All long-text columns marked `@db.Text` to avoid varchar limits.
+//  • Cascading deletes scoped tightly so removing a product cleans up
+//    its images, bundle slots, reviews, wishlist entries.
+//  • Indexes target hot query paths: by-slug lookups, status filters,
+//    customer lookups by email, sort-by-recency.
+// ───────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Optional direct (unpooled) URL for migrations on Neon
+  directUrl = env("DIRECT_URL")
 }
+
+// ─────────────────────────  ENUMS  ─────────────────────────
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  COD
+  BANK_TRANSFER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NewsletterSource {
+  POPUP
+  FOOTER
+  SIGNUP
+  CHECKOUT
+}
+
+enum EmailKind {
+  ORDER_CONFIRMATION
+  SHIPPING_UPDATE
+  PASSWORD_RESET
+  NEWSLETTER
+  REVIEW_REMINDER
+  OTHER
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  BOUNCED
+}
+
+enum InventoryReason {
+  ORDER_PLACED
+  ORDER_CANCELLED
+  ORDER_REFUNDED
+  ADMIN_ADJUSTMENT
+  RESTOCK
+  STOCK_TAKE
+}
+
+enum OrderEventActor {
+  SYSTEM
+  ADMIN
+  CUSTOMER
+}
+
+// ─────────────────────────  AUTH  ──────────────────────────
 
 model Admin {
   id        String   @id @default(cuid())
@@ -14,6 +106,8 @@ model Admin {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  orderEvents OrderEvent[]
 }
 
 model Customer {
@@ -24,71 +118,92 @@ model Customer {
   phone     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  addresses           CustomerAddress[]
+  wishlist            WishlistItem[]
+  couponRedemptions   CouponRedemption[]
+
+  @@index([email])
 }
 
-model Review {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  customerName  String
-  customerEmail String
-  rating      Int      // 1..5
-  title       String?
-  body        String
-  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
-  createdAt   DateTime @default(now())
+// One Customer → many addresses on file. Order shipping is denormalized
+// on the Order itself (snapshot) — these are pre-filled values, not the
+// canonical record once an order ships.
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label      String   @default("Home") // "Home", "Office", "Mom's place"
+  recipient  String
+  phone      String
+  street     String   @db.Text
+  city       String
+  area       String?
+  postalCode String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@index([productId])
-  @@index([status])
+  @@index([customerId])
+  @@index([customerId, isDefault])
 }
+
+// ───────────────────  CATALOG / PRODUCTS  ──────────────────
 
 model Category {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String    @unique
-  description String?
+  slug        String   @unique
+  description String?  @db.Text
   image       String?
-  isActive    Boolean   @default(true)
-  sortOrder   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
 
   @@index([slug])
-  @@index([isActive])
+  @@index([isActive, sortOrder])
 }
 
 model Product {
-  id            String         @id @default(cuid())
-  name          String
-  slug          String         @unique
-  description   String
-  shortDesc     String?
-  sku           String         @unique
-  price         Float
-  comparePrice  Float?
-  costPrice     Float?
-  stock         Int            @default(0)
-  weight        Float?
-  material      String?
-  tags          String         @default("") // comma-separated tags
-  isFeatured    Boolean        @default(false)
-  isActive      Boolean        @default(true)
-  metaTitle     String?
-  metaDesc      String?
-  categoryId    String
-  category      Category       @relation(fields: [categoryId], references: [id])
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String   @db.Text
+  shortDesc    String?  @db.Text
+  sku          String   @unique
+  price        Float
+  comparePrice Float?
+  costPrice    Float?
+  stock        Int      @default(0)
+  weight       Float?
+  material     String?
+  tags         String   @default("") @db.Text // comma-separated
+  isFeatured   Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  metaTitle    String?
+  metaDesc     String?  @db.Text
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
   images        ProductImage[]
   orderItems    OrderItem[]
   bundleItems   BundleItem[]
   reviews       Review[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  wishlistItems WishlistItem[]
+  inventoryLogs InventoryLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([slug])
   @@index([categoryId])
-  @@index([isActive])
-  @@index([isFeatured])
+  @@index([isActive, isFeatured]) // for "isActive AND isFeatured" filter
+  @@index([isActive, createdAt(sort: Desc)]) // for "new arrivals" sort
+  @@index([isActive, price]) // for price range filters
 }
 
 model ProductImage {
@@ -99,25 +214,27 @@ model ProductImage {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([productId])
+  @@index([productId, sortOrder])
 }
 
+// ─────────────────────────  BUNDLES  ───────────────────────
+
 model Bundle {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String       @unique
-  description String?
-  // Discount applied to the sum of bundled product prices
-  discountType  String     @default("PERCENTAGE") // PERCENTAGE | FIXED
-  discountValue Float      @default(0)
-  isActive    Boolean      @default(true)
-  sortOrder   Int          @default(0)
-  items       BundleItem[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  name          String
+  slug          String       @unique
+  description   String?      @db.Text
+  discountType  DiscountType @default(PERCENTAGE)
+  discountValue Float        @default(0)
+  isActive      Boolean      @default(true)
+  sortOrder     Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  items BundleItem[]
 
   @@index([slug])
-  @@index([isActive])
+  @@index([isActive, sortOrder])
 }
 
 model BundleItem {
@@ -134,68 +251,111 @@ model BundleItem {
   @@index([productId])
 }
 
+// ─────────────────────────  COUPONS  ───────────────────────
+
 model Coupon {
-  id            String     @id @default(cuid())
-  code          String     @unique
-  description   String?
-  discountType  String     // PERCENTAGE | FIXED
+  id            String       @id @default(cuid())
+  code          String       @unique
+  description   String?      @db.Text
+  discountType  DiscountType
   discountValue Float
   minOrder      Float?
   maxDiscount   Float?
   usageLimit    Int?
-  usageCount    Int        @default(0)
+  usageCount    Int          @default(0)
+  // Per-customer usage cap (e.g. WELCOME10 once per customer)
+  perCustomerLimit Int?
   startsAt      DateTime?
   expiresAt     DateTime?
-  isActive      Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  orders        Order[]
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  orders      Order[]
+  redemptions CouponRedemption[]
 
   @@index([code])
-  @@index([isActive])
+  @@index([isActive, expiresAt])
 }
 
+// Tracks each redemption of a coupon — used to enforce per-customer caps,
+// power "% used" analytics, and refund accounting.
+model CouponRedemption {
+  id            String   @id @default(cuid())
+  couponId      String
+  coupon        Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  customerEmail String   // captured even for guest checkouts
+  amountSaved   Float
+  createdAt     DateTime @default(now())
+
+  @@index([couponId])
+  @@index([customerEmail])
+  @@index([customerId])
+}
+
+// ─────────────────────────  ORDERS  ────────────────────────
+
 model Order {
-  id              String      @id @default(cuid())
-  orderNumber     String      @unique
+  id          String @id @default(cuid())
+  orderNumber String @unique
+
+  // Customer snapshot — denormalized intentionally so the order record
+  // is preserved even if the customer updates their profile or is deleted.
   customerName    String
   customerEmail   String
   customerPhone   String
-  shippingAddress String
+  shippingAddress String @db.Text
   shippingCity    String
   shippingArea    String?
-  notes           String?
+  notes           String? @db.Text
 
-  subtotal        Float
-  discountAmount  Float       @default(0)
-  shippingFee     Float       @default(0)
-  total           Float
+  // Money
+  subtotal       Float
+  discountAmount Float @default(0)
+  shippingFee    Float @default(0)
+  total          Float
+  advancePaid    Float @default(0)
 
-  paymentMethod   String      // COD | BANK_TRANSFER
-  paymentStatus   String      @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
-  paymentProof    String?     // Bank transfer screenshot URL
-  advancePaid     Float       @default(0) // 250 advance for COD or full for bank transfer
+  // Payment
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentProof  String? // url to uploaded screenshot
 
-  status          String      @default("PENDING") // PENDING | CONFIRMED | PROCESSING | SHIPPED | DELIVERED | CANCELLED
+  // Status
+  status OrderStatus @default(PENDING)
 
   // Tracking
-  trackingNumber  String?
-  trackingUrl     String?
-  courierName     String?
-  shippedAt       DateTime?
+  trackingNumber String?
+  trackingUrl    String?
+  courierName    String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
 
-  couponId        String?
-  coupon          Coupon?     @relation(fields: [couponId], references: [id])
-  couponCode      String?
+  // Coupon (denormalized code preserved even if coupon is deleted)
+  couponId   String?
+  coupon     Coupon? @relation(fields: [couponId], references: [id])
+  couponCode String?
 
-  items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  // Optional link to logged-in customer (orders can also be guest checkouts)
+  customerId String?
+
+  items       OrderItem[]
+  events      OrderEvent[]
+  redemption  CouponRedemption?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([orderNumber])
-  @@index([status])
-  @@index([paymentStatus])
   @@index([customerEmail])
+  @@index([customerId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([paymentStatus])
+  @@index([createdAt(sort: Desc)])
 }
 
 model OrderItem {
@@ -204,19 +364,128 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId String
   product   Product @relation(fields: [productId], references: [id])
-  name      String
-  sku       String
-  image     String?
-  price     Float
-  quantity  Int
 
+  // Snapshots — preserve these even if the product is deleted/renamed
+  name     String
+  sku      String
+  image    String?
+  price    Float
+  quantity Int
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+// Audit log of every status / tracking change on an order.
+// Powers the customer-facing "Your order is on its way" timeline and
+// admin debugging.
+model OrderEvent {
+  id        String          @id @default(cuid())
+  orderId   String
+  order     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  note      String?         @db.Text
+  actorType OrderEventActor @default(SYSTEM)
+  adminId   String?
+  admin     Admin?          @relation(fields: [adminId], references: [id])
+  createdAt DateTime        @default(now())
+
+  @@index([orderId, createdAt(sort: Desc)])
+}
+
+// ─────────────────────────  REVIEWS  ───────────────────────
+
+model Review {
+  id            String       @id @default(cuid())
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerName  String
+  customerEmail String
+  rating        Int          // 1..5  (validated at API level)
+  title         String?
+  body          String       @db.Text
+  status        ReviewStatus @default(PENDING)
+  // Was this customer verified to have purchased the product?
+  verified      Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+
+  @@index([productId, status])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+// ────────────────────────  WISHLIST  ───────────────────────
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([productId])
+}
+
+// ───────────────────────  NEWSLETTER  ──────────────────────
+
+model NewsletterSubscriber {
+  id            String           @id @default(cuid())
+  email         String           @unique
+  source        NewsletterSource @default(POPUP)
+  unsubscribedAt DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@index([source])
+}
+
+// ───────────────────  OPERATIONAL LOGS  ────────────────────
+
+// Every email send (success or failure) for debugging / re-sends.
+model EmailLog {
+  id           String      @id @default(cuid())
+  to           String
+  subject      String
+  kind         EmailKind   @default(OTHER)
+  status       EmailStatus @default(QUEUED)
+  resendId     String?     // ID returned from Resend API
+  errorMessage String?     @db.Text
+  // Optional links to the entity that triggered the send
+  orderId      String?
+  customerId   String?
+  createdAt    DateTime    @default(now())
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([kind, createdAt(sort: Desc)])
+  @@index([status])
+}
+
+// Every stock movement — powers reorder analytics and "what happened to
+// stock for product X" debugging.
+model InventoryLog {
+  id        String          @id @default(cuid())
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  change    Int             // signed: -1 for sale, +5 for restock
+  reason    InventoryReason
+  orderId   String?         // if the change was driven by an order
+  note      String?         @db.Text
+  createdAt DateTime        @default(now())
+
+  @@index([productId, createdAt(sort: Desc)])
   @@index([orderId])
 }
 
+// ─────────────────────────  KV STORE  ──────────────────────
+
+// Site-wide settings + admin-managed UI content (hero slides, banners,
+// bank details, COD advance, etc.)
 model Setting {
   id    String @id @default(cuid())
   key   String @unique
-  value String
+  value String @db.Text
 
   @@index([key])
 }

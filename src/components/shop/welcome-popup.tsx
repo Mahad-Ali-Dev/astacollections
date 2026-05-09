@@ -51,12 +51,19 @@ export function WelcomePopup({
     localStorage.setItem(DISMISS_KEY, "1");
   };
 
-  const subscribe = (e: React.FormEvent) => {
+  const subscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !email.includes("@")) {
       toast.error("Please enter a valid email");
       return;
     }
+    // Persist server-side (idempotent) — fire-and-forget; even if it fails,
+    // we still show the code to the customer because their copy is local.
+    fetch("/api/newsletter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim(), source: "POPUP" }),
+    }).catch(() => {});
     localStorage.setItem(SUBSCRIBED_KEY, email);
     setStep("code");
   };

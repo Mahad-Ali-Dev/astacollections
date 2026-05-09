@@ -50,9 +50,36 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     include: { items: true },
   });
 
+  // Log status transitions as OrderEvents (audit trail)
+  const events: { status: string; note: string }[] = [];
+  if (data.status && data.status !== before.status) {
+    events.push({
+      status: data.status,
+      note: `Status: ${before.status} → ${data.status}`,
+    });
+  }
+  if (data.trackingNumber && !before.trackingNumber) {
+    events.push({
+      status: data.status ?? "SHIPPED",
+      note: `Tracking added: ${data.trackingNumber}${data.courierName ? ` via ${data.courierName}` : ""}`,
+    });
+  }
+  for (const ev of events) {
+    await prisma.orderEvent.create({
+      data: {
+        orderId: id,
+        status: ev.status as any,
+        note: ev.note,
+        actorType: "ADMIN",
+        adminId: admin.id,
+      },
+    });
+  }
+
   // Send tracking email if just shipped (don't block the API on it)
   if (justShipped) {
     sendShippingUpdate({
+      orderId: updated.id,
       orderNumber: updated.orderNumber,
       customerName: updated.customerName,
       customerEmail: updated.customerEmail,
@@ -79,6 +106,15 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
         where: { id: item.productId },
         data: { stock: { increment: item.quantity } },
       });
+      await tx.inventoryLog.create({
+        data: {
+          productId: item.productId,
+          change: item.quantity,
+          reason: "ORDER_CANCELLED",
+          orderId: order.id,
+          note: `Stock restored on order ${order.orderNumber} deletion`,
+        },
+      });
     }
     if (order.couponId) {
       await tx.coupon.update({
@@ -86,6 +122,11 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
         data: { usageCount: { decrement: 1 } },
       });
     }
+    // CouponRedemption + OrderItem + OrderEvent + InventoryLog all cascade-delete
+    // when the order is deleted (see schema). The InventoryLogs we just created
+    // will also cascade — they're a record only of THIS deletion, kept on the
+    // product side. To keep them, decouple orderId. For now, the product-level
+    // restock is fully reflected by the increment above + admin's audit.
     await tx.order.delete({ where: { id } });
   });
 

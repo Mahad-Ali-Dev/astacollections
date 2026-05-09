@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkoutSchema } from "@/lib/validators";
 import { calculateDiscount, generateOrderNumber } from "@/lib/utils";
 import { getSettings, settingsToNumbers } from "@/lib/settings";
-import { getAdminFromRequest } from "@/lib/auth";
+import { getAdminFromRequest, getCustomerFromRequest } from "@/lib/auth";
 import { sendOrderConfirmation } from "@/lib/email";
 import { NextRequest } from "next/server";
 
@@ -100,13 +100,17 @@ export async function POST(req: Request) {
 
     const orderNumber = generateOrderNumber();
 
-    // Transaction: create order + decrement stock + bump coupon usage
+    // Capture logged-in customer if any (links order back to customer)
+    const loggedInCustomer = await getCustomerFromRequest(req as any);
+
+    // Transaction: create order + decrement stock + bump coupon usage +
+    // record OrderEvent, InventoryLog, CouponRedemption
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
           orderNumber,
           customerName: data.customerName,
-          customerEmail: data.customerEmail,
+          customerEmail: data.customerEmail.toLowerCase(),
           customerPhone: data.customerPhone,
           shippingAddress: data.shippingAddress,
           shippingCity: data.shippingCity,
@@ -123,21 +127,51 @@ export async function POST(req: Request) {
           status: "PENDING",
           couponId: coupon?.id ?? null,
           couponCode,
+          customerId: loggedInCustomer?.id ?? null,
           items: { create: orderItems },
         },
       });
 
+      // Initial OrderEvent
+      await tx.orderEvent.create({
+        data: {
+          orderId: created.id,
+          status: "PENDING",
+          actorType: "CUSTOMER",
+          note: `Order placed via ${data.paymentMethod === "COD" ? "Cash on Delivery" : "Bank Transfer"}`,
+        },
+      });
+
+      // Decrement stock + log inventory movement per line item
       for (const item of data.items) {
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
         });
+        await tx.inventoryLog.create({
+          data: {
+            productId: item.productId,
+            change: -item.quantity,
+            reason: "ORDER_PLACED",
+            orderId: created.id,
+          },
+        });
       }
 
+      // Coupon usage + per-customer redemption ledger
       if (coupon) {
         await tx.coupon.update({
           where: { id: coupon.id },
           data: { usageCount: { increment: 1 } },
+        });
+        await tx.couponRedemption.create({
+          data: {
+            couponId: coupon.id,
+            orderId: created.id,
+            customerId: loggedInCustomer?.id ?? null,
+            customerEmail: data.customerEmail.toLowerCase(),
+            amountSaved: discountAmount,
+          },
         });
       }
 
@@ -146,6 +180,7 @@ export async function POST(req: Request) {
 
     // Fire-and-forget order confirmation email (don't block on this)
     sendOrderConfirmation({
+      orderId: order.id,
       orderNumber: order.orderNumber,
       customerName: order.customerName,
       customerEmail: order.customerEmail,

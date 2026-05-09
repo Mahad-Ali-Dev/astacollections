@@ -1,10 +1,29 @@
 import { Resend } from "resend";
 import { formatPrice, formatDateTime } from "./utils";
+import { prisma } from "./prisma";
 
 const FROM = process.env.RESEND_FROM ?? "Asta Collections <orders@astacollections.com>";
 const KEY = process.env.RESEND_API_KEY;
 
 const resend = KEY ? new Resend(KEY) : null;
+
+/** Record an email send attempt to the EmailLog table. */
+async function logEmail(args: {
+  to: string;
+  subject: string;
+  kind: "ORDER_CONFIRMATION" | "SHIPPING_UPDATE" | "PASSWORD_RESET" | "NEWSLETTER" | "REVIEW_REMINDER" | "OTHER";
+  status: "QUEUED" | "SENT" | "FAILED" | "BOUNCED";
+  resendId?: string | null;
+  errorMessage?: string | null;
+  orderId?: string | null;
+  customerId?: string | null;
+}) {
+  try {
+    await prisma.emailLog.create({ data: args as any });
+  } catch (e) {
+    console.error("[email] failed to log email:", e);
+  }
+}
 
 type OrderEmailData = {
   orderNumber: string;
@@ -34,26 +53,46 @@ type ShippingEmailData = {
   courierName?: string | null;
 };
 
-export async function sendShippingUpdate(data: ShippingEmailData): Promise<{ ok: boolean; reason?: string }> {
+export async function sendShippingUpdate(
+  data: ShippingEmailData & { orderId?: string }
+): Promise<{ ok: boolean; reason?: string }> {
+  const subject = `Your order ${data.orderNumber} has shipped!`;
   if (!resend) {
     console.log("[email] Skipping shipping update — no RESEND_API_KEY configured");
+    await logEmail({
+      to: data.customerEmail, subject, kind: "SHIPPING_UPDATE",
+      status: "FAILED", errorMessage: "Resend not configured", orderId: data.orderId ?? null,
+    });
     return { ok: false, reason: "Resend not configured" };
   }
   try {
     const { data: result, error } = await resend.emails.send({
       from: FROM,
       to: data.customerEmail,
-      subject: `Your order ${data.orderNumber} has shipped!`,
+      subject,
       html: shippingUpdateHtml(data),
     });
     if (error) {
       console.error("[email] Resend shipping error:", error);
-      return { ok: false, reason: typeof error === "string" ? error : (error as any).message };
+      const msg = typeof error === "string" ? error : (error as any).message;
+      await logEmail({
+        to: data.customerEmail, subject, kind: "SHIPPING_UPDATE",
+        status: "FAILED", errorMessage: msg, orderId: data.orderId ?? null,
+      });
+      return { ok: false, reason: msg };
     }
     console.log("[email] sent shipping update:", result?.id);
+    await logEmail({
+      to: data.customerEmail, subject, kind: "SHIPPING_UPDATE",
+      status: "SENT", resendId: result?.id, orderId: data.orderId ?? null,
+    });
     return { ok: true };
   } catch (e: any) {
     console.error("[email] sendShippingUpdate failed:", e);
+    await logEmail({
+      to: data.customerEmail, subject, kind: "SHIPPING_UPDATE",
+      status: "FAILED", errorMessage: e?.message ?? "send failed", orderId: data.orderId ?? null,
+    });
     return { ok: false, reason: e?.message ?? "send failed" };
   }
 }
@@ -151,9 +190,16 @@ function shippingUpdateHtml(d: ShippingEmailData) {
   `;
 }
 
-export async function sendOrderConfirmation(order: OrderEmailData): Promise<{ ok: boolean; reason?: string }> {
+export async function sendOrderConfirmation(
+  order: OrderEmailData & { orderId?: string }
+): Promise<{ ok: boolean; reason?: string }> {
+  const subject = `Order ${order.orderNumber} — confirmed at Asta Collections`;
   if (!resend) {
     console.log("[email] Skipping order confirmation — no RESEND_API_KEY configured");
+    await logEmail({
+      to: order.customerEmail, subject, kind: "ORDER_CONFIRMATION",
+      status: "FAILED", errorMessage: "Resend not configured", orderId: order.orderId ?? null,
+    });
     return { ok: false, reason: "Resend not configured" };
   }
 
@@ -161,17 +207,30 @@ export async function sendOrderConfirmation(order: OrderEmailData): Promise<{ ok
     const { data, error } = await resend.emails.send({
       from: FROM,
       to: order.customerEmail,
-      subject: `Order ${order.orderNumber} — confirmed at Asta Collections`,
+      subject,
       html: orderConfirmationHtml(order),
     });
     if (error) {
       console.error("[email] Resend error:", error);
-      return { ok: false, reason: typeof error === "string" ? error : (error as any).message };
+      const msg = typeof error === "string" ? error : (error as any).message;
+      await logEmail({
+        to: order.customerEmail, subject, kind: "ORDER_CONFIRMATION",
+        status: "FAILED", errorMessage: msg, orderId: order.orderId ?? null,
+      });
+      return { ok: false, reason: msg };
     }
     console.log("[email] sent confirmation:", data?.id);
+    await logEmail({
+      to: order.customerEmail, subject, kind: "ORDER_CONFIRMATION",
+      status: "SENT", resendId: data?.id, orderId: order.orderId ?? null,
+    });
     return { ok: true };
   } catch (e: any) {
     console.error("[email] sendOrderConfirmation failed:", e);
+    await logEmail({
+      to: order.customerEmail, subject, kind: "ORDER_CONFIRMATION",
+      status: "FAILED", errorMessage: e?.message ?? "send failed", orderId: order.orderId ?? null,
+    });
     return { ok: false, reason: e?.message ?? "send failed" };
   }
 }
