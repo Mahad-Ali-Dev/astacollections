@@ -260,16 +260,16 @@ export function ProductDetail({
 
           {/* PRICE */}
           <div className="space-y-2 pb-6 border-b border-border/70">
-            <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-3xl md:text-4xl font-semibold tabular-nums">
+            <div className="flex items-baseline gap-x-3 gap-y-2 flex-wrap">
+              <span className="text-2xl sm:text-3xl md:text-4xl font-semibold tabular-nums">
                 {formatPrice(product.price)}
               </span>
               {product.comparePrice && product.comparePrice > product.price && (
                 <>
-                  <span className="text-lg text-muted-foreground line-through tabular-nums">
+                  <span className="text-base sm:text-lg text-muted-foreground line-through tabular-nums">
                     {formatPrice(product.comparePrice)}
                   </span>
-                  <Badge variant="success" className="rounded-full px-3 py-1">
+                  <Badge variant="success" className="rounded-full px-3 py-1 whitespace-nowrap">
                     Save {formatPrice(product.comparePrice - product.price)}
                   </Badge>
                 </>
@@ -303,7 +303,7 @@ export function ProductDetail({
 
           {/* QUANTITY + ADD */}
           {!outOfStock && (
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-row flex-wrap items-center gap-3">
               <div className="flex items-center border border-border rounded-full h-14 bg-card shrink-0">
                 <button
                   onClick={() => setQty(Math.max(1, qty - 1))}
@@ -323,9 +323,10 @@ export function ProductDetail({
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
+              {/* Inline ADD TO BAG — hidden on mobile (sticky bottom bar handles it) */}
               <button
                 onClick={handleAdd}
-                className="group flex-1 h-14 bg-foreground text-background rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-all gold-button-glow flex items-center justify-center gap-2"
+                className="group hidden sm:flex flex-1 h-14 bg-foreground text-background rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-all gold-button-glow items-center justify-center gap-2 min-w-[200px]"
               >
                 <ShoppingBag className="h-4 w-4" />
                 Add to Bag · {formatPrice(product.price * qty)}
@@ -333,7 +334,7 @@ export function ProductDetail({
               <button
                 onClick={() => setWishlisted(!wishlisted)}
                 aria-label="Wishlist"
-                className="border border-border rounded-full w-14 h-14 flex items-center justify-center hover:border-accent transition shrink-0"
+                className="border border-border rounded-full w-14 h-14 flex items-center justify-center hover:border-accent transition shrink-0 ml-auto sm:ml-0"
               >
                 <Heart
                   className={`h-5 w-5 transition-colors ${
