@@ -30,7 +30,7 @@ async function main() {
   const hashed = await bcrypt.hash(adminPassword, 10);
   await prisma.admin.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: { password: hashed }, // keep password in sync with .env on re-seed
     create: { email: adminEmail, password: hashed, name: "Store Admin" },
   });
   console.log(`Admin: ${adminEmail} / ${adminPassword}`);
@@ -312,10 +312,14 @@ async function main() {
 
   for (const b of bundles) {
     const { items: bItems, ...bdata } = b;
+    const bundleData = {
+      ...bdata,
+      discountType: bdata.discountType as DiscountType,
+    };
     const bundle = await prisma.bundle.upsert({
       where: { slug: b.slug },
-      update: { ...bdata },
-      create: bdata,
+      update: bundleData,
+      create: bundleData,
     });
     await prisma.bundleItem.deleteMany({ where: { bundleId: bundle.id } });
     for (let i = 0; i < bItems.length; i++) {
@@ -365,10 +369,14 @@ async function main() {
   ];
 
   for (const c of coupons) {
+    const couponData = {
+      ...c,
+      discountType: c.discountType as DiscountType,
+    };
     await prisma.coupon.upsert({
       where: { code: c.code },
       update: {},
-      create: c,
+      create: couponData,
     });
   }
 
