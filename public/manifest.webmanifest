@@ -1,0 +1,16 @@
+{
+  "name": "Asta Collections",
+  "short_name": "Asta",
+  "description": "Timeless jewellery — rings, necklaces, earrings, bridal sets and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#c08775",
+  "scope": "/",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/apple-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["shopping", "lifestyle"]
+}

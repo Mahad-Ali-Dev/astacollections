@@ -1,0 +1,203 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { checkoutSchema } from "@/lib/validators";
+import { calculateDiscount, generateOrderNumber } from "@/lib/utils";
+import { getSettings, settingsToNumbers } from "@/lib/settings";
+import { getAdminFromRequest } from "@/lib/auth";
+import { sendOrderConfirmation } from "@/lib/email";
+import { NextRequest } from "next/server";
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const parsed = checkoutSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors[0]?.message ?? "Invalid input" },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
+
+    // Validate bank transfer needs proof
+    if (data.paymentMethod === "BANK_TRANSFER" && !data.paymentProof) {
+      return NextResponse.json({ error: "Payment screenshot is required" }, { status: 400 });
+    }
+    if (data.paymentMethod === "COD" && !data.paymentProof) {
+      return NextResponse.json(
+        { error: "Advance payment screenshot is required for COD" },
+        { status: 400 }
+      );
+    }
+
+    // Fetch settings
+    const settings = await getSettings();
+    const { codAdvance, shippingFee, freeShippingThreshold } = settingsToNumbers(settings);
+
+    // Fetch products to get authoritative prices and stock
+    const productIds = data.items.map((i) => i.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds }, isActive: true },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    });
+
+    if (products.length !== data.items.length) {
+      return NextResponse.json(
+        { error: "Some items are no longer available" },
+        { status: 400 }
+      );
+    }
+
+    // Build order items + check stock
+    let subtotal = 0;
+    const orderItems = data.items.map((item) => {
+      const product = products.find((p) => p.id === item.productId)!;
+      if (product.stock < item.quantity) {
+        throw new Error(`${product.name} has only ${product.stock} in stock`);
+      }
+      subtotal += product.price * item.quantity;
+      return {
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        image: product.images[0]?.url ?? null,
+        price: product.price,
+        quantity: item.quantity,
+      };
+    });
+
+    // Apply coupon
+    let coupon = null;
+    let discountAmount = 0;
+    let couponCode: string | null = null;
+    if (data.couponCode) {
+      coupon = await prisma.coupon.findUnique({
+        where: { code: data.couponCode.toUpperCase() },
+      });
+      if (coupon && coupon.isActive) {
+        const now = new Date();
+        const valid =
+          (!coupon.startsAt || now >= coupon.startsAt) &&
+          (!coupon.expiresAt || now <= coupon.expiresAt) &&
+          (!coupon.usageLimit || coupon.usageCount < coupon.usageLimit) &&
+          (!coupon.minOrder || subtotal >= coupon.minOrder);
+        if (valid) {
+          discountAmount = calculateDiscount(subtotal, coupon);
+          couponCode = coupon.code;
+        } else {
+          coupon = null;
+        }
+      } else {
+        coupon = null;
+      }
+    }
+
+    const afterDiscount = subtotal - discountAmount;
+    const finalShipping = afterDiscount >= freeShippingThreshold ? 0 : shippingFee;
+    const total = afterDiscount + finalShipping;
+    const advancePaid = data.paymentMethod === "COD" ? codAdvance : total;
+
+    const orderNumber = generateOrderNumber();
+
+    // Transaction: create order + decrement stock + bump coupon usage
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          orderNumber,
+          customerName: data.customerName,
+          customerEmail: data.customerEmail,
+          customerPhone: data.customerPhone,
+          shippingAddress: data.shippingAddress,
+          shippingCity: data.shippingCity,
+          shippingArea: data.shippingArea,
+          notes: data.notes,
+          subtotal,
+          discountAmount,
+          shippingFee: finalShipping,
+          total,
+          paymentMethod: data.paymentMethod,
+          paymentStatus: "PENDING",
+          paymentProof: data.paymentProof,
+          advancePaid,
+          status: "PENDING",
+          couponId: coupon?.id ?? null,
+          couponCode,
+          items: { create: orderItems },
+        },
+      });
+
+      for (const item of data.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+
+      if (coupon) {
+        await tx.coupon.update({
+          where: { id: coupon.id },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
+
+      return created;
+    });
+
+    // Fire-and-forget order confirmation email (don't block on this)
+    sendOrderConfirmation({
+      orderNumber: order.orderNumber,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      customerPhone: order.customerPhone,
+      shippingAddress: order.shippingAddress,
+      shippingCity: order.shippingCity,
+      shippingArea: order.shippingArea,
+      paymentMethod: order.paymentMethod,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      shippingFee: order.shippingFee,
+      total: order.total,
+      advancePaid: order.advancePaid,
+      couponCode: order.couponCode,
+      createdAt: order.createdAt,
+      items: orderItems.map((i) => ({
+        name: i.name,
+        sku: i.sku,
+        price: i.price,
+        quantity: i.quantity,
+        image: i.image,
+      })),
+    }).catch((err) => console.error("[orders] email send failed:", err));
+
+    return NextResponse.json({
+      success: true,
+      orderNumber: order.orderNumber,
+      orderId: order.id,
+    });
+  } catch (e: any) {
+    console.error("order error", e);
+    return NextResponse.json(
+      { error: e.message ?? "Failed to place order" },
+      { status: 500 }
+    );
+  }
+}
+
+// Admin GET: list orders
+export async function GET(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const url = new URL(req.url);
+  const status = url.searchParams.get("status");
+  const where = status ? { status } : {};
+
+  const orders = await prisma.order.findMany({
+    where,
+    include: { items: true },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  return NextResponse.json({ orders });
+}

@@ -1,0 +1,22 @@
+node_modules
+.next
+out
+build
+dist
+*.log
+.env
+.env.local
+.env.production
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# Uploads (kept folder, ignore contents)
+public/uploads/*
+!public/uploads/.gitkeep
+
+.DS_Store
+Thumbs.db
+.vscode
+.idea

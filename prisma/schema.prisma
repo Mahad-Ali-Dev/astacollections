@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerName  String
+  customerEmail String
+  rating      Int      // 1..5
+  title       String?
+  body        String
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@index([status])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model Product {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  description   String
+  shortDesc     String?
+  sku           String         @unique
+  price         Float
+  comparePrice  Float?
+  costPrice     Float?
+  stock         Int            @default(0)
+  weight        Float?
+  material      String?
+  tags          String         @default("") // comma-separated tags
+  isFeatured    Boolean        @default(false)
+  isActive      Boolean        @default(true)
+  metaTitle     String?
+  metaDesc      String?
+  categoryId    String
+  category      Category       @relation(fields: [categoryId], references: [id])
+  images        ProductImage[]
+  orderItems    OrderItem[]
+  bundleItems   BundleItem[]
+  reviews       Review[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([isFeatured])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String?
+  sortOrder Int     @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model Bundle {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  // Discount applied to the sum of bundled product prices
+  discountType  String     @default("PERCENTAGE") // PERCENTAGE | FIXED
+  discountValue Float      @default(0)
+  isActive    Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  items       BundleItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model BundleItem {
+  id        String  @id @default(cuid())
+  bundleId  String
+  bundle    Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
+  sortOrder Int     @default(0)
+
+  @@unique([bundleId, productId])
+  @@index([bundleId])
+  @@index([productId])
+}
+
+model Coupon {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  description   String?
+  discountType  String     // PERCENTAGE | FIXED
+  discountValue Float
+  minOrder      Float?
+  maxDiscount   Float?
+  usageLimit    Int?
+  usageCount    Int        @default(0)
+  startsAt      DateTime?
+  expiresAt     DateTime?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  orders        Order[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  shippingAddress String
+  shippingCity    String
+  shippingArea    String?
+  notes           String?
+
+  subtotal        Float
+  discountAmount  Float       @default(0)
+  shippingFee     Float       @default(0)
+  total           Float
+
+  paymentMethod   String      // COD | BANK_TRANSFER
+  paymentStatus   String      @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  paymentProof    String?     // Bank transfer screenshot URL
+  advancePaid     Float       @default(0) // 250 advance for COD or full for bank transfer
+
+  status          String      @default("PENDING") // PENDING | CONFIRMED | PROCESSING | SHIPPED | DELIVERED | CANCELLED
+
+  // Tracking
+  trackingNumber  String?
+  trackingUrl     String?
+  courierName     String?
+  shippedAt       DateTime?
+
+  couponId        String?
+  coupon          Coupon?     @relation(fields: [couponId], references: [id])
+  couponCode      String?
+
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([orderNumber])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([customerEmail])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  sku       String
+  image     String?
+  price     Float
+  quantity  Int
+
+  @@index([orderId])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  @@index([key])
+}
