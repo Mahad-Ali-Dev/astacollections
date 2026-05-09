@@ -18,7 +18,7 @@ export default async function AdminReviewsPage({
   const status = sp.status && sp.status !== "ALL" ? sp.status : undefined;
 
   const reviews = await prisma.review.findMany({
-    where: status ? { status } : {},
+    where: status ? { status: status as any } : {},
     orderBy: { createdAt: "desc" },
     include: { product: { select: { name: true, slug: true } } },
     take: 200,

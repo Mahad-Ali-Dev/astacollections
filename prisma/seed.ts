@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, DiscountType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -274,7 +274,7 @@ async function main() {
       name: "Bridal Essentials Bundle",
       slug: "bridal-essentials",
       description: "Everything you need for your big day — kundan set, vintage ring, and matching earrings — all bundled at a special price.",
-      discountType: "PERCENTAGE",
+      discountType: DiscountType.PERCENTAGE,
       discountValue: 15,
       sortOrder: 1,
       items: [
@@ -287,7 +287,7 @@ async function main() {
       name: "Everyday Elegance Set",
       slug: "everyday-elegance",
       description: "The perfect daily layering trio — pearl ring, minimalist bangle, and crystal studs for effortless polish.",
-      discountType: "PERCENTAGE",
+      discountType: DiscountType.PERCENTAGE,
       discountValue: 12,
       sortOrder: 2,
       items: [
@@ -300,7 +300,7 @@ async function main() {
       name: "Statement Pair",
       slug: "statement-pair",
       description: "Bold layered necklace + tennis bracelet — the duo that turns any outfit into a moment.",
-      discountType: "FIXED",
+      discountType: DiscountType.FIXED,
       discountValue: 800,
       sortOrder: 3,
       items: [
@@ -338,7 +338,7 @@ async function main() {
     {
       code: "WELCOME10",
       description: "10% off for new customers",
-      discountType: "PERCENTAGE",
+      discountType: DiscountType.PERCENTAGE,
       discountValue: 10,
       minOrder: 1000,
       maxDiscount: 2000,
@@ -348,7 +348,7 @@ async function main() {
     {
       code: "FLAT500",
       description: "Flat Rs. 500 off on orders above Rs. 3000",
-      discountType: "FIXED",
+      discountType: DiscountType.FIXED,
       discountValue: 500,
       minOrder: 3000,
       isActive: true,
@@ -356,7 +356,7 @@ async function main() {
     {
       code: "BRIDAL20",
       description: "20% off on bridal collection",
-      discountType: "PERCENTAGE",
+      discountType: DiscountType.PERCENTAGE,
       discountValue: 20,
       minOrder: 5000,
       maxDiscount: 5000,

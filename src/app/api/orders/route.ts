@@ -226,7 +226,7 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
-  const where = status ? { status } : {};
+  const where = status ? { status: status as any } : {};
 
   const orders = await prisma.order.findMany({
     where,

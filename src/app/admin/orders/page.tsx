@@ -16,7 +16,7 @@ export default async function AdminOrdersPage({
   const status = sp.status && sp.status !== "ALL" ? sp.status : undefined;
 
   const orders = await prisma.order.findMany({
-    where: status ? { status } : {},
+    where: status ? { status: status as any } : {},
     orderBy: { createdAt: "desc" },
     take: 200,
   });
