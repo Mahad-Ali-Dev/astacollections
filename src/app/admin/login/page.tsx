@@ -82,9 +82,6 @@ export default function AdminLoginPage() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
             </Button>
           </form>
-          <div className="mt-6 text-xs text-center text-muted-foreground">
-            Default: admin@astacollections.com / admin123
-          </div>
         </div>
       </div>
     </div>
