@@ -82,7 +82,8 @@ export default async function CategoryPage({
     }),
   ]);
 
-  const headerImage = CATEGORY_HEADER_IMAGES[category.slug];
+  // Prefer admin-set category.image, fall back to hardcoded default per slug
+  const headerImage = category.image || CATEGORY_HEADER_IMAGES[category.slug];
 
   return (
     <>

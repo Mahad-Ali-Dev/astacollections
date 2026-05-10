@@ -18,7 +18,15 @@ const NAV_LINKS = [
   { href: "/category/bridal-sets", label: "Bridal" },
 ];
 
-export function Header() {
+type HeaderProps = {
+  announcementText?: string;
+  announcementCode?: string;
+};
+
+export function Header({
+  announcementText = "Free shipping above Rs. 5,000 · COD across Pakistan",
+  announcementCode = "WELCOME10",
+}: HeaderProps = {}) {
   const count = useCart((s) => s.count());
   const open = useCart((s) => s.open);
   const [mobile, setMobile] = useState(false);
@@ -45,11 +53,16 @@ export function Header() {
 
   return (
     <>
-      {/* Announcement bar */}
+      {/* Announcement bar — admin-editable from /admin/content */}
       <div className="bg-foreground text-background text-[10px] uppercase tracking-[0.3em] py-2.5 px-4 text-center font-medium">
-        <span className="hidden md:inline">Free shipping above Rs. 5,000 · </span>
-        COD across Pakistan · Use{" "}
-        <span className="text-rose-300 font-bold">WELCOME10</span> for 10% off
+        {announcementText}
+        {announcementCode && (
+          <>
+            {" · Use "}
+            <span className="text-rose-300 font-bold">{announcementCode}</span>
+            {" for 10% off"}
+          </>
+        )}
       </div>
 
       <header
@@ -83,10 +96,14 @@ export function Header() {
             {mobile ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
-          {/* LOGO LEFT — mark + ASTACOLLECTIONS wordmark next to it */}
-          <div className="flex-1 lg:flex-initial flex justify-center lg:justify-start">
-            <Logo size="md" className="md:hidden" />
-            <Logo size="lg" className="hidden md:inline-flex" />
+          {/* LOGO LEFT — mark only on small phones, mark + wordmark from sm up */}
+          <div className="flex-1 lg:flex-initial flex justify-center lg:justify-start min-w-0">
+            {/* Phones < 640px: just the mark (saves space, prevents overlap with cart) */}
+            <Logo variant="mark" size="md" className="sm:hidden" />
+            {/* sm – md: mark + wordmark, smaller */}
+            <Logo variant="inline" size="md" className="hidden sm:inline-flex md:hidden" />
+            {/* md+: full big version */}
+            <Logo variant="inline" size="lg" className="hidden md:inline-flex" />
           </div>
 
           {/* Desktop nav — center */}

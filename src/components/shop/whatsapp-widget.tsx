@@ -33,7 +33,7 @@ export function WhatsAppWidget() {
     <>
       {/* Tooltip bubble */}
       {showTooltip && !open && (
-        <div className="fixed bottom-24 right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
+        <div className="fixed bottom-40 md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
           <button
             onClick={() => setShowTooltip(false)}
             aria-label="Dismiss"
@@ -51,7 +51,7 @@ export function WhatsAppWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-40 bg-white border border-border rounded-3xl shadow-2xl w-[340px] max-w-[calc(100vw-3rem)] overflow-hidden animate-in slide-in-from-bottom-3 fade-in duration-300">
+        <div className="fixed bottom-40 md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-3xl shadow-2xl w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden animate-in slide-in-from-bottom-3 fade-in duration-300">
           {/* Header */}
           <div className="bg-green-600 text-white p-5 relative">
             <button
@@ -111,11 +111,11 @@ export function WhatsAppWidget() {
         </div>
       )}
 
-      {/* Floating button */}
+      {/* Floating button — bottom-24 on mobile to clear sticky add-to-bag bar (~70px tall) */}
       <button
         onClick={() => setOpen(!open)}
         aria-label="Open WhatsApp support"
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-12 h-12 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
       >
         {!open && (
           <span className="absolute inset-0 rounded-full bg-green-500 opacity-60 animate-ping" />

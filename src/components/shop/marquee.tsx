@@ -4,7 +4,7 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 
-const PHRASES = [
+const FALLBACK_PHRASES = [
   "Free shipping above Rs. 5,000",
   "Cash on Delivery",
   "Bank transfer accepted",
@@ -14,7 +14,8 @@ const PHRASES = [
   "Hand-inspected before shipping",
 ];
 
-export function Marquee() {
+export function Marquee({ phrases }: { phrases?: string[] } = {}) {
+  const list = phrases && phrases.length > 0 ? phrases : FALLBACK_PHRASES;
   const ref = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -35,7 +36,7 @@ export function Marquee() {
   return (
     <div ref={ref} className="bg-foreground text-background py-4 overflow-hidden">
       <div className="marquee-track flex whitespace-nowrap items-center">
-        {[...PHRASES, ...PHRASES].map((p, i) => (
+        {[...list, ...list].map((p, i) => (
           <div
             key={i}
             className="flex items-center gap-6 px-6 text-[10px] uppercase tracking-[0.32em] font-medium text-background/80"

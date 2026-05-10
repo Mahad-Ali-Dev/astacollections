@@ -228,7 +228,7 @@ export function BundleSection({
           disabled={adding || selectedCount < 2}
           variant="gold"
           size="lg"
-          className="w-full"
+          className="w-full px-4 sm:px-6 text-[11px] sm:text-sm whitespace-normal sm:whitespace-nowrap"
         >
           {adding ? (
             <>
@@ -239,8 +239,10 @@ export function BundleSection({
             "Select at least 2 items"
           ) : (
             <>
-              <ShoppingBag className="h-4 w-4" />
-              Add bundle to bag · save {formatPrice(pricing.discount)}
+              <ShoppingBag className="h-4 w-4 shrink-0" />
+              {/* Short label on mobile, full on sm+ */}
+              <span className="sm:hidden">Add Bundle · Save {formatPrice(pricing.discount)}</span>
+              <span className="hidden sm:inline">Add bundle to bag · save {formatPrice(pricing.discount)}</span>
             </>
           )}
         </Button>

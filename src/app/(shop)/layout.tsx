@@ -10,7 +10,10 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   const settings = await getSettings();
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header
+        announcementText={settings.announcementText}
+        announcementCode={settings.announcementCode}
+      />
       <main className="flex-1">{children}</main>
       <Footer />
       <WelcomePopup

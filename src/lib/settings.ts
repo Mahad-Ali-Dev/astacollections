@@ -55,6 +55,11 @@ export type StoreSettings = {
   // About page hero
   aboutHeroImage: string;
   aboutStoryImage: string;
+
+  // Site-wide ribbons
+  announcementText: string;
+  announcementCode: string;       // optional highlighted code (e.g. "WELCOME10")
+  marqueePhrases: string;         // pipe-separated phrases (e.g. "Free shipping above Rs. 5,000|COD across Pakistan")
 };
 
 const DEFAULTS: StoreSettings = {
@@ -108,6 +113,11 @@ const DEFAULTS: StoreSettings = {
 
   aboutHeroImage: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1400&auto=format&fit=crop&q=85",
   aboutStoryImage: "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=1400&auto=format&fit=crop&q=85",
+
+  announcementText: "Free shipping above Rs. 5,000 · COD across Pakistan",
+  announcementCode: "WELCOME10",
+  marqueePhrases:
+    "Free shipping above Rs. 5,000|Cash on Delivery|Bank transfer accepted|Handcrafted in Pakistan|7-day easy returns|Hypoallergenic materials|Hand-inspected before shipping",
 };
 
 export async function getSettings(): Promise<StoreSettings> {

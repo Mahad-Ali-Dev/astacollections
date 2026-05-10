@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Image as ImageIcon, Megaphone, Sparkles, BookOpen } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Megaphone, Sparkles, BookOpen, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 const TABS = [
   { key: "hero", label: "Hero Carousel", icon: ImageIcon },
   { key: "banners", label: "Banners", icon: Megaphone },
+  { key: "ribbons", label: "Top Bar & Marquee", icon: Bell },
   { key: "popup", label: "Welcome Popup", icon: Sparkles },
   { key: "about", label: "About Page", icon: BookOpen },
 ] as const;
@@ -210,6 +211,69 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
               />
             </section>
           </div>
+        </div>
+      )}
+
+      {/* TOP BAR & MARQUEE */}
+      {tab === "ribbons" && (
+        <div className="space-y-6 max-w-3xl">
+          <p className="text-sm text-muted-foreground">
+            The thin black bar at the top of every page (announcement) and the rolling
+            phrases strip below the homepage hero (marquee).
+          </p>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Announcement Bar</h2>
+            <div>
+              <Label>Announcement text</Label>
+              <Input
+                value={s.announcementText}
+                onChange={(e) => set("announcementText", e.target.value)}
+                placeholder="Free shipping above Rs. 5,000 · COD across Pakistan"
+              />
+            </div>
+            <div>
+              <Label>Highlighted code (optional)</Label>
+              <Input
+                value={s.announcementCode}
+                onChange={(e) => set("announcementCode", e.target.value)}
+                placeholder="WELCOME10"
+                className="font-mono uppercase"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Appended as &quot;Use {`{CODE}`} for 10% off&quot;. Leave empty to hide.
+              </p>
+            </div>
+            <div className="bg-foreground text-background text-[10px] uppercase tracking-[0.3em] py-2.5 px-4 text-center font-medium rounded">
+              <span className="opacity-60 mr-2">PREVIEW:</span>
+              {s.announcementText}
+              {s.announcementCode && (
+                <>
+                  {" · Use "}
+                  <span className="text-rose-300 font-bold">{s.announcementCode}</span>
+                  {" for 10% off"}
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Homepage Marquee</h2>
+            <div>
+              <Label>Phrases (one per line)</Label>
+              <Textarea
+                value={s.marqueePhrases.split("|").join("\n")}
+                onChange={(e) =>
+                  set("marqueePhrases", e.target.value.split("\n").map((l) => l.trim()).filter(Boolean).join("|"))
+                }
+                rows={8}
+                placeholder={"Free shipping above Rs. 5,000\nCash on Delivery\nHandcrafted in Pakistan"}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Phrases scroll continuously across the strip below the homepage hero.
+              </p>
+            </div>
+          </section>
         </div>
       )}
 

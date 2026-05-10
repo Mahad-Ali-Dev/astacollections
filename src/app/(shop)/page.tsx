@@ -96,7 +96,7 @@ export default async function HomePage() {
   return (
     <>
       <Hero slides={heroSlides} />
-      <Marquee />
+      <Marquee phrases={settings.marqueePhrases.split("|").map((p) => p.trim()).filter(Boolean)} />
 
       {/* TRUST PILLARS */}
       <Reveal as="section" className="bg-secondary/40">
