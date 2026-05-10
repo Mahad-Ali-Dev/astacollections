@@ -323,10 +323,10 @@ export function TrackOrderClient() {
                 Need help?
               </p>
               <a
-                href="mailto:contact@astacollections.com"
+                href="mailto:astacollection14@gmail.com"
                 className="text-sm text-foreground hover:text-accent inline-flex items-center gap-1.5 transition-colors"
               >
-                contact@astacollections.com <ArrowRight className="h-3 w-3" />
+                astacollection14@gmail.com <ArrowRight className="h-3 w-3" />
               </a>
               <a
                 href="https://wa.me/923264348024"

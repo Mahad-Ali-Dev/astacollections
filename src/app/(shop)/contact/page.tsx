@@ -5,7 +5,7 @@ import { SOCIAL } from "@/components/shop/footer";
 export const metadata = {
   title: "Contact Us — Phone, Email, WhatsApp",
   description:
-    "Get in touch with Asta Collections. WhatsApp +92 326 4348024 · contact@astacollections.com · Karachi, Pakistan. We reply within hours.",
+    "Get in touch with Asta Collections. WhatsApp +92 326 4348024 · astacollection14@gmail.com · Lahore, Pakistan. We reply within hours.",
 };
 
 // TikTok inline icon
@@ -56,14 +56,14 @@ export default async function ContactPage() {
         <ContactCard
           icon={Mail}
           title="Email"
-          value="contact@astacollections.com"
+          value="astacollection14@gmail.com"
           sub="We respond within 24 hours"
-          href="mailto:contact@astacollections.com"
+          href="mailto:astacollection14@gmail.com"
         />
         <ContactCard
           icon={MapPin}
           title="Location"
-          value="Karachi, Pakistan"
+          value="Lahore, Pakistan"
           sub="By appointment only"
         />
       </Reveal>

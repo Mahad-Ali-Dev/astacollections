@@ -7,7 +7,10 @@ import path from "node:path";
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-const USE_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
+const HAS_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
+// Detect Vercel / serverless / read-only filesystem
+const IS_SERVERLESS =
+  !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 export async function POST(req: Request) {
@@ -25,8 +28,17 @@ export async function POST(req: Request) {
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Use Vercel Blob when configured (production / preview)
-    if (USE_BLOB) {
+    // Production / serverless — require Blob storage
+    if (IS_SERVERLESS) {
+      if (!HAS_BLOB) {
+        return NextResponse.json(
+          {
+            error:
+              "Image upload is not configured on the server. Please contact the store admin to set up Vercel Blob storage.",
+          },
+          { status: 503 }
+        );
+      }
       const blob = await put(`uploads/${filename}`, file, {
         access: "public",
         addRandomSuffix: false,
@@ -34,7 +46,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ url: blob.url });
     }
 
-    // Local-FS fallback for development
+    // Development — write to local public/uploads
+    if (HAS_BLOB) {
+      // Even in dev, use Blob if configured (so dev + prod URLs match)
+      const blob = await put(`uploads/${filename}`, file, {
+        access: "public",
+        addRandomSuffix: false,
+      });
+      return NextResponse.json({ url: blob.url });
+    }
+
     if (!existsSync(UPLOAD_DIR)) {
       await mkdir(UPLOAD_DIR, { recursive: true });
     }

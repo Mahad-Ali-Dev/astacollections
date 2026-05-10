@@ -177,7 +177,7 @@ function shippingUpdateHtml(d: ShippingEmailData) {
           <tr>
             <td style="padding:32px 40px;background:#1a1a1a;color:#fbf6f4;text-align:center;">
               <p style="margin:0 0 8px;font-size:13px;line-height:1.6;">Questions? Reach us at</p>
-              <p style="margin:0;font-size:13px;font-weight:500;">contact@astacollections.com · WhatsApp +92 326 4348024</p>
+              <p style="margin:0;font-size:13px;font-weight:500;">astacollection14@gmail.com · WhatsApp +92 326 4348024</p>
               <p style="margin:18px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#c08775;">Crafted with care · Made in Pakistan</p>
             </td>
           </tr>
@@ -386,7 +386,7 @@ function orderConfirmationHtml(o: OrderEmailData) {
           <tr>
             <td style="padding:32px 40px;background:#1a1a1a;color:#fbf6f4;text-align:center;">
               <p style="margin:0 0 8px;font-size:13px;line-height:1.6;">Need help? Reply to this email or reach us at</p>
-              <p style="margin:0;font-size:13px;font-weight:500;">contact@astacollections.com · WhatsApp +92 326 4348024</p>
+              <p style="margin:0;font-size:13px;font-weight:500;">astacollection14@gmail.com · WhatsApp +92 326 4348024</p>
               <p style="margin:18px 0 0;font-size:10px;text-transform:uppercase;letter-spacing:3px;color:#c08775;">Crafted with care · Made in Pakistan</p>
             </td>
           </tr>

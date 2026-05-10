@@ -39,9 +39,9 @@ async function main() {
   const settings: Record<string, string> = {
     storeName: "Asta Collections",
     storeTagline: "Timeless jewellery, crafted with love",
-    storeEmail: "contact@astacollections.com",
+    storeEmail: "astacollection14@gmail.com",
     storePhone: "+92 326 4348024",
-    storeAddress: "Karachi, Pakistan",
+    storeAddress: "Lahore, Pakistan",
     bankName: "Habib Bank Limited",
     bankAccountTitle: "Asta Collections",
     bankAccountNumber: "1234-5678-9012-3456",

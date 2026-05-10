@@ -137,12 +137,12 @@ export function Footer() {
       <div className="border-t border-border/70 bg-white">
         <div className="container py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground">
-            <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> Karachi, Pakistan</span>
+            <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> Lahore, Pakistan</span>
             <a href={`tel:${SOCIAL.phoneRaw}`} className="flex items-center gap-1.5 hover:text-accent transition-colors">
               <Phone className="h-3 w-3" /> {SOCIAL.whatsappNumber}
             </a>
-            <a href="mailto:contact@astacollections.com" className="flex items-center gap-1.5 hover:text-accent transition-colors">
-              <Mail className="h-3 w-3" /> contact@astacollections.com
+            <a href="mailto:astacollection14@gmail.com" className="flex items-center gap-1.5 hover:text-accent transition-colors">
+              <Mail className="h-3 w-3" /> astacollection14@gmail.com
             </a>
           </div>
           <p className="text-muted-foreground flex items-center gap-3">
