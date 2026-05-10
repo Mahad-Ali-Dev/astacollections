@@ -7,7 +7,7 @@ export const SITE = {
   short: "Timeless jewellery, crafted with care.",
   locale: "en_PK",
   language: "en",
-  defaultImage: "/og-image.png",
+  defaultImage: "/opengraph-image",
   logoUrl: "/nav_logo.png",
   twitterHandle: "@astacollections",
   social: {

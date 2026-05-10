@@ -122,7 +122,7 @@ export function ProductDetail({
     <>
       <div className="grid lg:grid-cols-12 gap-8 lg:gap-12">
         {/* GALLERY — left, sticky */}
-        <div className="lg:col-span-7 lg:sticky lg:top-28 lg:self-start space-y-4">
+        <div className="lg:col-span-7 lg:sticky lg:top-28 lg:self-start space-y-4 min-w-0">
           <div className="grid grid-cols-1 md:grid-cols-[88px_1fr] gap-3">
             {/* Vertical thumbnails on desktop */}
             {hasMultiple && (
@@ -231,7 +231,7 @@ export function ProductDetail({
         </div>
 
         {/* INFO — right column */}
-        <div className="lg:col-span-5 space-y-7 pb-32 md:pb-0">
+        <div className="lg:col-span-5 space-y-7 pb-32 md:pb-0 min-w-0">
           <div className="space-y-3">
             <Link
               href={`/category/${product.category.slug}`}

@@ -45,14 +45,8 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     title: `${SITE.name} — Timeless Jewellery, Crafted with Care`,
     description: SITE.description,
-    images: [
-      {
-        url: SITE.defaultImage,
-        width: 1200,
-        height: 630,
-        alt: `${SITE.name} — Jewellery`,
-      },
-    ],
+    // Images come from src/app/opengraph-image.tsx (auto-generated 1200x630).
+    // Pages can override with their own metadata.openGraph.images.
   },
   twitter: {
     card: "summary_large_image",
@@ -60,7 +54,7 @@ export const metadata: Metadata = {
     creator: SITE.twitterHandle,
     title: SITE.name,
     description: SITE.short,
-    images: [SITE.defaultImage],
+    // Same — uses src/app/twitter-image.tsx if defined, else falls back to OG image.
   },
   robots: {
     index: true,
