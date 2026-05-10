@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
+// nodejs runtime — Hobby plan's edge function 1MB limit was exceeded by the
+// ImageResponse bundle. nodejs has no such limit, just slightly slower cold-start.
+export const runtime = "nodejs";
 export const alt = "Asta Collections — Timeless jewellery, crafted with care.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
