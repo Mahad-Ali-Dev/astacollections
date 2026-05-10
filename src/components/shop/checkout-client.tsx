@@ -67,7 +67,6 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   const [proofUrl, setProofUrl] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
 
   const sub = subtotal();
   const codAdvance = Number(settings.codAdvance) || 250;
@@ -224,10 +223,10 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
 
   return (
     <>
-      {/* Mobile summary toggle */}
-      <button
-        onClick={() => setShowSummary(!showSummary)}
-        className="lg:hidden flex items-center justify-between w-full bg-card border rounded-xl p-4 mb-6 text-sm"
+      {/* Mobile-only quick summary header — links to summary section below */}
+      <a
+        href="#order-summary"
+        className="lg:hidden flex items-center justify-between w-full bg-card border rounded-xl p-4 mb-6 text-sm hover:border-accent transition-colors"
       >
         <span className="flex items-center gap-2 font-medium">
           <ShoppingBag className="h-4 w-4" />
@@ -238,11 +237,11 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
         </span>
         <span className="flex items-center gap-2">
           <span className="font-semibold tabular-nums">{formatPrice(total)}</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${showSummary ? "rotate-180" : ""}`} />
+          <ChevronDown className="h-4 w-4" />
         </span>
-      </button>
+      </a>
 
-      <div className={`grid lg:grid-cols-[1fr_420px] gap-8 lg:gap-12 ${showSummary ? "" : "max-lg:[&>aside]:hidden"}`}>
+      <div className="grid lg:grid-cols-[1fr_420px] gap-8 lg:gap-12">
         <div className="space-y-6">
           {/* CONTACT */}
           <CheckoutSection number={1} title="Contact Information" icon={User}>
@@ -413,7 +412,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
         </div>
 
         {/* SUMMARY */}
-        <aside className="lg:sticky lg:top-24 h-fit space-y-4">
+        <aside id="order-summary" className="lg:sticky lg:top-24 h-fit space-y-4 scroll-mt-28">
           <div className="border rounded-xl bg-card overflow-hidden">
             <div className="p-6 space-y-4">
               <h2 className="font-serif text-xl">Order Summary</h2>
