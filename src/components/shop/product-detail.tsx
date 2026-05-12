@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -21,6 +21,7 @@ import {
   Award,
   Sparkles,
   Package,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,8 @@ type Product = {
   weight?: number | null;
   isFeatured: boolean;
   images: { url: string; alt?: string | null }[];
+  videoUrl?: string | null;
+  videoPoster?: string | null;
   category: { name: string; slug: string };
   tagsList: string[];
   attributes?: ProductAttribute[];
@@ -77,7 +80,31 @@ export function ProductDetail({
 
   const discount = getDiscountPercent(product.price, product.comparePrice);
   const outOfStock = product.stock <= 0;
-  const hasMultiple = product.images.length > 1;
+
+  // Unified gallery: optional video first, then images. activeImg indexes here.
+  type MediaItem =
+    | { type: "video"; url: string; poster?: string | null }
+    | { type: "image"; url: string; alt?: string | null };
+  const media: MediaItem[] = [
+    ...(product.videoUrl
+      ? ([
+          {
+            type: "video" as const,
+            url: product.videoUrl,
+            poster: product.videoPoster ?? product.images[0]?.url,
+          },
+        ] as MediaItem[])
+      : []),
+    ...product.images.map((i) => ({
+      type: "image" as const,
+      url: i.url,
+      alt: i.alt,
+    })),
+  ];
+  const hasMultiple = media.length > 1;
+  const currentMedia = media[activeImg] ?? media[0];
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const attrs = product.attributes ?? [];
   const priceMod = computeAttributesPriceModifier(attrs, selectedAttrs);
   const effectivePrice = product.price + priceMod;
@@ -122,10 +149,11 @@ export function ProductDetail({
   };
 
   const goImg = (dir: -1 | 1) => {
-    setActiveImg((i) => (i + dir + product.images.length) % product.images.length);
+    if (media.length === 0) return;
+    // Pause the inline video when navigating away from it
+    if (currentMedia?.type === "video") videoRef.current?.pause();
+    setActiveImg((i) => (i + dir + media.length) % media.length);
   };
-
-  const currentImage = product.images[activeImg];
 
   const deliveryDate = new Date();
   deliveryDate.setDate(deliveryDate.getDate() + 5);
@@ -144,7 +172,7 @@ export function ProductDetail({
             {/* Vertical thumbnails on desktop */}
             {hasMultiple && (
               <div className="hidden md:flex flex-col gap-2 max-h-[640px] overflow-y-auto no-scrollbar">
-                {product.images.map((img, i) => (
+                {media.map((m, i) => (
                   <button
                     key={i}
                     onClick={() => setActiveImg(i)}
@@ -153,61 +181,89 @@ export function ProductDetail({
                         ? "ring-2 ring-accent ring-offset-2"
                         : "opacity-70 hover:opacity-100"
                     }`}
-                    aria-label={`View image ${i + 1}`}
+                    aria-label={m.type === "video" ? "View product video" : `View image ${i + 1}`}
                   >
-                    <Image src={img.url} alt={img.alt ?? ""} fill sizes="88px" className="object-cover" />
+                    {m.type === "video" ? (
+                      <>
+                        {m.poster ? (
+                          <Image src={m.poster} alt="Video" fill sizes="88px" className="object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-black" />
+                        )}
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play className="h-5 w-5 text-white fill-white" strokeWidth={1.5} />
+                        </span>
+                      </>
+                    ) : (
+                      <Image src={m.url} alt={m.alt ?? ""} fill sizes="88px" className="object-cover" />
+                    )}
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Main image */}
+            {/* Main image or video */}
             <div className="relative aspect-square md:aspect-[4/5] rounded-2xl overflow-hidden bg-secondary/60 group card-soft">
-              {currentImage ? (
-                <>
-                  <Image
-                    src={currentImage.url}
-                    alt={currentImage.alt ?? product.name}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
-                    priority
+              {currentMedia ? (
+                currentMedia.type === "video" ? (
+                  <video
+                    ref={videoRef}
+                    key={currentMedia.url}
+                    src={currentMedia.url}
+                    poster={currentMedia.poster ?? undefined}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="absolute inset-0 w-full h-full object-cover bg-black"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setZoomOpen(true)}
-                    className="absolute top-4 right-4 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow"
-                    aria-label="Zoom"
-                  >
-                    <ZoomIn className="h-4 w-4" />
-                  </button>
-                  {hasMultiple && (
-                    <>
-                      <button
-                        onClick={() => goImg(-1)}
-                        aria-label="Previous"
-                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => goImg(1)}
-                        aria-label="Next"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                </>
+                ) : (
+                  <>
+                    <Image
+                      src={currentMedia.url}
+                      alt={currentMedia.alt ?? product.name}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                      priority
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setZoomOpen(true)}
+                      className="absolute top-4 right-4 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow"
+                      aria-label="Zoom"
+                    >
+                      <ZoomIn className="h-4 w-4" />
+                    </button>
+                  </>
+                )
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   No image
                 </div>
               )}
 
+              {/* Prev / next arrows work across video + images */}
+              {hasMultiple && (
+                <>
+                  <button
+                    onClick={() => goImg(-1)}
+                    aria-label="Previous"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow z-10"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => goImg(1)}
+                    aria-label="Next"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow z-10"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+
               {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-1.5">
+              <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
                 {discount > 0 && (
                   <span className="bg-accent text-accent-foreground text-[10px] uppercase tracking-[0.18em] font-bold px-3 py-1.5 rounded-full">
                     −{discount}% OFF
@@ -221,8 +277,8 @@ export function ProductDetail({
               </div>
 
               {hasMultiple && (
-                <div className="absolute bottom-4 right-4 bg-foreground/85 text-background text-xs px-3 py-1.5 rounded-full backdrop-blur">
-                  {activeImg + 1} / {product.images.length}
+                <div className="absolute bottom-4 right-4 bg-foreground/85 text-background text-xs px-3 py-1.5 rounded-full backdrop-blur z-10">
+                  {activeImg + 1} / {media.length}
                 </div>
               )}
             </div>
@@ -231,16 +287,29 @@ export function ProductDetail({
           {/* Mobile thumbnail strip */}
           {hasMultiple && (
             <div className="md:hidden grid grid-cols-5 gap-2">
-              {product.images.map((img, i) => (
+              {media.map((m, i) => (
                 <button
                   key={i}
                   onClick={() => setActiveImg(i)}
                   className={`relative aspect-square rounded-lg overflow-hidden bg-secondary/60 transition ${
                     activeImg === i ? "ring-2 ring-accent ring-offset-1" : "opacity-70"
                   }`}
-                  aria-label={`View image ${i + 1}`}
+                  aria-label={m.type === "video" ? "View product video" : `View image ${i + 1}`}
                 >
-                  <Image src={img.url} alt={img.alt ?? ""} fill sizes="100px" className="object-cover" />
+                  {m.type === "video" ? (
+                    <>
+                      {m.poster ? (
+                        <Image src={m.poster} alt="Video" fill sizes="100px" className="object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 bg-black" />
+                      )}
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Play className="h-4 w-4 text-white fill-white" strokeWidth={1.5} />
+                      </span>
+                    </>
+                  ) : (
+                    <Image src={m.url} alt={m.alt ?? ""} fill sizes="100px" className="object-cover" />
+                  )}
                 </button>
               ))}
             </div>
@@ -513,8 +582,8 @@ export function ProductDetail({
         </div>
       )}
 
-      {/* Zoom modal */}
-      {zoomOpen && currentImage && (
+      {/* Zoom modal — only for images */}
+      {zoomOpen && currentMedia?.type === "image" && (
         <div
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in"
           onClick={() => setZoomOpen(false)}
@@ -551,8 +620,8 @@ export function ProductDetail({
           )}
           <div className="relative w-full h-full max-w-5xl max-h-[90vh]">
             <Image
-              src={currentImage.url}
-              alt={currentImage.alt ?? product.name}
+              src={currentMedia.url}
+              alt={currentMedia.alt ?? product.name}
               fill
               sizes="100vw"
               className="object-contain"

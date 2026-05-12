@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Film, Loader2, Trash2, Upload, X } from "lucide-react";
+import { upload } from "@vercel/blob/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,7 @@ type FormState = {
   metaDesc: string;
   categoryId: string;
   images: string[];
+  videoUrl: string | null;
 };
 
 export function ProductForm({
@@ -70,6 +72,7 @@ export function ProductForm({
     metaDesc?: string | null;
     categoryId: string;
     images: ProductImage[];
+    videoUrl?: string | null;
   };
 }) {
   const router = useRouter();
@@ -96,6 +99,7 @@ export function ProductForm({
           metaDesc: product.metaDesc ?? "",
           categoryId: product.categoryId,
           images: product.images.map((i) => i.url),
+          videoUrl: product.videoUrl ?? null,
         }
       : {
           name: "",
@@ -116,12 +120,16 @@ export function ProductForm({
           metaDesc: "",
           categoryId: categories[0]?.id ?? "",
           images: [],
+          videoUrl: null,
         }
   );
 
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const update =
     (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -164,6 +172,44 @@ export function ProductForm({
     setForm((f) => ({ ...f, images: arr }));
   };
 
+  // Direct-to-Blob upload for product videos (bypasses Vercel function body limit)
+  const uploadVideo = async (file: File) => {
+    const MAX = 50 * 1024 * 1024;
+    if (file.size > MAX) {
+      toast.error("Video must be under 50MB. Try compressing it first.");
+      return;
+    }
+    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) {
+      toast.error("Only MP4, WebM, or MOV videos are supported");
+      return;
+    }
+    setVideoUploading(true);
+    setVideoProgress(0);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "mp4";
+      const filename = `products/videos/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}.${ext}`;
+      const blob = await upload(filename, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload/video",
+        onUploadProgress: (e) => {
+          setVideoProgress(Math.round(e.percentage));
+        },
+      });
+      setForm((f) => ({ ...f, videoUrl: blob.url }));
+      toast.success("Video uploaded");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Video upload failed");
+    } finally {
+      setVideoUploading(false);
+      setVideoProgress(0);
+      if (videoInputRef.current) videoInputRef.current.value = "";
+    }
+  };
+
+  const removeVideo = () => setForm((f) => ({ ...f, videoUrl: null }));
+
   const save = async () => {
     if (!form.name || !form.sku || !form.slug || !form.price || !form.categoryId) {
       toast.error("Please fill in all required fields");
@@ -195,6 +241,7 @@ export function ProductForm({
         metaDesc: form.metaDesc || null,
         categoryId: form.categoryId,
         images: form.images,
+        videoUrl: form.videoUrl,
       };
       const isNew = !form.id;
       const res = await fetch(isNew ? "/api/products" : `/api/products/${form.id}`, {
@@ -471,6 +518,72 @@ export function ProductForm({
             <p className="text-xs text-muted-foreground">
               First image is the main product image. PNG, JPG, WEBP up to 5MB each.
             </p>
+          </section>
+
+          {/* Product video — optional, plays muted on hover in grid */}
+          <section className="bg-card border rounded-lg p-6 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold flex items-center gap-2">
+                  <Film className="h-4 w-4" /> Product Video
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Optional short clip. Plays muted on hover in the product grid and
+                  with full controls on the product page. MP4, WebM, or MOV up to 50MB.
+                </p>
+              </div>
+            </div>
+
+            {form.videoUrl ? (
+              <div className="relative max-w-md">
+                <video
+                  src={form.videoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full aspect-video rounded-lg bg-black object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={removeVideo}
+                  className="absolute top-2 right-2 bg-background/90 backdrop-blur p-1.5 rounded-full shadow"
+                  aria-label="Remove video"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+                <p className="text-[11px] text-muted-foreground mt-2 break-all">
+                  {form.videoUrl}
+                </p>
+              </div>
+            ) : (
+              <label className="block max-w-md aspect-video border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-accent text-muted-foreground hover:text-accent transition">
+                {videoUploading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                    <span className="text-xs">
+                      Uploading{videoProgress > 0 ? ` — ${videoProgress}%` : "..."}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Film className="h-7 w-7 mb-1.5" />
+                    <span className="text-sm font-medium">Add product video</span>
+                    <span className="text-[11px] mt-0.5">MP4 / WebM / MOV · up to 50MB</span>
+                  </>
+                )}
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  className="hidden"
+                  disabled={videoUploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadVideo(f);
+                  }}
+                />
+              </label>
+            )}
           </section>
 
           {/* ATTRIBUTES (size / color / etc.) */}

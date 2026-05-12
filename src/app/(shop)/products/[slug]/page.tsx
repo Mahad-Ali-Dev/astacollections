@@ -209,6 +209,8 @@ export default async function ProductDetailPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  video: p.videoUrl,
+                  videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,
                 }}
               />
@@ -239,6 +241,8 @@ export default async function ProductDetailPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  video: p.videoUrl,
+                  videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,
                 }}
               />

@@ -216,6 +216,12 @@ model Product {
   metaTitle    String?
   metaDesc     String?  @db.Text
 
+  // Optional short product video (mp4/webm). Plays muted on hover in the grid,
+  // with controls in the detail gallery. videoPoster overrides the default
+  // poster (first image) when provided.
+  videoUrl     String?
+  videoPoster  String?
+
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 

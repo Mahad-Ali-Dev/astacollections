@@ -34,6 +34,7 @@ export const productSchema = z.object({
   metaDesc: z.string().optional().nullable(),
   categoryId: z.string().min(1),
   images: z.array(z.string()).default([]),
+  videoUrl: z.string().url().optional().nullable(),
 });
 
 export const couponSchema = z.object({

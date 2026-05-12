@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
-import { ShoppingBag, Heart } from "lucide-react";
+import { useRef, useState } from "react";
+import { ShoppingBag, Heart, PlayCircle } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { formatPrice, getDiscountPercent } from "@/lib/utils";
 import { toast } from "sonner";
@@ -17,19 +17,46 @@ export type ProductCardData = {
   sku: string;
   stock: number;
   image?: string;
+  /** Optional product video URL (mp4/webm). Plays muted on hover, falls back to image. */
+  video?: string | null;
+  /** Optional poster image for the video (defaults to `image`). */
+  videoPoster?: string | null;
   isFeatured?: boolean;
 };
 
 export function ProductCard({ product }: { product: ProductCardData }) {
   const add = useCart((s) => s.add);
   const [wishlisted, setWishlisted] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const discount = getDiscountPercent(product.price, product.comparePrice);
   const outOfStock = product.stock <= 0;
+  const hasVideo = !!product.video;
+
+  // Hover-to-play (desktop). Mobile users tap through to the detail page where
+  // the video plays in the gallery.
+  const handleMouseEnter = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = 0;
+    // play() returns a promise on modern browsers; swallow autoplay rejections silently
+    v.play().catch(() => {});
+  };
+  const handleMouseLeave = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.pause();
+    v.currentTime = 0;
+  };
 
   return (
     <article className="group flex flex-col">
       <Link href={`/products/${product.slug}`} className="block">
-        <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary/60 card-soft card-hover">
+        <div
+          className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary/60 card-soft card-hover"
+          onMouseEnter={hasVideo ? handleMouseEnter : undefined}
+          onMouseLeave={hasVideo ? handleMouseLeave : undefined}
+        >
           {product.image ? (
             <Image
               src={product.image}
@@ -42,6 +69,32 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
               No image
             </div>
+          )}
+
+          {/* Hover video — fades over the image on desktop hover */}
+          {hasVideo && (
+            <video
+              ref={videoRef}
+              src={product.video!}
+              poster={product.videoPoster ?? product.image}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              onLoadedData={() => setVideoReady(true)}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 pointer-events-none ${
+                videoReady ? "opacity-0 group-hover:opacity-100" : "opacity-0"
+              }`}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* Small "Video" badge so customers know there's a clip available */}
+          {hasVideo && !outOfStock && (
+            <span className="absolute bottom-3 left-3 bg-foreground/85 text-background text-[10px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-full backdrop-blur flex items-center gap-1 group-hover:opacity-0 transition-opacity">
+              <PlayCircle className="h-3 w-3" strokeWidth={2} />
+              Video
+            </span>
           )}
 
           {/* Top-left badge */}
