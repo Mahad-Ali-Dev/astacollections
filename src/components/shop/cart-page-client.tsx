@@ -94,7 +94,7 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
 
             {items.map((item) => (
               <article
-                key={item.id}
+                key={item.key}
                 className="group flex gap-4 border rounded-xl p-4 bg-card hover:border-accent/40 transition-colors"
               >
                 <Link
@@ -119,12 +119,17 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
                     {item.name}
                   </Link>
                   <p className="text-xs text-muted-foreground mt-0.5 font-mono">{item.sku}</p>
+                  {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {Object.entries(item.selectedAttributes).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                    </p>
+                  )}
                   <p className="font-semibold mt-2 tabular-nums">{formatPrice(item.price)}</p>
 
                   <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
                     <div className="flex items-center border rounded-lg bg-background">
                       <button
-                        onClick={() => setQty(item.id, item.quantity - 1)}
+                        onClick={() => setQty(item.key, item.quantity - 1)}
                         disabled={item.quantity <= 1}
                         className="px-3 py-2 disabled:opacity-30 hover:bg-muted rounded-l-lg transition-colors"
                         aria-label="Decrease"
@@ -135,7 +140,7 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => setQty(item.id, item.quantity + 1)}
+                        onClick={() => setQty(item.key, item.quantity + 1)}
                         disabled={item.quantity >= item.stock}
                         className="px-3 py-2 disabled:opacity-30 hover:bg-muted rounded-r-lg transition-colors"
                         aria-label="Increase"
@@ -149,7 +154,7 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
                       </span>
                     )}
                     <button
-                      onClick={() => remove(item.id)}
+                      onClick={() => remove(item.key)}
                       className="text-sm text-muted-foreground hover:text-destructive flex items-center gap-1.5 ml-auto"
                     >
                       <Trash2 className="h-3.5 w-3.5" />

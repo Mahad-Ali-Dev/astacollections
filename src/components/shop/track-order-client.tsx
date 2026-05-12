@@ -40,7 +40,14 @@ type OrderTrackData = {
   advancePaid: number;
   couponCode: string | null;
   createdAt: string;
-  items: { name: string; sku: string; image: string | null; price: number; quantity: number }[];
+  items: {
+    name: string;
+    sku: string;
+    image: string | null;
+    price: number;
+    quantity: number;
+    selectedAttributes: Record<string, string> | null;
+  }[];
 };
 
 const STATUS_FLOW = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED"];
@@ -248,8 +255,8 @@ export function TrackOrderClient() {
           <section className="bg-white border border-border rounded-3xl p-7 md:p-9">
             <h3 className="font-serif text-xl mb-5">Order items</h3>
             <div className="divide-y divide-border/60">
-              {order.items.map((i) => (
-                <div key={i.sku} className="flex gap-4 py-4">
+              {order.items.map((i, idx) => (
+                <div key={`${i.sku}-${idx}`} className="flex gap-4 py-4">
                   <div className="relative w-16 h-16 rounded-xl bg-secondary shrink-0 overflow-hidden">
                     {i.image && (
                       <Image src={i.image} alt={i.name} fill sizes="64px" className="object-cover" />
@@ -257,6 +264,13 @@ export function TrackOrderClient() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm line-clamp-2">{i.name}</p>
+                    {i.selectedAttributes && Object.keys(i.selectedAttributes).length > 0 && (
+                      <p className="text-[11px] text-accent mt-0.5">
+                        {Object.entries(i.selectedAttributes)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(" · ")}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {i.quantity} × {formatPrice(i.price)}
                     </p>

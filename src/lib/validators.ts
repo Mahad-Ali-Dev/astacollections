@@ -65,6 +65,8 @@ export const checkoutSchema = z.object({
       z.object({
         productId: z.string(),
         quantity: z.number().int().positive(),
+        unitPrice: z.number().optional(), // optional override (e.g. variant price)
+        selectedAttributes: z.record(z.string()).optional().nullable(),
       })
     )
     .min(1, "Cart is empty"),

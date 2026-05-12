@@ -41,7 +41,14 @@ type OrderEmailData = {
   advancePaid: number;
   couponCode?: string | null;
   createdAt: Date;
-  items: { name: string; sku: string; price: number; quantity: number; image?: string | null }[];
+  items: {
+    name: string;
+    sku: string;
+    price: number;
+    quantity: number;
+    image?: string | null;
+    selectedAttributes?: Record<string, string> | null;
+  }[];
 };
 
 type ShippingEmailData = {
@@ -250,6 +257,11 @@ function orderConfirmationHtml(o: OrderEmailData) {
               }
               <div>
                 <p style="margin:0;font-size:14px;font-weight:500;color:#1a1a1a;">${i.name}</p>
+                ${
+                  i.selectedAttributes && Object.keys(i.selectedAttributes).length > 0
+                    ? `<p style="margin:3px 0 0;font-size:11px;color:#c08775;">${Object.entries(i.selectedAttributes).map(([k, v]) => `${k}: ${v}`).join(" · ")}</p>`
+                    : ""
+                }
                 <p style="margin:4px 0 0;font-size:12px;color:#7b6f66;">${i.quantity} × ${formatPrice(i.price)}</p>
               </div>
             </div>

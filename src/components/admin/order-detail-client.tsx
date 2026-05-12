@@ -61,6 +61,7 @@ type Order = {
     image: string | null;
     price: number;
     quantity: number;
+    selectedAttributes?: Record<string, string> | null;
   }[];
 };
 
@@ -182,6 +183,11 @@ export function OrderDetailClient({ order: initial }: { order: Order }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{i.name}</p>
+                    {i.selectedAttributes && Object.keys(i.selectedAttributes).length > 0 && (
+                      <p className="text-[11px] text-accent mt-0.5">
+                        {Object.entries(i.selectedAttributes).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       {i.sku} · {i.quantity} × {formatPrice(i.price)}
                     </p>

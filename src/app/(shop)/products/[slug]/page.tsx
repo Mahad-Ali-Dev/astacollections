@@ -54,6 +54,10 @@ export default async function ProductDetailPage({
     include: {
       images: { orderBy: { sortOrder: "asc" } },
       category: true,
+      attributes: {
+        orderBy: { sortOrder: "asc" },
+        include: { options: { orderBy: { sortOrder: "asc" } } },
+      },
     },
   });
   if (!product || !product.isActive) notFound();
@@ -167,7 +171,7 @@ export default async function ProductDetailPage({
       </nav>
 
       <ProductDetail
-        product={{ ...product, tagsList: tags }}
+        product={{ ...product, tagsList: tags } as any}
         bundle={bundle as any}
       />
 

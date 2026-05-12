@@ -16,5 +16,5 @@ export default async function AdminOrderDetailPage({
   });
   if (!order) notFound();
 
-  return <OrderDetailClient order={order} />;
+  return <OrderDetailClient order={order as any} />;
 }

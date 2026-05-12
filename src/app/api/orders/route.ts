@@ -35,35 +35,55 @@ export async function POST(req: Request) {
     const settings = await getSettings();
     const { codAdvance, shippingFee, freeShippingThreshold } = settingsToNumbers(settings);
 
-    // Fetch products to get authoritative prices and stock
+    // Fetch products with attributes — server-side source of truth for price
     const productIds = data.items.map((i) => i.productId);
     const products = await prisma.product.findMany({
       where: { id: { in: productIds }, isActive: true },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: {
+        images: { orderBy: { sortOrder: "asc" }, take: 1 },
+        attributes: { include: { options: true } },
+      },
     });
 
-    if (products.length !== data.items.length) {
+    if (products.length < new Set(productIds).size) {
       return NextResponse.json(
         { error: "Some items are no longer available" },
         { status: 400 }
       );
     }
 
-    // Build order items + check stock
+    // Build order items + check stock + recompute variant prices server-side
     let subtotal = 0;
     const orderItems = data.items.map((item) => {
       const product = products.find((p) => p.id === item.productId)!;
       if (product.stock < item.quantity) {
         throw new Error(`${product.name} has only ${product.stock} in stock`);
       }
-      subtotal += product.price * item.quantity;
+      // Validate required attribute selections + compute price modifier
+      const selection = item.selectedAttributes ?? {};
+      let priceMod = 0;
+      for (const attr of product.attributes) {
+        const chosen = selection[attr.name];
+        if (attr.required && !chosen) {
+          throw new Error(`${product.name}: please select ${attr.name}`);
+        }
+        if (chosen) {
+          const opt = attr.options.find((o) => o.value === chosen);
+          if (!opt) throw new Error(`${product.name}: invalid ${attr.name}`);
+          if (opt.priceModifier) priceMod += opt.priceModifier;
+        }
+      }
+      const unitPrice = product.price + priceMod;
+      subtotal += unitPrice * item.quantity;
       return {
         productId: product.id,
         name: product.name,
         sku: product.sku,
         image: product.images[0]?.url ?? null,
-        price: product.price,
+        price: unitPrice,
         quantity: item.quantity,
+        selectedAttributes:
+          Object.keys(selection).length > 0 ? (selection as any) : null,
       };
     });
 
@@ -202,6 +222,7 @@ export async function POST(req: Request) {
         price: i.price,
         quantity: i.quantity,
         image: i.image,
+        selectedAttributes: i.selectedAttributes as Record<string, string> | null,
       })),
     }).catch((err) => console.error("[orders] email send failed:", err));
 

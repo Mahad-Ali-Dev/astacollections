@@ -225,6 +225,7 @@ model Product {
   reviews       Review[]
   wishlistItems WishlistItem[]
   inventoryLogs InventoryLog[]
+  attributes    ProductAttribute[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -245,6 +246,36 @@ model ProductImage {
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, sortOrder])
+}
+
+/// Per-product attribute group, e.g. "Ring Size", "Color", "Chain Length".
+/// Customer picks one option from each group at the product page.
+model ProductAttribute {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String   // "Ring Size", "Color", "Length"
+  type      String   @default("OPTION") // OPTION | COLOR | SIZE — UI hint
+  required  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  options ProductAttributeOption[]
+
+  @@index([productId, sortOrder])
+}
+
+model ProductAttributeOption {
+  id            String           @id @default(cuid())
+  attributeId   String
+  attribute     ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  value         String           // "7", "Gold", "18 inch"
+  colorHex      String?          // only used when attribute.type = COLOR (e.g. "#FFD700")
+  priceModifier Float?           // optional surcharge for this option
+  sortOrder     Int              @default(0)
+
+  @@index([attributeId, sortOrder])
 }
 
 // ─────────────────────────  BUNDLES  ───────────────────────
@@ -401,6 +432,10 @@ model OrderItem {
   image    String?
   price    Float
   quantity Int
+
+  // Customer's variant selection at the time of order, e.g.
+  // { "Ring Size": "7", "Color": "Gold" }. Null for products with no attributes.
+  selectedAttributes Json?
 
   @@index([orderId])
   @@index([productId])

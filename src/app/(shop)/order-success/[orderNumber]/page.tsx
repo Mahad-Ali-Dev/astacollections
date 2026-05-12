@@ -68,7 +68,12 @@ export default async function OrderSuccessPage({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium">{i.name}</p>
-                <p className="text-xs text-muted-foreground">
+                {i.selectedAttributes && typeof i.selectedAttributes === "object" && Object.keys(i.selectedAttributes as Record<string, string>).length > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {Object.entries(i.selectedAttributes as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {i.quantity} × {formatPrice(i.price)}
                 </p>
               </div>

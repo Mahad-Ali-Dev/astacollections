@@ -26,6 +26,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BundleSection, type BundleData } from "./bundle-section";
 import { OfferTimer } from "./offer-timer";
+import {
+  ProductAttributePicker,
+  computeAttributesPriceModifier,
+  missingRequiredSelections,
+  type ProductAttribute,
+} from "./product-attribute-picker";
 import { useCart } from "@/lib/cart-store";
 import { formatPrice, getDiscountPercent, defaultOfferEndsAt } from "@/lib/utils";
 import { prettyTag } from "@/lib/tags";
@@ -47,6 +53,7 @@ type Product = {
   images: { url: string; alt?: string | null }[];
   category: { name: string; slug: string };
   tagsList: string[];
+  attributes?: ProductAttribute[];
 };
 
 export function ProductDetail({
@@ -63,6 +70,7 @@ export function ProductDetail({
     "description"
   );
   const [wishlisted, setWishlisted] = useState(false);
+  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
 
   const add = useCart((s) => s.add);
   const open = useCart((s) => s.open);
@@ -70,19 +78,28 @@ export function ProductDetail({
   const discount = getDiscountPercent(product.price, product.comparePrice);
   const outOfStock = product.stock <= 0;
   const hasMultiple = product.images.length > 1;
+  const attrs = product.attributes ?? [];
+  const priceMod = computeAttributesPriceModifier(attrs, selectedAttrs);
+  const effectivePrice = product.price + priceMod;
 
   const handleAdd = () => {
+    const missing = missingRequiredSelections(attrs, selectedAttrs);
+    if (missing.length > 0) {
+      toast.error(`Please select: ${missing.join(", ")}`);
+      return;
+    }
     add(
       {
         id: product.id,
         name: product.name,
         slug: product.slug,
-        price: product.price,
+        price: effectivePrice,
         image: product.images[0]?.url,
         sku: product.sku,
         stock: product.stock,
       },
-      qty
+      qty,
+      Object.keys(selectedAttrs).length > 0 ? selectedAttrs : undefined
     );
     toast.success(`${qty} × ${product.name} added`);
     open();
@@ -262,7 +279,7 @@ export function ProductDetail({
           <div className="space-y-2 pb-6 border-b border-border/70">
             <div className="flex items-baseline gap-x-3 gap-y-2 flex-wrap">
               <span className="text-2xl sm:text-3xl md:text-4xl font-semibold tabular-nums">
-                {formatPrice(product.price)}
+                {formatPrice(effectivePrice)}
               </span>
               {product.comparePrice && product.comparePrice > product.price && (
                 <>
@@ -301,6 +318,17 @@ export function ProductDetail({
             )}
           </div>
 
+          {/* VARIANT PICKER (size / color / etc) */}
+          {attrs.length > 0 && (
+            <div className="space-y-4">
+              <ProductAttributePicker
+                attributes={attrs}
+                selected={selectedAttrs}
+                onChange={setSelectedAttrs}
+              />
+            </div>
+          )}
+
           {/* QUANTITY + ADD */}
           {!outOfStock && (
             <div className="flex flex-row flex-wrap items-center gap-3">
@@ -329,7 +357,7 @@ export function ProductDetail({
                 className="group hidden sm:flex flex-1 h-14 bg-foreground text-background rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-all gold-button-glow items-center justify-center gap-2 min-w-[200px]"
               >
                 <ShoppingBag className="h-4 w-4" />
-                Add to Bag · {formatPrice(product.price * qty)}
+                Add to Bag · {formatPrice(effectivePrice * qty)}
               </button>
               <button
                 onClick={() => setWishlisted(!wishlisted)}
@@ -472,7 +500,7 @@ export function ProductDetail({
       {!outOfStock && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-border/70 p-3 flex items-center gap-3 shadow-lg">
           <div className="flex-1 min-w-0">
-            <p className="font-semibold tabular-nums">{formatPrice(product.price * qty)}</p>
+            <p className="font-semibold tabular-nums">{formatPrice(effectivePrice * qty)}</p>
             <p className="text-xs text-muted-foreground line-clamp-1">{product.name}</p>
           </div>
           <button

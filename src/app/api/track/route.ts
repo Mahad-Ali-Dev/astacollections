@@ -60,6 +60,7 @@ export async function POST(req: Request) {
           image: i.image,
           price: i.price,
           quantity: i.quantity,
+          selectedAttributes: i.selectedAttributes as Record<string, string> | null,
         })),
       },
     });

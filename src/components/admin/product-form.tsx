@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { slugify, generateSku, formatPrice, getDiscountPercent } from "@/lib/utils";
 import { toast } from "sonner";
+import { ProductAttributesEditor } from "./product-attributes-editor";
 
 type Category = { id: string; name: string };
 type ProductImage = { id?: string; url: string; alt?: string | null };
@@ -470,6 +471,17 @@ export function ProductForm({
             <p className="text-xs text-muted-foreground">
               First image is the main product image. PNG, JPG, WEBP up to 5MB each.
             </p>
+          </section>
+
+          {/* ATTRIBUTES (size / color / etc.) */}
+          <section className="bg-card border rounded-lg p-6 space-y-4">
+            <div>
+              <h2 className="font-semibold">Variants & Attributes</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Size, color, length etc. Customers pick one of each on the product page.
+              </p>
+            </div>
+            <ProductAttributesEditor productId={form.id ?? null} />
           </section>
 
           {/* SEO */}

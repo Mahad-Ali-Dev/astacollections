@@ -189,7 +189,11 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
           paymentMethod,
           paymentProof: proofUrl,
           couponCode: appliedCoupon?.code,
-          items: items.map((i) => ({ productId: i.id, quantity: i.quantity })),
+          items: items.map((i) => ({
+            productId: i.id,
+            quantity: i.quantity,
+            selectedAttributes: i.selectedAttributes,
+          })),
         }),
       });
       const data = await res.json();
@@ -419,7 +423,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
 
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                 {items.map((i) => (
-                  <div key={i.id} className="flex gap-3">
+                  <div key={i.key} className="flex gap-3">
                     <div className="relative w-14 h-14 rounded-lg bg-muted shrink-0 overflow-hidden border">
                       {i.image && (
                         <Image src={i.image} alt={i.name} fill sizes="56px" className="object-cover" />
@@ -430,7 +434,12 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium line-clamp-1">{i.name}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">
+                      {i.selectedAttributes && Object.keys(i.selectedAttributes).length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                          {Object.entries(i.selectedAttributes).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground tabular-nums mt-0.5">
                         {formatPrice(i.price)}
                       </p>
                     </div>

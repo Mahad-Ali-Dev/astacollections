@@ -65,7 +65,7 @@ export function CartDrawer() {
           <>
             <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-border/60">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-4 py-5">
+                <div key={item.key} className="flex gap-4 py-5">
                   <Link
                     href={`/products/${item.slug}`}
                     onClick={close}
@@ -84,10 +84,21 @@ export function CartDrawer() {
                       {item.name}
                     </Link>
                     <p className="text-xs text-muted-foreground mt-1 font-mono">{item.sku}</p>
+                    {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {Object.entries(item.selectedAttributes).map(([k, v], i, arr) => (
+                          <span key={k}>
+                            <span className="font-medium text-foreground">{v}</span>
+                            <span className="text-muted-foreground"> {k}</span>
+                            {i < arr.length - 1 && <span> · </span>}
+                          </span>
+                        ))}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-auto pt-3">
                       <div className="flex items-center border border-border rounded-full">
                         <button
-                          onClick={() => setQty(item.id, item.quantity - 1)}
+                          onClick={() => setQty(item.key, item.quantity - 1)}
                           disabled={item.quantity <= 1}
                           className="px-2.5 py-1.5 disabled:opacity-30 hover:text-accent transition-colors"
                           aria-label="Decrease"
@@ -96,7 +107,7 @@ export function CartDrawer() {
                         </button>
                         <span className="px-3 text-xs tabular-nums font-medium">{item.quantity}</span>
                         <button
-                          onClick={() => setQty(item.id, item.quantity + 1)}
+                          onClick={() => setQty(item.key, item.quantity + 1)}
                           disabled={item.quantity >= item.stock}
                           className="px-2.5 py-1.5 disabled:opacity-30 hover:text-accent transition-colors"
                           aria-label="Increase"
@@ -110,7 +121,7 @@ export function CartDrawer() {
                     </div>
                   </div>
                   <button
-                    onClick={() => remove(item.id)}
+                    onClick={() => remove(item.key)}
                     aria-label="Remove from cart"
                     className="text-muted-foreground hover:text-destructive shrink-0 self-start"
                   >
