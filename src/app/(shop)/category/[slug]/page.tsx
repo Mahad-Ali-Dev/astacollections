@@ -85,6 +85,13 @@ export default async function CategoryPage({
   // Prefer admin-set category.image, fall back to hardcoded default per slug
   const headerImage = category.image || CATEGORY_HEADER_IMAGES[category.slug];
 
+  // Fetch subcategories (children of this category)
+  const subcategories = await prisma.category.findMany({
+    where: { parentId: category.id, isActive: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, slug: true },
+  });
+
   return (
     <>
       {/* Category hero banner */}
@@ -115,6 +122,21 @@ export default async function CategoryPage({
           <p className="text-xs text-muted-foreground mt-3">
             {category.products.length} {category.products.length === 1 ? "piece" : "pieces"}
           </p>
+
+          {/* Subcategory pills */}
+          {subcategories.length > 0 && (
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              {subcategories.map((sc) => (
+                <Link
+                  key={sc.id}
+                  href={`/category/${sc.slug}`}
+                  className="px-4 h-9 inline-flex items-center rounded-full bg-white border border-border text-xs uppercase tracking-[0.18em] font-medium hover:border-accent hover:text-accent transition-colors"
+                >
+                  {sc.name}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

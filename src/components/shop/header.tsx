@@ -2,31 +2,42 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu, ShoppingBag, Search, X, User } from "lucide-react";
+import { Menu, ShoppingBag, Search, X, User, ChevronDown } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { CartDrawer } from "./cart-drawer";
 import { SearchOverlay } from "./search-overlay";
 import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
 
-const NAV_LINKS = [
-  { href: "/products", label: "Shop All" },
-  { href: "/category/rings", label: "Rings" },
-  { href: "/category/necklaces", label: "Necklaces" },
-  { href: "/category/earrings", label: "Earrings" },
-  { href: "/category/bracelets", label: "Bracelets" },
-  { href: "/category/bridal-sets", label: "Bridal" },
+type NavNode = {
+  id: string;
+  label: string;
+  href: string;
+  openInNewTab: boolean;
+  children: NavNode[];
+};
+
+const FALLBACK_NAV: NavNode[] = [
+  { id: "fallback-1", label: "Shop All", href: "/products", openInNewTab: false, children: [] },
+  { id: "fallback-2", label: "Rings", href: "/category/rings", openInNewTab: false, children: [] },
+  { id: "fallback-3", label: "Necklaces", href: "/category/necklaces", openInNewTab: false, children: [] },
+  { id: "fallback-4", label: "Earrings", href: "/category/earrings", openInNewTab: false, children: [] },
+  { id: "fallback-5", label: "Bracelets", href: "/category/bracelets", openInNewTab: false, children: [] },
+  { id: "fallback-6", label: "Bridal", href: "/category/bridal-sets", openInNewTab: false, children: [] },
 ];
 
 type HeaderProps = {
   announcementText?: string;
   announcementCode?: string;
+  navItems?: NavNode[];
 };
 
 export function Header({
   announcementText = "Free shipping above Rs. 5,000 · COD across Pakistan",
   announcementCode = "WELCOME10",
+  navItems,
 }: HeaderProps = {}) {
+  const NAV_LINKS = navItems && navItems.length > 0 ? navItems : FALLBACK_NAV;
   const count = useCart((s) => s.count());
   const open = useCart((s) => s.open);
   const [mobile, setMobile] = useState(false);
@@ -106,17 +117,49 @@ export function Header({
             <Logo variant="inline" size="lg" className="hidden md:inline-flex" />
           </div>
 
-          {/* Desktop nav — center */}
+          {/* Desktop nav — center, with dropdowns for items that have children */}
           <nav className="hidden lg:flex items-center gap-9 flex-1 justify-center">
-            {NAV_LINKS.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="text-xs uppercase tracking-[0.22em] font-medium text-foreground/85 hover:text-accent transition-colors link-grow"
-              >
-                {l.label}
-              </Link>
-            ))}
+            {NAV_LINKS.map((l) =>
+              l.children && l.children.length > 0 ? (
+                <div key={l.id} className="relative group">
+                  <Link
+                    href={l.href}
+                    target={l.openInNewTab ? "_blank" : undefined}
+                    rel={l.openInNewTab ? "noopener noreferrer" : undefined}
+                    className="inline-flex items-center gap-1 text-xs uppercase tracking-[0.22em] font-medium text-foreground/85 hover:text-accent transition-colors link-grow"
+                  >
+                    {l.label}
+                    <ChevronDown className="h-3 w-3 transition-transform group-hover:rotate-180" />
+                  </Link>
+                  {/* Dropdown */}
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 min-w-[200px]">
+                    <div className="bg-white border border-border/70 rounded-xl shadow-xl py-2">
+                      {l.children.map((c) => (
+                        <Link
+                          key={c.id}
+                          href={c.href}
+                          target={c.openInNewTab ? "_blank" : undefined}
+                          rel={c.openInNewTab ? "noopener noreferrer" : undefined}
+                          className="block px-4 py-2.5 text-xs uppercase tracking-[0.18em] font-medium hover:bg-accent/10 hover:text-accent transition-colors whitespace-nowrap"
+                        >
+                          {c.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  key={l.id}
+                  href={l.href}
+                  target={l.openInNewTab ? "_blank" : undefined}
+                  rel={l.openInNewTab ? "noopener noreferrer" : undefined}
+                  className="text-xs uppercase tracking-[0.22em] font-medium text-foreground/85 hover:text-accent transition-colors link-grow"
+                >
+                  {l.label}
+                </Link>
+              )
+            )}
           </nav>
 
           {/* Right utility */}
@@ -155,14 +198,31 @@ export function Header({
           <nav className="lg:hidden border-t border-border/60 bg-white animate-in slide-in-from-top-2 duration-300">
             <div className="container py-6 flex flex-col gap-1">
               {NAV_LINKS.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setMobile(false)}
-                  className="py-3 text-sm uppercase tracking-[0.2em] font-medium hover:text-accent border-b border-border/40 last:border-0 transition-colors"
-                >
-                  {l.label}
-                </Link>
+                <div key={l.id} className="border-b border-border/40 last:border-0">
+                  <Link
+                    href={l.href}
+                    target={l.openInNewTab ? "_blank" : undefined}
+                    onClick={() => setMobile(false)}
+                    className="block py-3 text-sm uppercase tracking-[0.2em] font-medium hover:text-accent transition-colors"
+                  >
+                    {l.label}
+                  </Link>
+                  {l.children && l.children.length > 0 && (
+                    <div className="pb-3 pl-4 flex flex-col gap-1">
+                      {l.children.map((c) => (
+                        <Link
+                          key={c.id}
+                          href={c.href}
+                          target={c.openInNewTab ? "_blank" : undefined}
+                          onClick={() => setMobile(false)}
+                          className="py-2 text-xs uppercase tracking-[0.18em] text-muted-foreground hover:text-accent transition-colors"
+                        >
+                          ↳ {c.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
               <div className="flex flex-wrap gap-x-5 gap-y-3 pt-6 text-xs uppercase tracking-[0.2em]">
                 <Link href="/account" onClick={() => setMobile(false)} className="text-muted-foreground hover:text-foreground transition-colors">My Account</Link>

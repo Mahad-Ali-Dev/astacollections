@@ -158,13 +158,43 @@ model Category {
   image       String?
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
+
+  // Self-referential for nested subcategories.
+  // parentId = null → top-level. children → subcategories.
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryTree")
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   products Product[]
+  navItems NavItem[]
 
   @@index([slug])
   @@index([isActive, sortOrder])
+  @@index([parentId])
+}
+
+/// Fully admin-customizable navigation tree. Each item can either link to
+/// a Category (categoryId) or a custom URL (href). Children form dropdowns.
+model NavItem {
+  id           String   @id @default(cuid())
+  label        String
+  href         String?  // direct URL when not category-linked, e.g. "/products?q=bridal"
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  parentId     String?
+  parent       NavItem?  @relation("NavItemTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children     NavItem[] @relation("NavItemTree")
+  sortOrder    Int       @default(0)
+  isActive     Boolean   @default(true)
+  openInNewTab Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([parentId, sortOrder])
+  @@index([isActive])
 }
 
 model Product {

@@ -10,6 +10,7 @@ export const categorySchema = z.object({
   slug: z.string().min(1),
   description: z.string().optional().nullable(),
   image: z.string().optional().nullable(),
+  parentId: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
   sortOrder: z.number().int().default(0),
 });

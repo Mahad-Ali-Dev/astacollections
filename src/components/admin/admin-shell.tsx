@@ -17,6 +17,7 @@ import {
   Layers,
   Star,
   ImageIcon,
+  Menu as MenuIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const NAV = [
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/coupons", label: "Coupons", icon: Ticket },
   { href: "/admin/content", label: "Site Content", icon: ImageIcon },
+  { href: "/admin/navigation", label: "Navigation", icon: MenuIcon },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

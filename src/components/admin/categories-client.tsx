@@ -25,6 +25,7 @@ type Cat = {
   slug: string;
   description: string | null;
   image: string | null;
+  parentId: string | null;
   isActive: boolean;
   sortOrder: number;
   _count: { products: number };
@@ -36,6 +37,7 @@ const empty = {
   slug: "",
   description: "",
   image: "",
+  parentId: "",
   isActive: true,
   sortOrder: 0,
 };
@@ -59,6 +61,7 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
       slug: c.slug,
       description: c.description ?? "",
       image: c.image ?? "",
+      parentId: c.parentId ?? "",
       isActive: c.isActive,
       sortOrder: c.sortOrder,
     });
@@ -83,6 +86,7 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
             slug: editing.slug,
             description: editing.description || null,
             image: editing.image || null,
+            parentId: editing.parentId || null,
             isActive: editing.isActive,
             sortOrder: Number(editing.sortOrder) || 0,
           }),
@@ -214,6 +218,26 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
               hint="Shown on the homepage Collection grid and the category banner."
               aspect="portrait"
             />
+            <div>
+              <Label>Parent category (for subcategories)</Label>
+              <select
+                value={editing.parentId}
+                onChange={(e) => setEditing({ ...editing, parentId: e.target.value })}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">— None (top-level category) —</option>
+                {categories
+                  .filter((c) => c.id !== editing.id && !c.parentId)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pick a parent to make this a subcategory (e.g. Chokers under Necklaces).
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Sort Order</Label>
