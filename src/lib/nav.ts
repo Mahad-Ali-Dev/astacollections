@@ -42,6 +42,23 @@ export async function getNavTree(): Promise<NavNode[]> {
       roots.push(stripParent(node));
     }
   }
+
+  // If a parent item ended up with href "#" (admin saved no href and no category),
+  // borrow the first child's href so the click still navigates somewhere useful.
+  // Walk recursively in case the structure goes 3+ levels deep.
+  function fillFallbacks(nodes: NavNode[]) {
+    for (const n of nodes) {
+      if ((n.href === "#" || n.href.trim() === "") && n.children.length > 0) {
+        const firstChildHref = n.children.find((c) => c.href && c.href !== "#")?.href;
+        if (firstChildHref) n.href = firstChildHref;
+      }
+      // Last-resort fallback so a top-level item never silently no-ops
+      if (n.href === "#" || n.href.trim() === "") n.href = "/products";
+      if (n.children.length > 0) fillFallbacks(n.children);
+    }
+  }
+  fillFallbacks(roots);
+
   return roots;
 }
 

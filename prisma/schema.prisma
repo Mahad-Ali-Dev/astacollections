@@ -279,6 +279,10 @@ model ProductAttributeOption {
   value         String           // "7", "Gold", "18 inch"
   colorHex      String?          // only used when attribute.type = COLOR (e.g. "#FFD700")
   priceModifier Float?           // optional surcharge for this option
+  // Optional per-variant stock. NULL = unlimited (defer to Product.stock).
+  // When set, this option caps the available qty for orders that pick it.
+  // The order route decrements this when a customer selects this variant.
+  stock         Int?
   sortOrder     Int              @default(0)
 
   @@index([attributeId, sortOrder])

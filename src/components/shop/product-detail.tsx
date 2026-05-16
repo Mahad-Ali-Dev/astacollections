@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -31,6 +31,7 @@ import {
   ProductAttributePicker,
   computeAttributesPriceModifier,
   missingRequiredSelections,
+  selectedVariantStock,
   type ProductAttribute,
 } from "./product-attribute-picker";
 import { useCart } from "@/lib/cart-store";
@@ -79,7 +80,7 @@ export function ProductDetail({
   const open = useCart((s) => s.open);
 
   const discount = getDiscountPercent(product.price, product.comparePrice);
-  const outOfStock = product.stock <= 0;
+  // outOfStock is recomputed further down once we know the selected variant's stock.
 
   // Unified gallery: optional video first, then images. activeImg indexes here.
   type MediaItem =
@@ -109,10 +110,33 @@ export function ProductDetail({
   const priceMod = computeAttributesPriceModifier(attrs, selectedAttrs);
   const effectivePrice = product.price + priceMod;
 
+  // Per-variant stock: if the selected option has a stock value, it caps the order.
+  // Otherwise we defer to the product-level stock.
+  const variantStock = selectedVariantStock(attrs, selectedAttrs);
+  const effectiveStock =
+    variantStock === null ? product.stock : Math.min(product.stock, variantStock);
+  const variantSoldOut = variantStock !== null && variantStock <= 0;
+  const outOfStock = effectiveStock <= 0;
+
+  // If the user changes variant such that current qty > new stock, clamp down.
+  useEffect(() => {
+    if (effectiveStock > 0 && qty > effectiveStock) {
+      setQty(effectiveStock);
+    }
+  }, [effectiveStock, qty]);
+
   const handleAdd = () => {
     const missing = missingRequiredSelections(attrs, selectedAttrs);
     if (missing.length > 0) {
       toast.error(`Please select: ${missing.join(", ")}`);
+      return;
+    }
+    if (variantSoldOut) {
+      toast.error("That variant is out of stock. Please pick another option.");
+      return;
+    }
+    if (variantStock !== null && qty > variantStock) {
+      toast.error(`Only ${variantStock} of that variant available.`);
       return;
     }
     add(
@@ -123,7 +147,7 @@ export function ProductDetail({
         price: effectivePrice,
         image: product.images[0]?.url,
         sku: product.sku,
-        stock: product.stock,
+        stock: effectiveStock,
       },
       qty,
       Object.keys(selectedAttrs).length > 0 ? selectedAttrs : undefined
@@ -370,13 +394,15 @@ export function ProductDetail({
             {outOfStock ? (
               <>
                 <span className="h-2 w-2 rounded-full bg-destructive" />
-                <span className="text-destructive font-medium">Out of stock</span>
+                <span className="text-destructive font-medium">
+                  {variantSoldOut ? "Selected variant out of stock" : "Out of stock"}
+                </span>
               </>
-            ) : product.stock < 5 ? (
+            ) : effectiveStock < 5 ? (
               <>
                 <span className="h-2 w-2 rounded-full bg-amber-600 animate-pulse" />
                 <span className="text-amber-700 font-medium">
-                  Only {product.stock} left — order soon
+                  Only {effectiveStock} left — order soon
                 </span>
               </>
             ) : (
@@ -412,9 +438,9 @@ export function ProductDetail({
                 </button>
                 <span className="px-4 tabular-nums font-semibold min-w-[3rem] text-center">{qty}</span>
                 <button
-                  onClick={() => setQty(Math.min(product.stock, qty + 1))}
+                  onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
                   className="px-5 h-full hover:text-accent disabled:opacity-30 transition-colors"
-                  disabled={qty >= product.stock}
+                  disabled={qty >= effectiveStock}
                   aria-label="Increase"
                 >
                   <Plus className="h-4 w-4" />

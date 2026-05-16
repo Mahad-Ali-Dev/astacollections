@@ -8,6 +8,8 @@ const optionSchema = z.object({
   value: z.string().min(1),
   colorHex: z.string().optional().nullable(),
   priceModifier: z.number().optional().nullable(),
+  // Per-variant stock. NULL/undefined = no per-option cap.
+  stock: z.number().int().min(0).optional().nullable(),
   sortOrder: z.number().int().optional(),
 });
 
@@ -70,6 +72,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
                 value: o.value,
                 colorHex: o.colorHex || null,
                 priceModifier: o.priceModifier ?? null,
+                stock: o.stock ?? null,
                 sortOrder: o.sortOrder ?? j,
               })),
             },

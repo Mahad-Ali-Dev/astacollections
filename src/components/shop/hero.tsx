@@ -85,6 +85,10 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
   );
 
   const slide = slides[active];
+  // Defensive href fallback — if the admin saved a blank CTA href, Next/Link with
+  // href="" would just refresh the page. Always send the user somewhere useful.
+  const primaryHref =
+    slide.cta.href && slide.cta.href.trim().length > 0 ? slide.cta.href : "/products";
 
   return (
     <section ref={root} className="relative overflow-hidden bg-foreground">
@@ -134,10 +138,10 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href={slide.cta.href}
+              href={primaryHref}
               className="hero-slide-cta group inline-flex items-center gap-2 bg-white text-foreground px-7 h-13 py-4 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent hover:text-accent-foreground transition-all"
             >
-              {slide.cta.label}
+              {slide.cta.label || "Shop Now"}
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link

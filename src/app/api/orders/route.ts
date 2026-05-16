@@ -52,14 +52,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // Build order items + check stock + recompute variant prices server-side
+    // Build order items + check stock + recompute variant prices server-side.
+    // We also collect (optionId, qty) pairs so we can decrement per-variant stock
+    // inside the transaction below.
     let subtotal = 0;
+    const variantStockDecrements: { optionId: string; quantity: number }[] = [];
     const orderItems = data.items.map((item) => {
       const product = products.find((p) => p.id === item.productId)!;
       if (product.stock < item.quantity) {
         throw new Error(`${product.name} has only ${product.stock} in stock`);
       }
-      // Validate required attribute selections + compute price modifier
+      // Validate required attribute selections + compute price modifier + check variant stock.
       const selection = item.selectedAttributes ?? {};
       let priceMod = 0;
       for (const attr of product.attributes) {
@@ -71,6 +74,15 @@ export async function POST(req: Request) {
           const opt = attr.options.find((o) => o.value === chosen);
           if (!opt) throw new Error(`${product.name}: invalid ${attr.name}`);
           if (opt.priceModifier) priceMod += opt.priceModifier;
+          // Variant stock: if set, must cover the requested quantity.
+          if (typeof opt.stock === "number") {
+            if (opt.stock < item.quantity) {
+              throw new Error(
+                `${product.name} (${attr.name}: ${chosen}) has only ${opt.stock} left`
+              );
+            }
+            variantStockDecrements.push({ optionId: opt.id, quantity: item.quantity });
+          }
         }
       }
       const unitPrice = product.price + priceMod;
@@ -175,6 +187,15 @@ export async function POST(req: Request) {
             reason: "ORDER_PLACED",
             orderId: created.id,
           },
+        });
+      }
+
+      // Decrement per-variant stock for selected options that have it set.
+      // (Options without a stock value defer to product.stock, already decremented above.)
+      for (const v of variantStockDecrements) {
+        await tx.productAttributeOption.update({
+          where: { id: v.optionId },
+          data: { stock: { decrement: v.quantity } },
         });
       }
 

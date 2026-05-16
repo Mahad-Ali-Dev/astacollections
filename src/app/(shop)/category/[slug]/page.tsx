@@ -8,6 +8,28 @@ import { Reveal } from "@/components/motion/reveal";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Recursively walk Category.parentId children to gather the full subtree.
+ * Returns the root id plus every descendant id, so a category page can show
+ * products that admins assigned to subcategories.
+ */
+async function collectDescendantCategoryIds(rootId: string): Promise<string[]> {
+  const result: string[] = [rootId];
+  let frontier: string[] = [rootId];
+  // BFS — most stores will be 2-3 levels deep, this stays trivially cheap.
+  while (frontier.length > 0) {
+    const next = await prisma.category.findMany({
+      where: { parentId: { in: frontier }, isActive: true },
+      select: { id: true },
+    });
+    if (next.length === 0) break;
+    const ids = next.map((c) => c.id);
+    result.push(...ids);
+    frontier = ids;
+  }
+  return result;
+}
+
 const CATEGORY_HEADER_IMAGES: Record<string, string> = {
   rings: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1600&auto=format&fit=crop&q=80",
   necklaces: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1600&auto=format&fit=crop&q=80",
@@ -37,32 +59,34 @@ export default async function CategoryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const category = await prisma.category.findUnique({
-    where: { slug },
-    include: {
-      products: {
-        where: { isActive: true },
-        include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
-
+  const category = await prisma.category.findUnique({ where: { slug } });
   if (!category) notFound();
 
-  // Featured + New Arrivals (across other categories) for the discovery sections at the bottom
+  // Walk the category tree to collect this category + all descendant subcategories.
+  // Then query products across the entire subtree so a parent like "Necklaces" shows
+  // items even when admins assigned them to a child like "Pearl Necklaces".
+  const allCategoryIds = await collectDescendantCategoryIds(category.id);
+
+  const products = await prisma.product.findMany({
+    where: { isActive: true, categoryId: { in: allCategoryIds } },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Featured + New Arrivals (across other categories) for the discovery sections at the bottom.
+  // "Other" = anything outside this category's subtree.
   const [featuredOther, newArrivals, bundles] = await Promise.all([
     prisma.product.findMany({
       where: {
         isActive: true,
         isFeatured: true,
-        categoryId: { not: category.id },
+        categoryId: { notIn: allCategoryIds },
       },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
       take: 4,
     }),
     prisma.product.findMany({
-      where: { isActive: true, categoryId: { not: category.id } },
+      where: { isActive: true, categoryId: { notIn: allCategoryIds } },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
       orderBy: { createdAt: "desc" },
       take: 4,
@@ -120,7 +144,7 @@ export default async function CategoryPage({
             </p>
           )}
           <p className="text-xs text-muted-foreground mt-3">
-            {category.products.length} {category.products.length === 1 ? "piece" : "pieces"}
+            {products.length} {products.length === 1 ? "piece" : "pieces"}
           </p>
 
           {/* Subcategory pills */}
@@ -141,13 +165,13 @@ export default async function CategoryPage({
       </section>
 
       <div className="container py-10 md:py-14">
-        {category.products.length === 0 ? (
+        {products.length === 0 ? (
           <div className="text-center py-20 border-2 border-dashed rounded-2xl">
             <p className="text-muted-foreground">No products in this category yet.</p>
           </div>
         ) : (
           <Reveal className="product-grid" stagger={0.05}>
-            {category.products.map((p) => (
+            {products.map((p) => (
               <ProductCard
                 key={p.id}
                 product={{

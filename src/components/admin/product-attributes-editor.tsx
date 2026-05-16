@@ -14,6 +14,8 @@ type Option = {
   value: string;
   colorHex?: string | null;
   priceModifier?: number | null;
+  /** Per-variant stock. null = unlimited (defer to product.stock). */
+  stock?: number | null;
 };
 
 type Attribute = {
@@ -77,6 +79,7 @@ export function ProductAttributesEditor({ productId }: { productId: string | nul
               value: o.value,
               colorHex: o.colorHex,
               priceModifier: o.priceModifier,
+              stock: o.stock,
             })),
           }))
         )
@@ -248,7 +251,12 @@ export function ProductAttributesEditor({ productId }: { productId: string | nul
           </div>
 
           <div className="pl-7 space-y-2">
-            <Label>Options</Label>
+            <div className="flex items-center justify-between">
+              <Label>Options</Label>
+              <p className="text-[10px] text-muted-foreground hidden sm:block">
+                Value · {attr.type === "COLOR" ? "Color · " : ""}Price modifier · Stock
+              </p>
+            </div>
             {attr.options.map((opt, oi) => (
               <div key={oi} className="flex items-center gap-2 flex-wrap">
                 <Input
@@ -283,6 +291,20 @@ export function ProductAttributesEditor({ productId }: { productId: string | nul
                     })
                   }
                   placeholder="+/- Rs."
+                  title="Price modifier (leave blank for no change)"
+                  className="w-24"
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  value={opt.stock ?? ""}
+                  onChange={(e) =>
+                    updateOption(ai, oi, {
+                      stock: e.target.value === "" ? null : Math.max(0, Number(e.target.value)),
+                    })
+                  }
+                  placeholder="Stock"
+                  title="Per-variant stock — leave blank for unlimited (uses product stock)"
                   className="w-24"
                 />
                 <button
