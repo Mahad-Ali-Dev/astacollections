@@ -1,20 +1,26 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
-import { writeFile, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import path from "node:path";
+import { getImageKit, isImageKitConfigured } from "@/lib/imagekit";
 
+// We now upload product/category images directly to ImageKit's Media Library.
+// Why: Vercel Blob has a 10 GB/month bandwidth cap on the Hobby plan, and we
+// were hitting it. ImageKit's free tier gives us 20 GB storage + 20 GB CDN
+// bandwidth with unlimited transformations — and every image now lives at
+// the same CDN that serves it, so origin fetches drop to zero.
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-const HAS_BLOB = !!process.env.BLOB_READ_WRITE_TOKEN;
-// Detect Vercel / serverless / read-only filesystem
-const IS_SERVERLESS =
-  !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-
 export async function POST(req: Request) {
   try {
+    if (!isImageKitConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "Image upload is not configured on the server. Set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT in Vercel env vars.",
+        },
+        { status: 503 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -26,43 +32,27 @@ export async function POST(req: Request) {
     }
 
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+    // Keep the same filename shape we used for Blob so any existing
+    // assumptions about uploads/{timestamp}-{rand}.ext keep working.
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Production / serverless — require Blob storage
-    if (IS_SERVERLESS) {
-      if (!HAS_BLOB) {
-        return NextResponse.json(
-          {
-            error:
-              "Image upload is not configured on the server. Please contact the store admin to set up Vercel Blob storage.",
-          },
-          { status: 503 }
-        );
-      }
-      const blob = await put(`uploads/${filename}`, file, {
-        access: "public",
-        addRandomSuffix: false,
-      });
-      return NextResponse.json({ url: blob.url });
-    }
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Development — write to local public/uploads
-    if (HAS_BLOB) {
-      // Even in dev, use Blob if configured (so dev + prod URLs match)
-      const blob = await put(`uploads/${filename}`, file, {
-        access: "public",
-        addRandomSuffix: false,
-      });
-      return NextResponse.json({ url: blob.url });
-    }
+    // ImageKit handles the actual transit; we send the bytes from the function
+    // memory. The file is capped at 5MB so this fits well within Vercel's
+    // serverless body limit even on the Hobby plan.
+    const uploaded = await getImageKit().upload({
+      file: buffer,
+      fileName: filename,
+      folder: "/uploads",
+      useUniqueFileName: false,
+    });
 
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    }
-    const buf = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(UPLOAD_DIR, filename), buf);
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    // We return `url` to match the previous response shape so the admin form
+    // doesn't need code changes.
+    return NextResponse.json({ url: uploaded.url });
   } catch (e: any) {
+    // ImageKit SDK errors carry a useful `.message`; surface it.
     console.error("upload error", e);
     return NextResponse.json(
       { error: e?.message ?? "Upload failed" },

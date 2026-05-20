@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Film, Loader2, Trash2, Upload, X } from "lucide-react";
-import { upload } from "@vercel/blob/client";
+import { upload as imagekitUpload } from "@imagekit/javascript";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -172,7 +172,10 @@ export function ProductForm({
     setForm((f) => ({ ...f, images: arr }));
   };
 
-  // Direct-to-Blob upload for product videos (bypasses Vercel function body limit)
+  // Direct-to-ImageKit upload for product videos. The server only mints a signed
+  // upload token; the browser streams the file straight to ImageKit's CDN. This
+  // bypasses Vercel's 4.5MB function body limit and avoids consuming Vercel
+  // Blob bandwidth.
   const uploadVideo = async (file: File) => {
     const MAX = 50 * 1024 * 1024;
     if (file.size > MAX) {
@@ -186,18 +189,45 @@ export function ProductForm({
     setVideoUploading(true);
     setVideoProgress(0);
     try {
+      // 1. Ask our server for a fresh signed upload token.
+      const authRes = await fetch("/api/upload/video");
+      if (!authRes.ok) {
+        const err = await authRes.json().catch(() => ({}));
+        throw new Error(err?.error ?? "Could not authorize upload");
+      }
+      const auth: {
+        token: string;
+        expire: number;
+        signature: string;
+        publicKey: string;
+        urlEndpoint: string;
+      } = await authRes.json();
+
+      // Generate the same kind of filename we used previously so URLs stay
+      // consistent across the catalog.
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "mp4";
-      const filename = `products/videos/${Date.now()}-${Math.random()
+      const filename = `${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 8)}.${ext}`;
-      const blob = await upload(filename, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload/video",
-        onUploadProgress: (e) => {
-          setVideoProgress(Math.round(e.percentage));
+
+      // 2. Stream directly to ImageKit. The SDK handles XHR progress events.
+      const uploaded = await imagekitUpload({
+        file,
+        fileName: filename,
+        folder: "/products/videos",
+        useUniqueFileName: false,
+        token: auth.token,
+        expire: auth.expire,
+        signature: auth.signature,
+        publicKey: auth.publicKey,
+        onProgress: (e) => {
+          if (e.lengthComputable) {
+            setVideoProgress(Math.round((e.loaded / e.total) * 100));
+          }
         },
       });
-      setForm((f) => ({ ...f, videoUrl: blob.url }));
+
+      setForm((f) => ({ ...f, videoUrl: uploaded.url ?? null }));
       toast.success("Video uploaded");
     } catch (e: any) {
       toast.error(e?.message ?? "Video upload failed");
