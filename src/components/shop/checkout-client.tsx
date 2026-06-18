@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/lib/cart-store";
+import { track } from "@/lib/fbpixel";
 import { formatPrice, calculateDiscount } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StoreSettings } from "@/lib/settings";
@@ -89,6 +90,22 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
     setProofPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
+
+  // Meta Pixel: InitiateCheckout once the cart has hydrated with items.
+  const initiatedCheckout = useRef(false);
+  useEffect(() => {
+    if (initiatedCheckout.current || items.length === 0) return;
+    initiatedCheckout.current = true;
+    track("InitiateCheckout", {
+      content_type: "product",
+      content_ids: items.map((i) => i.id),
+      contents: items.map((i) => ({ id: i.id, quantity: i.quantity, item_price: i.price })),
+      num_items: items.reduce((n, i) => n + i.quantity, 0),
+      value: subtotal(),
+      currency: "PKR",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const updateField =
     (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>

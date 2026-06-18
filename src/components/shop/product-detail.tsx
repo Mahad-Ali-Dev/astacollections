@@ -35,6 +35,7 @@ import {
   type ProductAttribute,
 } from "./product-attribute-picker";
 import { useCart } from "@/lib/cart-store";
+import { track } from "@/lib/fbpixel";
 import { formatPrice, getDiscountPercent, defaultOfferEndsAt } from "@/lib/utils";
 import { prettyTag } from "@/lib/tags";
 import { toast } from "sonner";
@@ -125,6 +126,19 @@ export function ProductDetail({
     }
   }, [effectiveStock, qty]);
 
+  // Meta Pixel: ViewContent when a product page is opened.
+  useEffect(() => {
+    track("ViewContent", {
+      content_type: "product",
+      content_ids: [product.id],
+      content_name: product.name,
+      content_category: product.category.name,
+      value: product.price,
+      currency: "PKR",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
+
   const handleAdd = () => {
     const missing = missingRequiredSelections(attrs, selectedAttrs);
     if (missing.length > 0) {
@@ -152,6 +166,7 @@ export function ProductDetail({
       qty,
       Object.keys(selectedAttrs).length > 0 ? selectedAttrs : undefined
     );
+    // AddToCart is tracked centrally in the cart store (useCart.add).
     toast.success(`${qty} × ${product.name} added`);
     open();
   };

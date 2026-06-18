@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice, formatDateTime } from "@/lib/utils";
+import { PurchaseTracker } from "@/components/analytics/purchase-tracker";
 
 export const metadata = { title: "Order Confirmed" };
 
@@ -25,6 +26,19 @@ export default async function OrderSuccessPage({
 
   return (
     <div className="container py-12 max-w-3xl">
+      {/* Meta Pixel Purchase event — the conversion your ad campaign optimizes for */}
+      <PurchaseTracker
+        orderNumber={order.orderNumber}
+        value={order.total}
+        currency="PKR"
+        contentIds={order.items.map((i) => i.productId)}
+        contents={order.items.map((i) => ({
+          id: i.productId,
+          quantity: i.quantity,
+          item_price: i.price,
+        }))}
+        numItems={order.items.reduce((n, i) => n + i.quantity, 0)}
+      />
       <div className="text-center mb-8">
         <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto mb-4" />
         <h1 className="text-3xl md:text-4xl font-serif">Thank you for your order!</h1>

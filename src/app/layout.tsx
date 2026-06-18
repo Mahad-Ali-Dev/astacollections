@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Cormorant_Garamond, Special_Elite } from "next/font/google";
 import { Toaster } from "sonner";
 import { SITE, organizationJsonLd, websiteJsonLd, storeJsonLd } from "@/lib/seo";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import "./globals.css";
 
 const inter = Inter({
@@ -107,6 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
       </head>
       <body>
+        <MetaPixel />
         {children}
         <Toaster richColors position="top-right" closeButton />
       </body>

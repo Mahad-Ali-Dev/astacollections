@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { track } from "@/lib/fbpixel";
 
 export type SelectedAttributes = Record<string, string>; // { "Ring Size": "7", "Color": "Gold" }
 
@@ -65,6 +66,16 @@ export const useCart = create<CartState>()(
           });
         }
         set({ items, isOpen: true });
+        // Meta Pixel: AddToCart fires here so every entry point (product page,
+        // quick-add on cards, bundles) is covered with a single source of truth.
+        track("AddToCart", {
+          content_type: "product",
+          content_ids: [item.id],
+          content_name: item.name,
+          value: item.price * qty,
+          currency: "PKR",
+          contents: [{ id: item.id, quantity: qty, item_price: item.price }],
+        });
       },
       remove: (key) => set({ items: get().items.filter((i) => i.key !== key) }),
       setQty: (key, qty) => {
