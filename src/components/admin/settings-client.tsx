@@ -79,40 +79,8 @@ export function SettingsClient({ initial }: { initial: StoreSettings }) {
       </section>
 
       <section className="bg-card border rounded-lg p-6 space-y-4">
-        <h2 className="font-semibold">Bank Details (shown at checkout)</h2>
-        <p className="text-xs text-muted-foreground">
-          Customers will use these details to send the COD advance or full bank transfer.
-        </p>
+        <h2 className="font-semibold">Shipping</h2>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <Label>Bank Name</Label>
-            <Input value={s.bankName} onChange={upd("bankName")} />
-          </div>
-          <div>
-            <Label>Account Title</Label>
-            <Input value={s.bankAccountTitle} onChange={upd("bankAccountTitle")} />
-          </div>
-          <div>
-            <Label>Account Number</Label>
-            <Input value={s.bankAccountNumber} onChange={upd("bankAccountNumber")} />
-          </div>
-          <div>
-            <Label>IBAN</Label>
-            <Input value={s.bankIBAN} onChange={upd("bankIBAN")} />
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-card border rounded-lg p-6 space-y-4">
-        <h2 className="font-semibold">Shipping & Payment</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          <div>
-            <Label>COD Advance (Rs.)</Label>
-            <Input type="number" value={s.codAdvance} onChange={upd("codAdvance")} />
-            <p className="text-xs text-muted-foreground mt-1">
-              Charged in advance for COD orders.
-            </p>
-          </div>
           <div>
             <Label>Shipping Fee (Rs.)</Label>
             <Input type="number" value={s.shippingFee} onChange={upd("shippingFee")} />
@@ -132,6 +100,13 @@ export function SettingsClient({ initial }: { initial: StoreSettings }) {
             </p>
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Payment methods, COD advance and bank account details are configured under{" "}
+          <a href="/admin/checkout" className="underline hover:text-foreground">
+            Checkout
+          </a>
+          .
+        </p>
       </section>
     </div>
   );

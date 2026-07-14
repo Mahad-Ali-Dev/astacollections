@@ -32,6 +32,7 @@ import { track } from "@/lib/fbpixel";
 import { formatPrice, calculateDiscount } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StoreSettings } from "@/lib/settings";
+import { resolvePaymentConfig, type PaymentMethodKey } from "@/lib/payment";
 
 type AppliedCoupon = {
   code: string;
@@ -46,6 +47,9 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   const router = useRouter();
   const { items, subtotal, clear } = useCart();
 
+  // Which payment methods the admin has enabled, and the default selection.
+  const payCfg = resolvePaymentConfig(settings);
+
   const [form, setForm] = useState({
     customerName: "",
     customerEmail: "",
@@ -56,7 +60,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
     notes: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "BANK_TRANSFER">("COD");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodKey>(payCfg.defaultMethod);
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
@@ -70,7 +74,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   const [submitting, setSubmitting] = useState(false);
 
   const sub = subtotal();
-  const codAdvance = Number(settings.codAdvance) || 250;
+  const codAdvance = payCfg.codAdvance; // 0 ⇒ pure COD (no advance / screenshot)
   const freeThreshold = Number(settings.freeShippingThreshold) || 5000;
   const baseShipping = Number(settings.shippingFee) || 0;
 
@@ -80,6 +84,10 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   const total = afterDiscount + shippingFee;
   const payNow = paymentMethod === "COD" ? codAdvance : total;
   const balanceOnDelivery = paymentMethod === "COD" ? Math.max(0, total - codAdvance) : 0;
+  // Pure COD (advance = 0) collects everything on delivery — no bank transfer,
+  // so no payment screenshot is required to place the order.
+  const isPureCod = paymentMethod === "COD" && codAdvance <= 0;
+  const needsProof = paymentMethod === "BANK_TRANSFER" || (paymentMethod === "COD" && codAdvance > 0);
 
   useEffect(() => {
     if (!proofFile) {
@@ -187,7 +195,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
       toast.error("Please fill in all required fields");
       return;
     }
-    if (!proofUrl) {
+    if (needsProof && !proofUrl) {
       toast.error(
         paymentMethod === "BANK_TRANSFER"
           ? "Please upload the bank transfer screenshot"
@@ -344,22 +352,35 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
 
           {/* PAYMENT */}
           <CheckoutSection number={3} title="Payment Method" icon={CreditCard}>
-            <div className="grid sm:grid-cols-2 gap-3 mb-4">
-              <PaymentOption
-                selected={paymentMethod === "COD"}
-                onClick={() => setPaymentMethod("COD")}
-                icon={Banknote}
-                title="Cash on Delivery"
-                subtitle={`Rs. ${codAdvance} advance · balance on delivery`}
-                badge="Most Popular"
-              />
-              <PaymentOption
-                selected={paymentMethod === "BANK_TRANSFER"}
-                onClick={() => setPaymentMethod("BANK_TRANSFER")}
-                icon={Building2}
-                title="Bank Transfer"
-                subtitle="Pay full amount now"
-              />
+            <div
+              className={
+                payCfg.enabled.length > 1 ? "grid sm:grid-cols-2 gap-3 mb-4" : "mb-4"
+              }
+            >
+              {payCfg.codEnabled && (
+                <PaymentOption
+                  selected={paymentMethod === "COD"}
+                  onClick={() => setPaymentMethod("COD")}
+                  icon={Banknote}
+                  title={settings.codTitle || "Cash on Delivery"}
+                  subtitle={
+                    codAdvance > 0
+                      ? `${formatPrice(codAdvance)} advance · balance on delivery`
+                      : "Pay in full when it arrives"
+                  }
+                  badge={settings.codBadge || undefined}
+                />
+              )}
+              {payCfg.bankEnabled && (
+                <PaymentOption
+                  selected={paymentMethod === "BANK_TRANSFER"}
+                  onClick={() => setPaymentMethod("BANK_TRANSFER")}
+                  icon={Building2}
+                  title={settings.bankTransferTitle || "Bank Transfer"}
+                  subtitle="Pay full amount now"
+                  badge={settings.bankTransferBadge || undefined}
+                />
+              )}
             </div>
 
             {paymentMethod === "COD" && (
@@ -367,33 +388,48 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                 <div className="flex items-start gap-3">
                   <Info className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
                   <div className="space-y-2 text-sm text-amber-900">
-                    <p className="font-semibold">How Cash on Delivery works</p>
-                    <ol className="list-decimal pl-5 space-y-1">
-                      <li>
-                        Pay <strong>{formatPrice(codAdvance)}</strong> advance now via bank transfer
-                        (this confirms your order).
-                      </li>
-                      <li>
-                        Balance of <strong>{formatPrice(balanceOnDelivery)}</strong> is collected
-                        when the courier delivers.
-                      </li>
-                      <li>Upload the screenshot of the {formatPrice(codAdvance)} transfer below.</li>
-                    </ol>
+                    <p className="font-semibold">How {settings.codTitle || "Cash on Delivery"} works</p>
+                    {isPureCod ? (
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>Place your order — no advance payment needed.</li>
+                        <li>
+                          Pay <strong>{formatPrice(total)}</strong> in cash to the courier when your
+                          order is delivered.
+                        </li>
+                      </ol>
+                    ) : (
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>
+                          Pay <strong>{formatPrice(codAdvance)}</strong> advance now via bank transfer
+                          (this confirms your order).
+                        </li>
+                        <li>
+                          Balance of <strong>{formatPrice(balanceOnDelivery)}</strong> is collected
+                          when the courier delivers.
+                        </li>
+                        <li>Upload the screenshot of the {formatPrice(codAdvance)} transfer below.</li>
+                      </ol>
+                    )}
+                    {settings.codNote && <p className="pt-1">{settings.codNote}</p>}
                   </div>
                 </div>
-                <BankDetailsBlock settings={settings} amount={codAdvance} />
-                <ProofUpload
-                  file={proofFile}
-                  preview={proofPreview}
-                  uploading={proofUploading}
-                  url={proofUrl}
-                  onChange={handleProofChange}
-                  onClear={() => {
-                    setProofFile(null);
-                    setProofUrl(null);
-                  }}
-                  label={`Upload screenshot of ${formatPrice(codAdvance)} advance transfer`}
-                />
+                {!isPureCod && (
+                  <>
+                    <BankDetailsBlock settings={settings} amount={codAdvance} />
+                    <ProofUpload
+                      file={proofFile}
+                      preview={proofPreview}
+                      uploading={proofUploading}
+                      url={proofUrl}
+                      onChange={handleProofChange}
+                      onClear={() => {
+                        setProofFile(null);
+                        setProofUrl(null);
+                      }}
+                      label={`Upload screenshot of ${formatPrice(codAdvance)} advance transfer`}
+                    />
+                  </>
+                )}
               </div>
             )}
 
@@ -402,7 +438,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                 <div className="flex items-start gap-3">
                   <Info className="h-5 w-5 text-blue-700 shrink-0 mt-0.5" />
                   <div className="space-y-2 text-sm text-blue-900">
-                    <p className="font-semibold">How Bank Transfer works</p>
+                    <p className="font-semibold">How {settings.bankTransferTitle || "Bank Transfer"} works</p>
                     <ol className="list-decimal pl-5 space-y-1">
                       <li>
                         Transfer <strong>{formatPrice(total)}</strong> to the account below.
@@ -412,6 +448,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                         ship.
                       </li>
                     </ol>
+                    {settings.bankTransferNote && <p className="pt-1">{settings.bankTransferNote}</p>}
                   </div>
                 </div>
                 <BankDetailsBlock settings={settings} amount={total} />
@@ -537,11 +574,13 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                 <>
                   <Separator />
                   <div className="space-y-2 text-sm">
-                    <Row
-                      label="Pay now (advance)"
-                      value={formatPrice(codAdvance)}
-                      className="text-accent font-medium"
-                    />
+                    {codAdvance > 0 && (
+                      <Row
+                        label="Pay now (advance)"
+                        value={formatPrice(codAdvance)}
+                        className="text-accent font-medium"
+                      />
+                    )}
                     <Row
                       label="Pay on delivery"
                       value={formatPrice(balanceOnDelivery)}
@@ -565,8 +604,10 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Placing order...
                   </>
-                ) : (
+                ) : payNow > 0 ? (
                   `Place Order · ${formatPrice(payNow)}`
+                ) : (
+                  "Place Order"
                 )}
               </Button>
               <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">

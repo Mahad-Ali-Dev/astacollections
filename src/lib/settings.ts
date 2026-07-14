@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { parseCodAdvance } from "./payment";
 
 export type StoreSettings = {
   storeName: string;
@@ -15,6 +16,23 @@ export type StoreSettings = {
   freeShippingThreshold: string;
   currency: string;
   currencySymbol: string;
+
+  // ───── Checkout / payment design (admin-configurable) ─────
+  // Which methods appear at checkout. "true" / "false".
+  codEnabled: string;
+  bankTransferEnabled: string;
+  // Pre-selected method: "COD" | "BANK_TRANSFER".
+  defaultPaymentMethod: string;
+  // Per-method copy shown on the selectable cards.
+  codTitle: string;
+  codBadge: string;            // small ribbon, e.g. "Most Popular" ("" = none)
+  codNote: string;             // optional extra instruction line ("" = none)
+  bankTransferTitle: string;
+  bankTransferBadge: string;
+  bankTransferNote: string;
+  // Checkout page header text.
+  checkoutHeading: string;
+  checkoutSubheading: string;
 
   // ───── UI images / content ─────
   // Hero carousel — 3 slides
@@ -78,6 +96,19 @@ const DEFAULTS: StoreSettings = {
   currency: "PKR",
   currencySymbol: "Rs.",
 
+  // Checkout / payment design
+  codEnabled: "true",
+  bankTransferEnabled: "true",
+  defaultPaymentMethod: "COD",
+  codTitle: "Cash on Delivery",
+  codBadge: "Most Popular",
+  codNote: "",
+  bankTransferTitle: "Bank Transfer",
+  bankTransferBadge: "",
+  bankTransferNote: "",
+  checkoutHeading: "Checkout",
+  checkoutSubheading: "Almost there — just a few details.",
+
   // Hero defaults
   hero1Image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1800&auto=format&fit=crop&q=85",
   hero1Eyebrow: "Spring 2026 · The Pearl Edit",
@@ -140,7 +171,7 @@ export async function updateSettings(updates: Partial<StoreSettings>): Promise<v
 
 export function settingsToNumbers(s: StoreSettings) {
   return {
-    codAdvance: Number(s.codAdvance) || 0,
+    codAdvance: parseCodAdvance(s.codAdvance),
     shippingFee: Number(s.shippingFee) || 0,
     freeShippingThreshold: Number(s.freeShippingThreshold) || 0,
   };

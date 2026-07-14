@@ -20,8 +20,12 @@ export default async function CheckoutPage() {
           </Link>
           <div className="flex items-end justify-between flex-wrap gap-3 mt-3">
             <div>
-              <h1 className="text-3xl md:text-5xl font-serif">Checkout</h1>
-              <p className="text-muted-foreground mt-1">Almost there — just a few details.</p>
+              <h1 className="text-3xl md:text-5xl font-serif">
+                {settings.checkoutHeading || "Checkout"}
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {settings.checkoutSubheading || "Almost there — just a few details."}
+              </p>
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Lock className="h-3 w-3" />

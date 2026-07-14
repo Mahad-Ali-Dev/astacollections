@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkoutSchema } from "@/lib/validators";
 import { calculateDiscount, generateOrderNumber } from "@/lib/utils";
 import { getSettings, settingsToNumbers } from "@/lib/settings";
+import { resolvePaymentConfig } from "@/lib/payment";
 import { getAdminFromRequest, getCustomerFromRequest } from "@/lib/auth";
 import { sendOrderConfirmation } from "@/lib/email";
 import { NextRequest } from "next/server";
@@ -20,20 +21,31 @@ export async function POST(req: Request) {
 
     const data = parsed.data;
 
-    // Validate bank transfer needs proof
+    // Fetch settings first — they are the source of truth for which payment
+    // methods are live and how much (if any) advance a COD order collects.
+    const settings = await getSettings();
+    const { codAdvance, shippingFee, freeShippingThreshold } = settingsToNumbers(settings);
+    const payCfg = resolvePaymentConfig(settings);
+
+    // Reject a method the admin has switched off — never trust the client.
+    if (!payCfg.enabled.includes(data.paymentMethod)) {
+      return NextResponse.json(
+        { error: "That payment method isn't available. Please refresh and try again." },
+        { status: 400 }
+      );
+    }
+
+    // Screenshot rules: bank transfer always needs proof; COD needs it only
+    // when an advance is collected (a pure-COD store — advance 0 — does not).
     if (data.paymentMethod === "BANK_TRANSFER" && !data.paymentProof) {
       return NextResponse.json({ error: "Payment screenshot is required" }, { status: 400 });
     }
-    if (data.paymentMethod === "COD" && !data.paymentProof) {
+    if (data.paymentMethod === "COD" && codAdvance > 0 && !data.paymentProof) {
       return NextResponse.json(
         { error: "Advance payment screenshot is required for COD" },
         { status: 400 }
       );
     }
-
-    // Fetch settings
-    const settings = await getSettings();
-    const { codAdvance, shippingFee, freeShippingThreshold } = settingsToNumbers(settings);
 
     // Fetch products with attributes — server-side source of truth for price
     const productIds = data.items.map((i) => i.productId);
