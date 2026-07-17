@@ -5,10 +5,12 @@ import Image from "next/image";
 import { useEffect } from "react";
 import { Minus, Plus, ShoppingBag, Trash2, X, ArrowRight } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
+import { useCartRevalidate } from "@/lib/use-cart-revalidate";
 import { formatPrice } from "@/lib/utils";
 
 export function CartDrawer() {
   const { items, isOpen, close, remove, setQty, subtotal } = useCart();
+  const syncCart = useCartRevalidate();
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
@@ -16,6 +18,12 @@ export function CartDrawer() {
       document.body.style.overflow = "";
     };
   }, [isOpen]);
+
+  // Refresh prices/stock against the server whenever the bag is opened, so the
+  // customer never sees stale (pre-price-change) figures.
+  useEffect(() => {
+    if (isOpen) syncCart();
+  }, [isOpen, syncCart]);
 
   if (!isOpen) return null;
 

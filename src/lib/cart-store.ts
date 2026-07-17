@@ -32,6 +32,13 @@ export function makeCartKey(productId: string, selection?: SelectedAttributes): 
   return `${productId}::${sortedKey}`;
 }
 
+/** Summary of what a revalidation changed, so the UI can inform the customer. */
+export type CartRevalidation = {
+  priceChanged: boolean;
+  qtyAdjusted: boolean;
+  removed: string[]; // names of lines dropped (sold out / no longer available)
+};
+
 type CartState = {
   items: CartItem[];
   isOpen: boolean;
@@ -44,6 +51,12 @@ type CartState = {
   toggle: () => void;
   count: () => number;
   subtotal: () => number;
+  /**
+   * Reconcile persisted cart lines against live product data (price, stock,
+   * availability). Returns what changed, or null if the check couldn't run
+   * (network error) — in which case the cart is left untouched.
+   */
+  revalidate: () => Promise<CartRevalidation | null>;
 };
 
 export const useCart = create<CartState>()(
@@ -90,6 +103,66 @@ export const useCart = create<CartState>()(
       toggle: () => set({ isOpen: !get().isOpen }),
       count: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
       subtotal: () => get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+      revalidate: async () => {
+        const current = get().items;
+        if (current.length === 0) {
+          return { priceChanged: false, qtyAdjusted: false, removed: [] };
+        }
+        let data: { items?: any[] };
+        try {
+          const res = await fetch("/api/cart/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: current.map((i) => ({
+                key: i.key,
+                id: i.id,
+                selectedAttributes: i.selectedAttributes,
+              })),
+            }),
+          });
+          if (!res.ok) return null;
+          data = await res.json();
+        } catch {
+          return null; // offline / transient — never wipe the cart on a failed check
+        }
+
+        const map = new Map<string, any>((data.items ?? []).map((r) => [r.key, r]));
+        let priceChanged = false;
+        let qtyAdjusted = false;
+        const removed: string[] = [];
+        const next: CartItem[] = [];
+
+        for (const item of current) {
+          const r = map.get(item.key);
+          // Missing from the response, deleted/inactive, or fully sold out → drop it.
+          if (!r || r.exists === false || (typeof r.stock === "number" && r.stock <= 0)) {
+            removed.push(item.name);
+            continue;
+          }
+          let quantity = item.quantity;
+          if (typeof r.stock === "number" && quantity > r.stock) {
+            quantity = r.stock;
+            qtyAdjusted = true;
+          }
+          if (typeof r.price === "number" && r.price !== item.price) {
+            priceChanged = true;
+          }
+          next.push({
+            ...item,
+            name: r.name ?? item.name,
+            slug: r.slug ?? item.slug,
+            sku: r.sku ?? item.sku,
+            image: r.image ?? item.image,
+            price: typeof r.price === "number" ? r.price : item.price,
+            stock: typeof r.stock === "number" ? r.stock : item.stock,
+            quantity,
+          });
+        }
+
+        set({ items: next });
+        return { priceChanged, qtyAdjusted, removed };
+      },
     }),
     {
       name: "asta-cart",

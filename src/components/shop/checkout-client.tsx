@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/lib/cart-store";
+import { useCartRevalidate } from "@/lib/use-cart-revalidate";
 import { track } from "@/lib/fbpixel";
 import { formatPrice, calculateDiscount } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,6 +50,8 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
 
   // Which payment methods the admin has enabled, and the default selection.
   const payCfg = resolvePaymentConfig(settings);
+
+  const syncCart = useCartRevalidate();
 
   const [form, setForm] = useState({
     customerName: "",
@@ -98,6 +101,16 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
     setProofPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [proofFile]);
+
+  // Reconcile the cart with live prices/stock as soon as checkout opens, so the
+  // totals shown here reflect current product prices — not what they were when
+  // the items were added to the bag.
+  const revalidatedOnMount = useRef(false);
+  useEffect(() => {
+    if (revalidatedOnMount.current) return;
+    revalidatedOnMount.current = true;
+    syncCart();
+  }, [syncCart]);
 
   // Meta Pixel: InitiateCheckout once the cart has hydrated with items.
   const initiatedCheckout = useRef(false);
@@ -201,6 +214,24 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
           ? "Please upload the bank transfer screenshot"
           : "Please upload the advance payment screenshot"
       );
+      return;
+    }
+
+    // Final safeguard: re-check prices/stock against the server right before
+    // placing the order. If anything shifted since the page loaded, show the
+    // customer the updated bag and make them confirm again — never place an
+    // order at a price they were shown but that is no longer current.
+    const check = await syncCart({ silent: true });
+    if (check && (check.priceChanged || check.qtyAdjusted || check.removed.length > 0)) {
+      if (check.removed.length > 0) {
+        toast.warning(
+          "Some items are no longer available and were removed. Please review your bag before ordering."
+        );
+      } else {
+        toast.warning(
+          "Prices were updated to the latest. Please review the new total, then place your order again."
+        );
+      }
       return;
     }
 

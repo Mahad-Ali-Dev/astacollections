@@ -14,7 +14,9 @@ import {
   ArrowLeft,
   Sparkles,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useCart } from "@/lib/cart-store";
+import { useCartRevalidate } from "@/lib/use-cart-revalidate";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,13 @@ import { formatPrice } from "@/lib/utils";
 
 export function CartPageClient({ recommended }: { recommended: ProductCardData[] }) {
   const { items, remove, setQty, subtotal, clear } = useCart();
+  const syncCart = useCartRevalidate();
+
+  // Reconcile prices/stock with the server on load so the bag reflects current
+  // product prices, not what they were when the items were added.
+  useEffect(() => {
+    syncCart();
+  }, [syncCart]);
 
   const FREE_SHIP_THRESHOLD = 5000;
   const sub = subtotal();
