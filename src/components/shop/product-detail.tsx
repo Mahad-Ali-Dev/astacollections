@@ -66,6 +66,8 @@ export function ProductDetail({
   bundle,
   shippingFee = 0,
   freeShippingThreshold = 0,
+  avgRating = 0,
+  reviewCount = 0,
 }: {
   product: Product;
   bundle?: BundleData | null;
@@ -73,6 +75,10 @@ export function ProductDetail({
   shippingFee?: number;
   /** Order value at or above which delivery is free. 0 disables the threshold. */
   freeShippingThreshold?: number;
+  /** Mean of this product's approved review ratings. */
+  avgRating?: number;
+  /** Number of approved reviews. The rating block is hidden when this is 0. */
+  reviewCount?: number;
 }) {
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
@@ -387,14 +393,29 @@ export function ProductDetail({
           </div>
 
           {/* Rating */}
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-              ))}
+          {/* Real ratings only — hidden entirely until this product has
+              approved reviews, so the badge can never contradict the
+              reviews section further down the page. */}
+          {reviewCount > 0 && (
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    className={
+                      i < Math.round(avgRating)
+                        ? "h-4 w-4 fill-accent text-accent"
+                        : "h-4 w-4 text-muted-foreground/40"
+                    }
+                  />
+                ))}
+              </div>
+              <span className="text-muted-foreground">
+                {avgRating.toFixed(1)} · {reviewCount}{" "}
+                {reviewCount === 1 ? "review" : "reviews"}
+              </span>
             </div>
-            <span className="text-muted-foreground">4.9 · 1,200+ reviews</span>
-          </div>
+          )}
 
           {/* PRICE */}
           <div className="space-y-2 pb-6 border-b border-border/70">

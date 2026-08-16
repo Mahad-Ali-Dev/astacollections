@@ -10,6 +10,7 @@ import { parseTags } from "@/lib/tags";
 import { getCustomerFromCookie } from "@/lib/auth";
 import { getSettings, settingsToNumbers } from "@/lib/settings";
 import { productJsonLd, breadcrumbJsonLd, SITE } from "@/lib/seo";
+import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
 
 export const dynamic = "force-dynamic";
 
@@ -177,6 +178,8 @@ export default async function ProductDetailPage({
         bundle={bundle as any}
         shippingFee={money.shippingFee}
         freeShippingThreshold={money.freeShippingThreshold}
+        avgRating={avgRating}
+        reviewCount={reviews.length}
       />
 
       <ReviewsSection
@@ -254,6 +257,8 @@ export default async function ProductDetailPage({
           </Reveal>
         </section>
       )}
+
+      <VideoCarouselSection page="product" />
     </div>
   );
 }

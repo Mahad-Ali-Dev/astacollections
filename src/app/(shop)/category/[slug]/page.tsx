@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
+import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
 
 export const dynamic = "force-dynamic";
 
@@ -275,6 +276,8 @@ export default async function CategoryPage({
           </Reveal>
         </section>
       )}
+
+      <VideoCarouselSection page="category" />
     </>
   );
 }

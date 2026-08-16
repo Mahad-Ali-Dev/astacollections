@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Image as ImageIcon, Megaphone, Sparkles, BookOpen, Bell } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Megaphone, Sparkles, BookOpen, Bell, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUploadField } from "./image-upload-field";
-import type { StoreSettings } from "@/lib/settings";
+import {
+  VIDEO_CAROUSEL_PAGES,
+  parseVideoCarouselItemsRaw,
+  type StoreSettings,
+  type VideoCarouselItem,
+} from "@/lib/settings";
 import { toast } from "sonner";
 
 const TABS = [
   { key: "hero", label: "Hero Carousel", icon: ImageIcon },
   { key: "banners", label: "Banners", icon: Megaphone },
   { key: "ribbons", label: "Top Bar & Marquee", icon: Bell },
+  { key: "videos", label: "Video Carousel", icon: Video },
   { key: "popup", label: "Welcome Popup", icon: Sparkles },
   { key: "about", label: "About Page", icon: BookOpen },
 ] as const;
@@ -29,6 +35,14 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
 
   const set = <K extends keyof StoreSettings>(k: K, v: StoreSettings[K]) =>
     setS({ ...s, [k]: v });
+
+  // Video carousel items live as JSON inside a single setting, so edits go
+  // through here and get re-serialised on every change.
+  const videos = parseVideoCarouselItemsRaw(s.videoCarouselItems);
+  const setVideos = (next: VideoCarouselItem[]) =>
+    set("videoCarouselItems", JSON.stringify(next));
+  const updateVideo = (i: number, patch: Partial<VideoCarouselItem>) =>
+    setVideos(videos.map((v, j) => (j === i ? { ...v, ...patch } : v)));
 
   const save = async () => {
     setSaving(true);
@@ -273,6 +287,194 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
                 Phrases scroll continuously across the strip below the homepage hero.
               </p>
             </div>
+          </section>
+        </div>
+      )}
+
+      {/* VIDEO CAROUSEL */}
+      {tab === "videos" && (
+        <div className="space-y-6 max-w-3xl">
+          <p className="text-sm text-muted-foreground">
+            A scrolling strip of short vertical clips. Videos autoplay muted while on
+            screen; visitors can unmute one at a time.
+          </p>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold">Show the carousel</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Turn off to hide it everywhere without losing your videos.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-black"
+                  checked={s.videoCarouselEnabled === "true"}
+                  onChange={(e) =>
+                    set("videoCarouselEnabled", e.target.checked ? "true" : "false")
+                  }
+                />
+                Enabled
+              </label>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Heading</Label>
+                <Input
+                  value={s.videoCarouselTitle}
+                  onChange={(e) => set("videoCarouselTitle", e.target.value)}
+                  placeholder="Seen on you"
+                />
+              </div>
+              <div>
+                <Label>Subheading</Label>
+                <Input
+                  value={s.videoCarouselSubtitle}
+                  onChange={(e) => set("videoCarouselSubtitle", e.target.value)}
+                  placeholder="Real pieces, real light, real people."
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Show it on these pages</h2>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {VIDEO_CAROUSEL_PAGES.map((p) => {
+                const active = s.videoCarouselPages
+                  .split(",")
+                  .map((x) => x.trim())
+                  .includes(p.key);
+                return (
+                  <label
+                    key={p.key}
+                    className="flex items-center gap-2 text-sm border rounded-lg px-3 py-2 cursor-pointer hover:bg-secondary/50"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-black"
+                      checked={active}
+                      onChange={(e) => {
+                        const current = s.videoCarouselPages
+                          .split(",")
+                          .map((x) => x.trim())
+                          .filter(Boolean);
+                        const next = e.target.checked
+                          ? Array.from(new Set([...current, p.key]))
+                          : current.filter((x) => x !== p.key);
+                        set("videoCarouselPages", next.join(","));
+                      }}
+                    />
+                    {p.label}
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Videos</h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setVideos([...videos, { url: "" }])}
+              >
+                Add video
+              </Button>
+            </div>
+
+            {videos.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No videos yet. Click <strong>Add video</strong> to start.
+              </p>
+            )}
+
+            {videos.map((v, i) => (
+              <div key={i} className="border rounded-xl p-4 space-y-3 bg-secondary/30">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Video {i + 1}
+                  </p>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={i === 0}
+                      onClick={() => {
+                        const next = [...videos];
+                        [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                        setVideos(next);
+                      }}
+                    >
+                      ↑
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={i === videos.length - 1}
+                      onClick={() => {
+                        const next = [...videos];
+                        [next[i + 1], next[i]] = [next[i], next[i + 1]];
+                        setVideos(next);
+                      }}
+                    >
+                      ↓
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => setVideos(videos.filter((_, j) => j !== i))}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Video URL</Label>
+                  <Input
+                    value={v.url}
+                    onChange={(e) => updateVideo(i, { url: e.target.value })}
+                    placeholder="https://ik.imagekit.io/…/clip.mp4"
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Poster image (optional)</Label>
+                    <Input
+                      value={v.poster ?? ""}
+                      onChange={(e) => updateVideo(i, { poster: e.target.value })}
+                      placeholder="https://ik.imagekit.io/…/cover.jpg"
+                    />
+                  </div>
+                  <div>
+                    <Label>Links to (optional)</Label>
+                    <Input
+                      value={v.href ?? ""}
+                      onChange={(e) => updateVideo(i, { href: e.target.value })}
+                      placeholder="/products/midnight-clover-set"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Caption (optional)</Label>
+                  <Input
+                    value={v.caption ?? ""}
+                    onChange={(e) => updateVideo(i, { caption: e.target.value })}
+                    placeholder="Midnight Clover set — worn by Ayesha"
+                  />
+                </div>
+              </div>
+            ))}
           </section>
         </div>
       )}

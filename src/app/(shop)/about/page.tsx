@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
 import { ArrowRight, Award, Heart, Sparkles } from "lucide-react";
 import { getSettings } from "@/lib/settings";
+import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,8 @@ export default async function AboutPage() {
           </Link>
         </Reveal>
       </section>
+
+      <VideoCarouselSection page="about" />
     </>
   );
 }

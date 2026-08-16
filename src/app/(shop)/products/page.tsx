@@ -8,6 +8,7 @@ import { defaultOfferEndsAt } from "@/lib/utils";
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import type { Prisma } from "@prisma/client";
+import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
 
 export const dynamic = "force-dynamic";
 
@@ -252,6 +253,8 @@ export default async function ProductsPage({
           </Reveal>
         </section>
       )}
+
+      <VideoCarouselSection page="products" />
     </div>
   );
 }

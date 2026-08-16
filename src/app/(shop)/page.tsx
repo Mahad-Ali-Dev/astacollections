@@ -13,6 +13,7 @@ import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
 import { defaultOfferEndsAt } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
+import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
 
 export const dynamic = "force-dynamic";
 
@@ -320,6 +321,8 @@ export default async function HomePage() {
           </Reveal>
         </section>
       )}
+
+      <VideoCarouselSection page="home" />
     </>
   );
 }

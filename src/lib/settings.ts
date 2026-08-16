@@ -78,6 +78,35 @@ export type StoreSettings = {
   announcementText: string;
   announcementCode: string;       // optional highlighted code (e.g. "WELCOME10")
   marqueePhrases: string;         // pipe-separated phrases (e.g. "Free shipping above Rs. 5,000|COD across Pakistan")
+
+  // Video carousel — a shoppable strip of short clips. Stored as flat
+  // strings like every other setting so it round-trips through the
+  // key/value Setting table without a migration.
+  videoCarouselEnabled: string;   // "true" | "false"
+  videoCarouselTitle: string;
+  videoCarouselSubtitle: string;
+  videoCarouselPages: string;     // comma-separated page keys — see VIDEO_CAROUSEL_PAGES
+  videoCarouselItems: string;     // JSON array of VideoCarouselItem
+};
+
+/** Pages the video carousel can be switched on for, from the admin panel. */
+export const VIDEO_CAROUSEL_PAGES = [
+  { key: "home", label: "Homepage" },
+  { key: "product", label: "Product pages" },
+  { key: "products", label: "Shop All" },
+  { key: "category", label: "Category pages" },
+  { key: "about", label: "About page" },
+] as const;
+
+export type VideoCarouselItem = {
+  /** Direct video URL (ImageKit). */
+  url: string;
+  /** Optional poster image shown before playback. */
+  poster?: string;
+  /** Optional caption rendered under the clip. */
+  caption?: string;
+  /** Optional link — e.g. the product the clip features. */
+  href?: string;
 };
 
 const DEFAULTS: StoreSettings = {
@@ -149,7 +178,47 @@ const DEFAULTS: StoreSettings = {
   announcementCode: "WELCOME10",
   marqueePhrases:
     "Free shipping above Rs. 5,000|Cash on Delivery|Bank transfer accepted|Handcrafted in Pakistan|7-day easy returns|Hypoallergenic materials|Hand-inspected before shipping",
+
+  videoCarouselEnabled: "false",
+  videoCarouselTitle: "Seen on you",
+  videoCarouselSubtitle: "Real pieces, real light, real people.",
+  videoCarouselPages: "home",
+  videoCarouselItems: "[]",
 };
+
+/**
+ * Parse the stored JSON, keeping every row — including ones with a blank
+ * URL. The admin editor needs these so a freshly added row doesn't vanish
+ * before it's been filled in. Bad or hand-edited JSON must never take a
+ * page down, so anything unparseable yields [].
+ */
+export function parseVideoCarouselItemsRaw(raw: string): VideoCarouselItem[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (v): v is VideoCarouselItem =>
+        !!v && typeof v === "object" && typeof v.url === "string"
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Storefront view: only rows with a real URL are renderable. */
+export function parseVideoCarouselItems(raw: string): VideoCarouselItem[] {
+  return parseVideoCarouselItemsRaw(raw).filter((v) => v.url.trim() !== "");
+}
+
+/** Is the carousel switched on for this page key? */
+export function videoCarouselShowsOn(s: StoreSettings, page: string): boolean {
+  if (s.videoCarouselEnabled !== "true") return false;
+  if (parseVideoCarouselItems(s.videoCarouselItems).length === 0) return false;
+  return s.videoCarouselPages
+    .split(",")
+    .map((p) => p.trim())
+    .includes(page);
+}
 
 export async function getSettings(): Promise<StoreSettings> {
   const rows = await prisma.setting.findMany();
