@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,12 +24,21 @@ export default async function AdminProductsPage() {
           <h1 className="text-2xl font-serif">Products</h1>
           <p className="text-sm text-muted-foreground">{products.length} total</p>
         </div>
-        <Link href="/admin/products/new">
-          <Button variant="gold">
-            <Plus className="h-4 w-4" />
-            New Product
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/admin/products/export?all=1"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-md border text-sm font-medium hover:bg-secondary transition"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </a>
+          <Link href="/admin/products/new">
+            <Button variant="gold">
+              <Plus className="h-4 w-4" />
+              New Product
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="bg-card border rounded-lg overflow-hidden">

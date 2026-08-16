@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Upload, ChevronDown, ChevronUp, Plus, X, Star } from "lucide-react";
+import { Loader2, Upload, ChevronDown, ChevronUp, Plus, X, Star, FileSpreadsheet, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { parseDelimited } from "@/lib/csv";
 
 type Product = { id: string; name: string; sku: string };
 
@@ -32,20 +33,15 @@ const EMPTY: Row = {
 const COLUMNS = ["product", "customerName", "rating", "title", "body", "createdAt"] as const;
 
 /**
- * Parse pasted spreadsheet rows. Tabs are the default separator because
- * that's what copying from Excel or Sheets produces, and unlike commas it
- * survives review text containing punctuation.
+ * Turn a delimited document into review rows. Handles CSV, TSV and text
+ * pasted straight from a sheet, and tolerates a header line.
  */
-function parsePasted(raw: string): Row[] {
-  return raw
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const cells = line.includes("\t") ? line.split("\t") : line.split(",");
+function parseRows(raw: string): Row[] {
+  return parseDelimited(raw)
+    .map((cells) => {
       const row = { ...EMPTY };
       COLUMNS.forEach((c, i) => {
-        if (cells[i] !== undefined) row[c] = cells[i].trim();
+        if (cells[i] !== undefined) row[c] = cells[i];
       });
       return row;
     })
@@ -61,8 +57,23 @@ export function ReviewImporter({ products }: { products: Product[] }) {
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const pasted = mode === "paste" ? parsePasted(raw) : [];
+  const pasted = mode === "paste" ? parseRows(raw) : [];
   const rows = mode === "paste" ? pasted : queue;
+
+  async function handleFile(file: File) {
+    try {
+      const text = await file.text();
+      const parsed = parseRows(text);
+      if (parsed.length === 0) {
+        toast.error("No rows found in that file");
+        return;
+      }
+      setRaw(text);
+      toast.success(`Read ${parsed.length} row${parsed.length === 1 ? "" : "s"} from ${file.name}`);
+    } catch {
+      toast.error("Could not read that file");
+    }
+  }
 
   function addToQueue() {
     if (!draft.product) return toast.error("Choose a product");
@@ -151,7 +162,7 @@ export function ReviewImporter({ products }: { products: Product[] }) {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {m === "form" ? "One at a time" : "Paste from spreadsheet"}
+                {m === "form" ? "One at a time" : "Upload a file"}
               </button>
             ))}
           </div>
@@ -234,27 +245,60 @@ export function ReviewImporter({ products }: { products: Product[] }) {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="inline-flex items-center gap-2 h-10 px-4 rounded-md border-2 border-dashed cursor-pointer hover:border-accent hover:text-accent transition text-sm font-medium">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Choose CSV file
+                  <input
+                    type="file"
+                    accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleFile(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+
+                <a
+                  href="/api/admin/products/export"
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-md border text-sm font-medium hover:bg-secondary transition"
+                >
+                  <Download className="h-4 w-4" />
+                  Download product list
+                </a>
+              </div>
+
               <div className="text-xs text-muted-foreground space-y-1.5">
                 <p>
-                  One review per line. Columns separated by <strong>tabs</strong> — copy
-                  straight from Excel or Google Sheets in this order:
+                  Save your sheet as <strong>CSV</strong> and choose it above. Columns in
+                  this order, header row optional:
                 </p>
                 <code className="block bg-secondary rounded-lg p-2.5 font-mono text-[11px]">
                   product · name · rating · title · review text · date
                 </code>
                 <p>
-                  <strong>product</strong> is the SKU, URL slug or exact product name.
-                  Type into the box below — the grey text is only an example.
+                  <strong>product</strong> is the SKU, URL slug or exact product name —
+                  download the product list to get every SKU. Commas and line breaks
+                  inside review text are fine as long as the cell is quoted, which
+                  Excel and Sheets do automatically.
                 </p>
               </div>
-              <Textarea
-                value={raw}
-                onChange={(e) => setRaw(e.target.value)}
-                rows={8}
-                className="font-mono text-xs"
-                placeholder={"ASTA-PEN-SET-027\tAyesha K.\t5\tLovely\tExactly as pictured.\t2026-07-14"}
-              />
+
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                  Or paste rows directly
+                </summary>
+                <Textarea
+                  value={raw}
+                  onChange={(e) => setRaw(e.target.value)}
+                  rows={6}
+                  className="font-mono text-xs mt-2"
+                  placeholder={"ASTA-PEN-SET-027	Ayesha K.	5	Lovely	Exactly as pictured.	2026-07-14"}
+                />
+              </details>
             </div>
           )}
 
@@ -303,7 +347,7 @@ export function ReviewImporter({ products }: { products: Product[] }) {
               {rows.length === 0
                 ? mode === "form"
                   ? "Fill the form above and click Add to list"
-                  : "Paste rows above"
+                  : "Choose a CSV file above"
                 : `${rows.length} review${rows.length === 1 ? "" : "s"} ready — they go live as approved`}
             </p>
             <Button onClick={importAll} disabled={busy || rows.length === 0} variant="gold">
