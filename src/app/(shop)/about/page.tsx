@@ -57,6 +57,8 @@ export default async function AboutPage() {
         </Reveal>
       </section>
 
+      <VideoCarouselSection page="about" slot="story" />
+
       <section className="container py-16 max-w-5xl">
         <Reveal className="grid md:grid-cols-3 gap-6">
           <Value
@@ -77,6 +79,8 @@ export default async function AboutPage() {
         </Reveal>
       </section>
 
+      <VideoCarouselSection page="about" slot="values" />
+
       <section className="container pb-24">
         <Reveal className="bg-secondary rounded-3xl p-10 md:p-16 text-center max-w-3xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-serif mb-3">Browse the collection</h2>
@@ -92,7 +96,7 @@ export default async function AboutPage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="about" />
+      <VideoCarouselSection page="about" slot="end" />
     </>
   );
 }

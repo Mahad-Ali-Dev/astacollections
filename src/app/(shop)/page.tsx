@@ -99,6 +99,8 @@ export default async function HomePage() {
       <Hero slides={heroSlides} />
       <Marquee phrases={settings.marqueePhrases.split("|").map((p) => p.trim()).filter(Boolean)} />
 
+      <VideoCarouselSection page="home" slot="hero" />
+
       {/* TRUST PILLARS */}
       <Reveal as="section" className="bg-secondary/40">
         <div className="container py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -108,6 +110,8 @@ export default async function HomePage() {
           <Pillar icon={Award} title="Handpicked" sub="Curated edit" />
         </div>
       </Reveal>
+
+      <VideoCarouselSection page="home" slot="pillars" />
 
       {/* COLLECTION GRID */}
       <section className="container py-20 md:py-28">
@@ -130,6 +134,8 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
+      <VideoCarouselSection page="home" slot="collections" />
+
       {/* OFFER TIMER */}
       <section className="container">
         <Reveal>
@@ -140,6 +146,8 @@ export default async function HomePage() {
           />
         </Reveal>
       </section>
+
+      <VideoCarouselSection page="home" slot="offer" />
 
       {/* BESTSELLERS */}
       {bestsellers.length > 0 && (
@@ -177,6 +185,8 @@ export default async function HomePage() {
         </section>
       )}
 
+      <VideoCarouselSection page="home" slot="bestsellers" />
+
       {/* DUAL BANNER */}
       <section className="container pb-12">
         <Reveal>
@@ -201,6 +211,8 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
+      <VideoCarouselSection page="home" slot="dual-banner" />
+
       {/* FULL BANNER */}
       <section className="blush-bg py-20 md:py-28">
         <div className="container">
@@ -217,6 +229,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <VideoCarouselSection page="home" slot="full-banner" />
+
       {/* BUNDLES */}
       {bundles.length > 0 && (
         <section className="container py-20 md:py-28">
@@ -232,6 +246,8 @@ export default async function HomePage() {
           </Reveal>
         </section>
       )}
+
+      <VideoCarouselSection page="home" slot="bundles" />
 
       {/* FEATURED */}
       {featured.length > 0 && (
@@ -272,6 +288,8 @@ export default async function HomePage() {
         </section>
       )}
 
+      <VideoCarouselSection page="home" slot="featured" />
+
       {/* PROMISE — dark editorial */}
       <section>
         <FullBanner
@@ -285,8 +303,12 @@ export default async function HomePage() {
         />
       </section>
 
+      <VideoCarouselSection page="home" slot="promise" />
+
       {/* TESTIMONIALS */}
       <Testimonials />
+
+      <VideoCarouselSection page="home" slot="testimonials" />
 
       {/* NEW ARRIVALS */}
       {latestProducts.length > 0 && (
@@ -322,7 +344,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <VideoCarouselSection page="home" />
+      <VideoCarouselSection page="home" slot="end" />
     </>
   );
 }

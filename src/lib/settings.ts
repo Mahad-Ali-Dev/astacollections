@@ -85,17 +85,74 @@ export type StoreSettings = {
   videoCarouselEnabled: string;   // "true" | "false"
   videoCarouselTitle: string;
   videoCarouselSubtitle: string;
-  videoCarouselPages: string;     // comma-separated page keys — see VIDEO_CAROUSEL_PAGES
+  videoCarouselPages: string;     // legacy: comma-separated page keys, migrated to placements
+  videoCarouselPlacements: string; // JSON map of page key → slot key, e.g. {"home":"bestsellers"}
   videoCarouselItems: string;     // JSON array of VideoCarouselItem
 };
 
-/** Pages the video carousel can be switched on for, from the admin panel. */
+/**
+ * Where the carousel can sit. Each page exposes named slots matching the
+ * sections actually rendered on it, so the admin picks a position in the
+ * page's own language ("after Bestsellers") rather than a number.
+ *
+ * Slot keys are referenced by the <VideoCarouselSection slot="..."> calls
+ * placed in each page — adding a slot here means adding the matching render
+ * point in that page too.
+ */
 export const VIDEO_CAROUSEL_PAGES = [
-  { key: "home", label: "Homepage" },
-  { key: "product", label: "Product pages" },
-  { key: "products", label: "Shop All" },
-  { key: "category", label: "Category pages" },
-  { key: "about", label: "About page" },
+  {
+    key: "home",
+    label: "Homepage",
+    slots: [
+      { key: "hero", label: "Right under the hero" },
+      { key: "pillars", label: "After the trust pillars" },
+      { key: "collections", label: "After Shop by Collection" },
+      { key: "offer", label: "After the offer timer" },
+      { key: "bestsellers", label: "After Bestsellers" },
+      { key: "dual-banner", label: "After the dual banner" },
+      { key: "full-banner", label: "After the full banner" },
+      { key: "bundles", label: "After Bundles" },
+      { key: "featured", label: "After Featured" },
+      { key: "promise", label: "After the dark promise band" },
+      { key: "testimonials", label: "After Testimonials" },
+      { key: "end", label: "At the very bottom" },
+    ],
+  },
+  {
+    key: "product",
+    label: "Product pages",
+    slots: [
+      { key: "detail", label: "Right under the product" },
+      { key: "reviews", label: "After the reviews" },
+      { key: "related", label: "After You May Also Like" },
+      { key: "end", label: "At the very bottom" },
+    ],
+  },
+  {
+    key: "products",
+    label: "Shop All",
+    slots: [
+      { key: "top", label: "Above the product grid" },
+      { key: "end", label: "Below the product grid" },
+    ],
+  },
+  {
+    key: "category",
+    label: "Category pages",
+    slots: [
+      { key: "top", label: "Above the product grid" },
+      { key: "end", label: "Below the product grid" },
+    ],
+  },
+  {
+    key: "about",
+    label: "About page",
+    slots: [
+      { key: "story", label: "After the story section" },
+      { key: "values", label: "After the values grid" },
+      { key: "end", label: "At the very bottom" },
+    ],
+  },
 ] as const;
 
 export type VideoCarouselItem = {
@@ -182,7 +239,8 @@ const DEFAULTS: StoreSettings = {
   videoCarouselEnabled: "false",
   videoCarouselTitle: "Seen on you",
   videoCarouselSubtitle: "Real pieces, real light, real people.",
-  videoCarouselPages: "home",
+  videoCarouselPages: "",
+  videoCarouselPlacements: '{"home":"bestsellers"}',
   videoCarouselItems: "[]",
 };
 
@@ -226,14 +284,38 @@ export function parseVideoCarouselItems(raw: string): VideoCarouselItem[] {
   return parseVideoCarouselItemsRaw(raw).filter((v) => isPlayableVideoUrl(v.url));
 }
 
-/** Is the carousel switched on for this page key? */
-export function videoCarouselShowsOn(s: StoreSettings, page: string): boolean {
-  if (s.videoCarouselEnabled !== "true") return false;
-  if (parseVideoCarouselItems(s.videoCarouselItems).length === 0) return false;
-  return s.videoCarouselPages
+/**
+ * Which slot the carousel occupies on each page, as { page: slot }.
+ *
+ * Falls back to the legacy comma-separated page list — those installs get
+ * the bottom-of-page position they already had, so upgrading doesn't move
+ * anything unexpectedly.
+ */
+export function parseVideoCarouselPlacements(s: StoreSettings): Record<string, string> {
+  try {
+    const parsed = JSON.parse(s.videoCarouselPlacements || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const entries = Object.entries(parsed).filter(
+        ([, v]) => typeof v === "string" && v !== ""
+      ) as [string, string][];
+      if (entries.length > 0) return Object.fromEntries(entries);
+    }
+  } catch {
+    /* fall through to the legacy shape */
+  }
+
+  const legacy = (s.videoCarouselPages || "")
     .split(",")
     .map((p) => p.trim())
-    .includes(page);
+    .filter(Boolean);
+  return Object.fromEntries(legacy.map((p) => [p, "end"]));
+}
+
+/** The slot to render in on this page, or null if the carousel is hidden here. */
+export function videoCarouselSlotFor(s: StoreSettings, page: string): string | null {
+  if (s.videoCarouselEnabled !== "true") return null;
+  if (parseVideoCarouselItems(s.videoCarouselItems).length === 0) return null;
+  return parseVideoCarouselPlacements(s)[page] ?? null;
 }
 
 export async function getSettings(): Promise<StoreSettings> {

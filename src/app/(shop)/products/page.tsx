@@ -143,6 +143,8 @@ export default async function ProductsPage({
         </div>
       </section>
 
+      <VideoCarouselSection page="products" slot="top" />
+
       <div className="container py-8 md:py-12">
         <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 lg:gap-12">
           <ProductFilters
@@ -254,7 +256,7 @@ export default async function ProductsPage({
         </section>
       )}
 
-      <VideoCarouselSection page="products" />
+      <VideoCarouselSection page="products" slot="end" />
     </div>
   );
 }

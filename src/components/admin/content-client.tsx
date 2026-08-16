@@ -12,6 +12,7 @@ import { VideoUploadField } from "./video-upload-field";
 import {
   VIDEO_CAROUSEL_PAGES,
   parseVideoCarouselItemsRaw,
+  parseVideoCarouselPlacements,
   type StoreSettings,
   type VideoCarouselItem,
 } from "@/lib/settings";
@@ -44,6 +45,16 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
     set("videoCarouselItems", JSON.stringify(next));
   const updateVideo = (i: number, patch: Partial<VideoCarouselItem>) =>
     setVideos(videos.map((v, j) => (j === i ? { ...v, ...patch } : v)));
+
+  // Placement is a page -> slot map. An empty slot removes the page entirely,
+  // which is what "Don't show" means.
+  const placements = parseVideoCarouselPlacements(s);
+  const setPlacement = (page: string, slot: string) => {
+    const next = { ...placements };
+    if (slot) next[page] = slot;
+    else delete next[page];
+    set("videoCarouselPlacements", JSON.stringify(next));
+  };
 
   const save = async () => {
     setSaving(true);
@@ -342,37 +353,32 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
           </section>
 
           <section className="bg-card border rounded-xl p-6 space-y-4">
-            <h2 className="font-semibold">Show it on these pages</h2>
-            <div className="grid sm:grid-cols-2 gap-2">
-              {VIDEO_CAROUSEL_PAGES.map((p) => {
-                const active = s.videoCarouselPages
-                  .split(",")
-                  .map((x) => x.trim())
-                  .includes(p.key);
-                return (
-                  <label
-                    key={p.key}
-                    className="flex items-center gap-2 text-sm border rounded-lg px-3 py-2 cursor-pointer hover:bg-secondary/50"
+            <h2 className="font-semibold">Where it appears</h2>
+            <p className="text-xs text-muted-foreground">
+              Pick a position per page. Choose <strong>Don&apos;t show</strong> to hide it
+              on that page.
+            </p>
+            <div className="space-y-3">
+              {VIDEO_CAROUSEL_PAGES.map((p) => (
+                <div
+                  key={p.key}
+                  className="grid sm:grid-cols-[160px_1fr] sm:items-center gap-2"
+                >
+                  <Label className="mb-0">{p.label}</Label>
+                  <select
+                    value={placements[p.key] ?? ""}
+                    onChange={(e) => setPlacement(p.key, e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-black"
-                      checked={active}
-                      onChange={(e) => {
-                        const current = s.videoCarouselPages
-                          .split(",")
-                          .map((x) => x.trim())
-                          .filter(Boolean);
-                        const next = e.target.checked
-                          ? Array.from(new Set([...current, p.key]))
-                          : current.filter((x) => x !== p.key);
-                        set("videoCarouselPages", next.join(","));
-                      }}
-                    />
-                    {p.label}
-                  </label>
-                );
-              })}
+                    <option value="">Don&apos;t show</option>
+                    {p.slots.map((slot) => (
+                      <option key={slot.key} value={slot.key}>
+                        {slot.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
           </section>
 

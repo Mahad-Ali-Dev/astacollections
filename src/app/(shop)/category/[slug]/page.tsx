@@ -165,6 +165,8 @@ export default async function CategoryPage({
         </div>
       </section>
 
+      <VideoCarouselSection page="category" slot="top" />
+
       <div className="container py-10 md:py-14">
         {products.length === 0 ? (
           <div className="text-center py-20 border-2 border-dashed rounded-2xl">
@@ -277,7 +279,7 @@ export default async function CategoryPage({
         </section>
       )}
 
-      <VideoCarouselSection page="category" />
+      <VideoCarouselSection page="category" slot="end" />
     </>
   );
 }

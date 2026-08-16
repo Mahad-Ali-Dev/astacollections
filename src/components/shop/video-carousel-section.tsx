@@ -1,18 +1,28 @@
+import { cache } from "react";
 import {
   getSettings,
   parseVideoCarouselItems,
-  videoCarouselShowsOn,
+  videoCarouselSlotFor,
 } from "@/lib/settings";
 import { VideoCarousel } from "./video-carousel";
 
 /**
- * Server wrapper: reads the admin settings and renders the carousel only if
- * it's enabled for this page. Drop `<VideoCarouselSection page="home" />`
- * into any page — visibility stays controlled from the admin panel.
+ * Pages drop this in at every position the carousel is allowed to occupy;
+ * only the slot the admin picked actually renders. That means a page can
+ * hold a dozen of these, so settings are cached per request — otherwise
+ * each one would fire its own query for the same rows.
  */
-export async function VideoCarouselSection({ page }: { page: string }) {
-  const settings = await getSettings();
-  if (!videoCarouselShowsOn(settings, page)) return null;
+const getCachedSettings = cache(getSettings);
+
+export async function VideoCarouselSection({
+  page,
+  slot,
+}: {
+  page: string;
+  slot: string;
+}) {
+  const settings = await getCachedSettings();
+  if (videoCarouselSlotFor(settings, page) !== slot) return null;
 
   return (
     <VideoCarousel

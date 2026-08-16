@@ -182,6 +182,8 @@ export default async function ProductDetailPage({
         reviewCount={reviews.length}
       />
 
+      <VideoCarouselSection page="product" slot="detail" />
+
       <ReviewsSection
         productId={product.id}
         initialReviews={reviews.map((r) => ({
@@ -194,6 +196,8 @@ export default async function ProductDetailPage({
         }))}
         customer={customer ? { id: customer.id, name: customer.name, email: customer.email } : null}
       />
+
+      <VideoCarouselSection page="product" slot="reviews" />
 
       {related.length > 0 && (
         <section className="mt-24">
@@ -225,6 +229,8 @@ export default async function ProductDetailPage({
           </Reveal>
         </section>
       )}
+
+      <VideoCarouselSection page="product" slot="related" />
 
       {newArrivals.length > 0 && (
         <section className="mt-20 bg-secondary/40 -mx-4 md:-mx-8 px-4 md:px-8 py-16 rounded-3xl">
@@ -258,7 +264,7 @@ export default async function ProductDetailPage({
         </section>
       )}
 
-      <VideoCarouselSection page="product" />
+      <VideoCarouselSection page="product" slot="end" />
     </div>
   );
 }
