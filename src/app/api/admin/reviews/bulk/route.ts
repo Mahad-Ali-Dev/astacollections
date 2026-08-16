@@ -11,6 +11,10 @@ import { getAdminFromRequest } from "@/lib/auth";
  * a partial import you don't know about is worse than a loud failure.
  */
 
+/** Ceiling on one import. createMany handles this comfortably in a single
+ *  round trip; the limit exists to keep a runaway paste from timing out. */
+const MAX_ROWS = 1000;
+
 type IncomingRow = {
   product?: string;
   customerName?: string;
@@ -31,9 +35,9 @@ export async function POST(req: NextRequest) {
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: "No rows supplied" }, { status: 400 });
     }
-    if (rows.length > 500) {
+    if (rows.length > MAX_ROWS) {
       return NextResponse.json(
-        { error: "Import at most 500 rows at a time" },
+        { error: `Import at most ${MAX_ROWS} rows at a time` },
         { status: 400 }
       );
     }
@@ -116,5 +120,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ imported, skipped: errors.length, errors });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Import failed" }, { status: 500 });
+  }
+}
+
+const STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
+
+/**
+ * Delete reviews in bulk — all of them, or just one status.
+ *
+ * There is no undo, so the caller must echo back the exact count it expects
+ * to delete. If the number has moved since the confirmation screen was
+ * rendered (a customer left a review in the meantime), the request is
+ * rejected rather than deleting more than the admin agreed to.
+ */
+export async function DELETE(req: NextRequest) {
+  const admin = await getAdminFromRequest(req);
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const statusParam = req.nextUrl.searchParams.get("status") ?? "ALL";
+    const expected = Number(req.nextUrl.searchParams.get("expected"));
+
+    if (statusParam !== "ALL" && !STATUSES.includes(statusParam as any)) {
+      return NextResponse.json({ error: "Unknown status filter" }, { status: 400 });
+    }
+    if (!Number.isInteger(expected) || expected < 0) {
+      return NextResponse.json(
+        { error: "Confirmation count missing" },
+        { status: 400 }
+      );
+    }
+
+    const where = statusParam === "ALL" ? {} : { status: statusParam as any };
+
+    const actual = await prisma.review.count({ where });
+    if (actual !== expected) {
+      return NextResponse.json(
+        {
+          error: `Count changed — ${actual} reviews now match, not ${expected}. Reload and try again.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    const { count } = await prisma.review.deleteMany({ where });
+    return NextResponse.json({ deleted: count });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message ?? "Delete failed" }, { status: 500 });
   }
 }

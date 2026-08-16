@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModerator } from "@/components/admin/review-moderator";
 import { ReviewImporter } from "@/components/admin/review-importer";
+import { ReviewBulkDelete } from "@/components/admin/review-bulk-delete";
 import { formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,12 @@ export default async function AdminReviewsPage({
     orderBy: { name: "asc" },
   });
 
+  // The delete button acts on whatever the status filter is showing, so it
+  // needs that filter's count rather than the overall total.
+  const deletableCount = await prisma.review.count({
+    where: status ? { status: status as any } : {},
+  });
+
   const counts = {
     pending: await prisma.review.count({ where: { status: "PENDING" } }),
     approved: await prisma.review.count({ where: { status: "APPROVED" } }),
@@ -41,11 +48,17 @@ export default async function AdminReviewsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-serif">Reviews</h1>
-        <p className="text-sm text-muted-foreground">
-          {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-serif">Reviews</h1>
+          <p className="text-sm text-muted-foreground">
+            {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected
+          </p>
+        </div>
+        <ReviewBulkDelete
+          status={sp.status && sp.status !== "ALL" ? sp.status : "ALL"}
+          count={deletableCount}
+        />
       </div>
 
       <ReviewImporter products={products} />
