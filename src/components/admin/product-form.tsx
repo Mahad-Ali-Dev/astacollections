@@ -43,6 +43,7 @@ type FormState = {
   metaTitle: string;
   metaDesc: string;
   categoryId: string;
+  extraCategoryIds: string[];
   images: string[];
   videoUrl: string | null;
 };
@@ -71,6 +72,7 @@ export function ProductForm({
     metaTitle?: string | null;
     metaDesc?: string | null;
     categoryId: string;
+    extraCategories?: { id: string }[];
     images: ProductImage[];
     videoUrl?: string | null;
   };
@@ -98,6 +100,7 @@ export function ProductForm({
           metaTitle: product.metaTitle ?? "",
           metaDesc: product.metaDesc ?? "",
           categoryId: product.categoryId,
+          extraCategoryIds: (product.extraCategories ?? []).map((c) => c.id),
           images: product.images.map((i) => i.url),
           videoUrl: product.videoUrl ?? null,
         }
@@ -119,6 +122,7 @@ export function ProductForm({
           metaTitle: "",
           metaDesc: "",
           categoryId: categories[0]?.id ?? "",
+          extraCategoryIds: [],
           images: [],
           videoUrl: null,
         }
@@ -270,6 +274,7 @@ export function ProductForm({
         metaTitle: form.metaTitle || null,
         metaDesc: form.metaDesc || null,
         categoryId: form.categoryId,
+        extraCategoryIds: form.extraCategoryIds,
         images: form.images,
         videoUrl: form.videoUrl,
       };
@@ -662,6 +667,45 @@ export function ProductForm({
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Used for breadcrumbs and the product URL.
+              </p>
+            </div>
+
+            <div>
+              <Label>Also show in</Label>
+              <div className="mt-1 border rounded-lg divide-y max-h-56 overflow-y-auto">
+                {categories
+                  .filter((c) => c.id !== form.categoryId)
+                  .map((c) => {
+                    const checked = form.extraCategoryIds.includes(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/50"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-black"
+                          checked={checked}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              extraCategoryIds: e.target.checked
+                                ? [...f.extraCategoryIds, c.id]
+                                : f.extraCategoryIds.filter((id) => id !== c.id),
+                            }))
+                          }
+                        />
+                        {c.name}
+                      </label>
+                    );
+                  })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                The product also appears when browsing these, without changing
+                its primary category.
+              </p>
             </div>
           </section>
 

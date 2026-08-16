@@ -69,7 +69,15 @@ export default async function CategoryPage({
   const allCategoryIds = await collectDescendantCategoryIds(category.id);
 
   const products = await prisma.product.findMany({
-    where: { isActive: true, categoryId: { in: allCategoryIds } },
+    where: {
+      isActive: true,
+      OR: [
+        { categoryId: { in: allCategoryIds } },
+        // Products whose primary category is elsewhere but that were also
+        // added to this one.
+        { extraCategories: { some: { id: { in: allCategoryIds } } } },
+      ],
+    },
     include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
     orderBy: { createdAt: "desc" },
   });
@@ -82,12 +90,17 @@ export default async function CategoryPage({
         isActive: true,
         isFeatured: true,
         categoryId: { notIn: allCategoryIds },
+        NOT: { extraCategories: { some: { id: { in: allCategoryIds } } } },
       },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
       take: 4,
     }),
     prisma.product.findMany({
-      where: { isActive: true, categoryId: { notIn: allCategoryIds } },
+      where: {
+        isActive: true,
+        categoryId: { notIn: allCategoryIds },
+        NOT: { extraCategories: { some: { id: { in: allCategoryIds } } } },
+      },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
       orderBy: { createdAt: "desc" },
       take: 4,

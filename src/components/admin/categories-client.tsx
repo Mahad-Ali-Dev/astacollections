@@ -172,11 +172,12 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg max-h-[88vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing.id ? "Edit Category" : "New Category"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <Label>Name</Label>
               <Input
@@ -203,6 +204,7 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
                 URL: /category/{editing.slug || "..."}
               </p>
             </div>
+            </div>
             <div>
               <Label>Description</Label>
               <Textarea
@@ -216,7 +218,7 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
               value={editing.image}
               onChange={(url) => setEditing({ ...editing, image: url })}
               hint="Shown on the homepage Collection grid and the category banner."
-              aspect="portrait"
+              aspect="wide"
             />
             <div>
               <Label>Parent category (for subcategories)</Label>
@@ -243,11 +245,24 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
                 <Label>Sort Order</Label>
                 <Input
                   type="number"
+                  min={0}
                   value={editing.sortOrder}
-                  onChange={(e) =>
-                    setEditing({ ...editing, sortOrder: Number(e.target.value) || 0 })
+                  onChange={(e) => {
+                    // Allow an empty field mid-edit; "" would otherwise snap
+                    // straight back to 0 and fight the cursor.
+                    const raw = e.target.value;
+                    setEditing({
+                      ...editing,
+                      sortOrder: raw === "" ? ("" as unknown as number) : Number(raw),
+                    });
+                  }}
+                  onBlur={() =>
+                    setEditing((c) => ({ ...c, sortOrder: Number(c.sortOrder) || 0 }))
                   }
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lower numbers show first.
+                </p>
               </div>
               <div className="flex items-end">
                 <label className="flex items-center gap-2 cursor-pointer">

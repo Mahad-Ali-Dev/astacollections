@@ -34,12 +34,14 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const { images, ...data } = parsed.data;
+    const { images, extraCategoryIds, ...data } = parsed.data;
+    const extras = extraCategoryIds.filter((id) => id !== data.categoryId);
 
     const product = await prisma.product.create({
       data: {
         ...data,
         images: { create: images.map((url, sortOrder) => ({ url, sortOrder })) },
+        extraCategories: { connect: extras.map((id) => ({ id })) },
       },
       include: { images: true },
     });

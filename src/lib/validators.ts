@@ -33,6 +33,9 @@ export const productSchema = z.object({
   metaTitle: z.string().optional().nullable(),
   metaDesc: z.string().optional().nullable(),
   categoryId: z.string().min(1),
+  /// Additional categories the product also browses under. The primary
+  /// category above is excluded server-side so it can't be listed twice.
+  extraCategoryIds: z.array(z.string()).default([]),
   images: z.array(z.string()).default([]),
   videoUrl: z.string().url().optional().nullable(),
 });

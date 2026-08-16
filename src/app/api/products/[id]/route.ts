@@ -7,7 +7,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params;
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { category: true, images: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      category: true,
+      extraCategories: { select: { id: true } },
+      images: { orderBy: { sortOrder: "asc" } },
+    },
   });
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ product });
@@ -27,7 +31,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         { status: 400 }
       );
     }
-    const { images, ...data } = parsed.data;
+    const { images, extraCategoryIds, ...data } = parsed.data;
+    const extras = extraCategoryIds.filter((id) => id !== data.categoryId);
 
     // Replace images
     const product = await prisma.$transaction(async (tx) => {
@@ -37,6 +42,9 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
         data: {
           ...data,
           images: { create: images.map((url, sortOrder) => ({ url, sortOrder })) },
+          // set() replaces the whole list, so removing a category in the form
+          // actually removes it rather than only ever adding.
+          extraCategories: { set: extras.map((id) => ({ id })) },
         },
         include: { images: true },
       });

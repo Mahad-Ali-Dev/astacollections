@@ -169,6 +169,8 @@ model Category {
   updatedAt   DateTime @updatedAt
 
   products Product[]
+  /// Products that also belong here without it being their primary category.
+  extraProducts Product[] @relation("ProductExtraCategories")
   navItems NavItem[]
 
   @@index([slug])
@@ -222,8 +224,12 @@ model Product {
   videoUrl     String?
   videoPoster  String?
 
+  /// Primary category — drives breadcrumbs, JSON-LD and the product's own
+  /// page. A product has exactly one, so those stay unambiguous.
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
+  /// Additional categories the product also appears under when browsing.
+  extraCategories Category[] @relation("ProductExtraCategories")
 
   images        ProductImage[]
   orderItems    OrderItem[]
