@@ -19,6 +19,8 @@ type Row = {
   name: string;
   sku: string;
   price: number;
+  comparePrice: number | null;
+  onSale: boolean;
   stock: number;
   isActive: boolean;
   isPrimary: boolean;
@@ -46,6 +48,10 @@ export function CategoryProductsDialog({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
   const [minStock, setMinStock] = useState(0);
+  const [saleOnly, setSaleOnly] = useState(false);
+  const [cats, setCats] = useState<Set<string>>(new Set());
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -70,18 +76,31 @@ export function CategoryProductsDialog({
     };
   }, [categoryId]);
 
+  /** Categories present in the catalogue, for the chip filter. */
+  const allCats = useMemo(
+    () => [...new Set(rows.filter((r) => r.categoryName).map((r) => r.categoryName))].sort(),
+    [rows]
+  );
+
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    const lo = minPrice === "" ? -Infinity : Number(minPrice);
+    const hi = maxPrice === "" ? Infinity : Number(maxPrice);
     return rows.filter(
       (r) =>
         !r.isPrimary &&
         r.stock >= minStock &&
+        (!saleOnly || r.onSale) &&
+        // No categories ticked means "all", rather than "none".
+        (cats.size === 0 || cats.has(r.categoryName)) &&
+        r.price >= lo &&
+        r.price <= hi &&
         (needle === "" ||
           r.name.toLowerCase().includes(needle) ||
           r.sku.toLowerCase().includes(needle) ||
           r.categoryName.toLowerCase().includes(needle))
     );
-  }, [rows, q, minStock]);
+  }, [rows, q, minStock, saleOnly, cats, minPrice, maxPrice]);
 
   const primaryCount = rows.filter((r) => r.isPrimary).length;
   const chosen = rows.filter((r) => selected.has(r.id) && !r.isPrimary);
@@ -97,6 +116,24 @@ export function CategoryProductsDialog({
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleCat(name: string) {
+    setCats((cur) => {
+      const next = new Set(cur);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  function resetFilters() {
+    setQ("");
+    setMinStock(0);
+    setSaleOnly(false);
+    setCats(new Set());
+    setMinPrice("");
+    setMaxPrice("");
   }
 
   function selectAllVisible() {
@@ -174,6 +211,69 @@ export function CategoryProductsDialog({
               </Button>
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setSaleOnly((v) => !v)}
+                className={`px-3 h-8 rounded-full border text-xs font-medium transition ${
+                  saleOnly
+                    ? "bg-foreground text-background border-foreground"
+                    : "hover:bg-secondary"
+                }`}
+              >
+                On sale only
+              </button>
+
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="Min Rs"
+                  className="h-8 w-24 text-xs"
+                />
+                <span className="text-muted-foreground text-xs">–</span>
+                <Input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="Max Rs"
+                  className="h-8 w-24 text-xs"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Reset filters
+              </button>
+            </div>
+
+            {allCats.length > 1 && (
+              <div className="flex flex-wrap gap-1.5">
+                {allCats.map((c) => {
+                  const on = cats.has(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => toggleCat(c)}
+                      className={`px-2.5 h-7 rounded-full border text-[11px] font-medium transition ${
+                        on
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "hover:bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground">
               {primaryCount > 0 && (
                 <>
@@ -211,7 +311,14 @@ export function CategoryProductsDialog({
                         </span>
                       </span>
                       <span className="text-xs tabular-nums shrink-0 text-right">
-                        <span className="block font-medium">{formatPrice(r.price)}</span>
+                        <span className="block font-medium">
+                          {formatPrice(r.price)}
+                          {r.onSale && r.comparePrice != null && (
+                            <span className="ml-1.5 font-normal text-muted-foreground line-through">
+                              {formatPrice(r.comparePrice)}
+                            </span>
+                          )}
+                        </span>
                         <span
                           className={
                             r.stock === 0

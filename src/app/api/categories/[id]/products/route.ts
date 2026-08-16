@@ -36,6 +36,7 @@ export async function GET(
         name: true,
         sku: true,
         price: true,
+        comparePrice: true,
         stock: true,
         isActive: true,
         categoryId: true,
@@ -57,6 +58,10 @@ export async function GET(
       name: p.name,
       sku: p.sku,
       price: p.price,
+      comparePrice: p.comparePrice,
+      /// A struck-through compare price above the selling price is what the
+      /// storefront renders as a discount, so that's what "on sale" means.
+      onSale: p.comparePrice != null && p.comparePrice > p.price,
       stock: p.stock,
       isActive: p.isActive,
       // Products already living here don't need adding again.
