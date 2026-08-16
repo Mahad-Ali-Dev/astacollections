@@ -98,6 +98,10 @@ export type StoreSettings = {
   reviewsStripCount: string;        // how many to show
   reviewsStripMinRating: string;    // 1-5, only reviews at or above this
   reviewsStripShowProduct: string;  // "true" | "false" — name the reviewed product
+
+  // What the review section on a product page lists: "product" for that
+  // product's own reviews, "all" for every approved review in the store.
+  productReviewsScope: string;
 };
 
 /**
@@ -263,6 +267,7 @@ const DEFAULTS: StoreSettings = {
   reviewsStripCount: "9",
   reviewsStripMinRating: "4",
   reviewsStripShowProduct: "true",
+  productReviewsScope: "product",
 };
 
 /**

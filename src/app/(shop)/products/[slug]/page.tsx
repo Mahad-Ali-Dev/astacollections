@@ -51,7 +51,8 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const money = settingsToNumbers(await getSettings());
+  const settings = await getSettings();
+  const money = settingsToNumbers(settings);
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
@@ -117,22 +118,42 @@ export default async function ProductDetailPage({
     take: 4,
   });
 
-  const reviewWhere = { productId: product.id, status: "APPROVED" as const };
+  // Admin can switch the product page's review list between this product's
+  // own reviews and every approved review in the store.
+  const reviewScope = settings.productReviewsScope === "all" ? "all" : "product";
+  const reviewWhere =
+    reviewScope === "all"
+      ? { status: "APPROVED" as const }
+      : { productId: product.id, status: "APPROVED" as const };
 
   // The visible list is capped, but the rating summary must describe every
   // approved review — deriving it from the capped list understated both the
   // count and the average once a product passed the cap.
-  const [reviews, ratingGroups] = await Promise.all([
+  const [reviews, ratingGroups, ownRatingGroups] = await Promise.all([
     prisma.review.findMany({
       where: reviewWhere,
       orderBy: { createdAt: "desc" },
       take: 50,
+      include:
+        reviewScope === "all"
+          ? { product: { select: { name: true, slug: true } } }
+          : undefined,
     }),
     prisma.review.groupBy({
       by: ["rating"],
       where: reviewWhere,
       _count: { _all: true },
     }),
+    // Structured data must describe THIS product, whatever the display scope
+    // is. Publishing store-wide totals as a product's AggregateRating
+    // misrepresents it to search engines.
+    reviewScope === "all"
+      ? prisma.review.groupBy({
+          by: ["rating"],
+          where: { productId: product.id, status: "APPROVED" as const },
+          _count: { _all: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   const reviewCount = ratingGroups.reduce((n, g) => n + g._count._all, 0);
@@ -148,6 +169,15 @@ export default async function ProductDetailPage({
       ? ratingGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / reviewCount
       : 0;
 
+  // Product-only figures for JSON-LD — identical to the display figures
+  // unless the section is showing the whole store.
+  const ownGroups = ownRatingGroups ?? ratingGroups;
+  const ownCount = ownGroups.reduce((n, g) => n + g._count._all, 0);
+  const ownAvg =
+    ownCount > 0
+      ? ownGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / ownCount
+      : 0;
+
   const jsonLd = productJsonLd({
     name: product.name,
     description: product.shortDesc ?? product.description.slice(0, 200),
@@ -157,9 +187,9 @@ export default async function ProductDetailPage({
     price: product.price,
     inStock: product.stock > 0,
     url: `/products/${product.slug}`,
-    reviewCount,
-    ratingValue: avgRating,
-    reviews: reviews.slice(0, 5).map((r) => ({
+    reviewCount: ownCount,
+    ratingValue: ownAvg,
+    reviews: (reviewScope === "all" ? [] : reviews.slice(0, 5)).map((r) => ({
       author: r.customerName,
       rating: r.rating,
       body: r.body,
@@ -218,6 +248,7 @@ export default async function ProductDetailPage({
         totalCount={reviewCount}
         averageRating={avgRating}
         distribution={ratingDistribution}
+        scope={reviewScope}
       />
 
       <SectionSlot page="product" slot="reviews" />

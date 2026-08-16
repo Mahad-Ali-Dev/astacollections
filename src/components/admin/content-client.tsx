@@ -579,7 +579,48 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
           </section>
 
           <section className="bg-card border rounded-xl p-6 space-y-4">
-            <h2 className="font-semibold">Where it appears</h2>
+            <h2 className="font-semibold">Review section on product pages</h2>
+            <p className="text-xs text-muted-foreground">
+              This is the section headed &ldquo;What our customers say&rdquo; on a
+              product page — separate from the strip above.
+            </p>
+            <div className="space-y-2">
+              {[
+                {
+                  value: "product",
+                  label: "Only this product's reviews",
+                  hint: "A product with 5 reviews shows 5. The rating describes that piece.",
+                },
+                {
+                  value: "all",
+                  label: "Every review in the store",
+                  hint: "Each card names the product it's about. The star rating then describes the store, not the piece.",
+                },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-start gap-3 border rounded-lg px-3 py-2.5 cursor-pointer hover:bg-secondary/50"
+                >
+                  <input
+                    type="radio"
+                    name="productReviewsScope"
+                    className="h-4 w-4 mt-0.5 accent-black"
+                    checked={(s.productReviewsScope || "product") === opt.value}
+                    onChange={() => set("productReviewsScope", opt.value)}
+                  />
+                  <span className="text-sm">
+                    {opt.label}
+                    <span className="block text-xs text-muted-foreground mt-0.5">
+                      {opt.hint}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Where the strip appears</h2>
             <p className="text-xs text-muted-foreground">
               Same positions as the video carousel. Both can share a slot — the
               videos render first.

@@ -39,9 +39,12 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       skip,
       take,
-      include: admin
-        ? { product: { select: { name: true, slug: true } } }
-        : undefined,
+      // Site-wide listings need the product named on each card, otherwise a
+      // shopper can't tell which piece a review is about.
+      include:
+        admin || !productId
+          ? { product: { select: { name: true, slug: true } } }
+          : undefined,
     }),
     prisma.review.count({ where }),
   ]);

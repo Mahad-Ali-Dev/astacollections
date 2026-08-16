@@ -12,6 +12,8 @@ type Review = {
   title?: string | null;
   body: string;
   createdAt: string | Date;
+  /** Present when the section is showing reviews from across the catalogue. */
+  product?: { name: string; slug: string } | null;
 };
 
 type Customer = { id: string; name: string; email: string } | null;
@@ -23,6 +25,7 @@ export function ReviewsSection({
   totalCount,
   averageRating,
   distribution: serverDistribution,
+  scope = "product",
 }: {
   productId: string;
   initialReviews: Review[];
@@ -31,6 +34,12 @@ export function ReviewsSection({
   totalCount?: number;
   averageRating?: number;
   distribution?: { star: number; count: number }[];
+  /**
+   * "product" lists only this product's reviews; "all" lists every approved
+   * review in the store. In "all" mode each card names the product it's
+   * about, so a shopper is never shown another item's review unlabelled.
+   */
+  scope?: "product" | "all";
 }) {
   const [reviews, setReviews] = useState(initialReviews);
   const [showForm, setShowForm] = useState(false);
@@ -55,7 +64,9 @@ export function ReviewsSection({
     setLoadingMore(true);
     try {
       const res = await fetch(
-        `/api/reviews?productId=${encodeURIComponent(productId)}&skip=${reviews.length}&take=50`
+        scope === "all"
+          ? `/api/reviews?skip=${reviews.length}&take=50`
+          : `/api/reviews?productId=${encodeURIComponent(productId)}&skip=${reviews.length}&take=50`
       );
       const data = await res.json();
       const batch: Review[] = data.reviews ?? [];
@@ -164,7 +175,7 @@ export function ReviewsSection({
           <>
           <div className="grid md:grid-cols-2 gap-5 mt-12">
             {reviews.map((r) => (
-              <ReviewCard key={r.id} review={r} />
+              <ReviewCard key={r.id} review={r} showProduct={scope === "all"} />
             ))}
           </div>
 
@@ -199,7 +210,7 @@ export function ReviewsSection({
   );
 }
 
-function ReviewCard({ review }: { review: Review }) {
+function ReviewCard({ review, showProduct }: { review: Review; showProduct?: boolean }) {
   return (
     <article className="bg-white border border-border rounded-2xl p-6 card-soft hover:border-accent/40 transition-colors">
       <div className="flex items-start justify-between mb-3 gap-3">
@@ -225,6 +236,14 @@ function ReviewCard({ review }: { review: Review }) {
           ))}
         </div>
       </div>
+      {showProduct && review.product && (
+        <a
+          href={`/products/${review.product.slug}`}
+          className="inline-block text-[11px] uppercase tracking-[0.16em] text-accent hover:underline mb-2"
+        >
+          {review.product.name}
+        </a>
+      )}
       {review.title && <p className="font-serif text-lg mb-2 leading-tight">{review.title}</p>}
       <p className="text-sm text-muted-foreground leading-relaxed text-pretty">{review.body}</p>
     </article>
