@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
-import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
+import { SectionSlot } from "@/components/shop/section-slot";
 
 export const dynamic = "force-dynamic";
 
@@ -165,7 +165,7 @@ export default async function CategoryPage({
         </div>
       </section>
 
-      <VideoCarouselSection page="category" slot="top" />
+      <SectionSlot page="category" slot="top" />
 
       <div className="container py-10 md:py-14">
         {products.length === 0 ? (
@@ -279,7 +279,7 @@ export default async function CategoryPage({
         </section>
       )}
 
-      <VideoCarouselSection page="category" slot="end" />
+      <SectionSlot page="category" slot="end" />
     </>
   );
 }

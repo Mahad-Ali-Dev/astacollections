@@ -10,7 +10,7 @@ import { parseTags } from "@/lib/tags";
 import { getCustomerFromCookie } from "@/lib/auth";
 import { getSettings, settingsToNumbers } from "@/lib/settings";
 import { productJsonLd, breadcrumbJsonLd, SITE } from "@/lib/seo";
-import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
+import { SectionSlot } from "@/components/shop/section-slot";
 
 export const dynamic = "force-dynamic";
 
@@ -202,7 +202,7 @@ export default async function ProductDetailPage({
         reviewCount={reviewCount}
       />
 
-      <VideoCarouselSection page="product" slot="detail" />
+      <SectionSlot page="product" slot="detail" />
 
       <ReviewsSection
         productId={product.id}
@@ -220,7 +220,7 @@ export default async function ProductDetailPage({
         distribution={ratingDistribution}
       />
 
-      <VideoCarouselSection page="product" slot="reviews" />
+      <SectionSlot page="product" slot="reviews" />
 
       {related.length > 0 && (
         <section className="mt-24">
@@ -253,7 +253,7 @@ export default async function ProductDetailPage({
         </section>
       )}
 
-      <VideoCarouselSection page="product" slot="related" />
+      <SectionSlot page="product" slot="related" />
 
       {newArrivals.length > 0 && (
         <section className="mt-20 bg-secondary/40 -mx-4 md:-mx-8 px-4 md:px-8 py-16 rounded-3xl">
@@ -287,7 +287,7 @@ export default async function ProductDetailPage({
         </section>
       )}
 
-      <VideoCarouselSection page="product" slot="end" />
+      <SectionSlot page="product" slot="end" />
     </div>
   );
 }

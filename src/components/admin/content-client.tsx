@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Image as ImageIcon, Megaphone, Sparkles, BookOpen, Bell, Video } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Megaphone, Sparkles, BookOpen, Bell, Video, MessageSquareQuote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImageUploadField } from "./image-upload-field";
 import { VideoUploadField } from "./video-upload-field";
 import {
-  VIDEO_CAROUSEL_PAGES,
+  PAGE_SLOTS,
   parseVideoCarouselItemsRaw,
   parseVideoCarouselPlacements,
+  parsePlacements,
   type StoreSettings,
   type VideoCarouselItem,
 } from "@/lib/settings";
@@ -23,6 +24,7 @@ const TABS = [
   { key: "banners", label: "Banners", icon: Megaphone },
   { key: "ribbons", label: "Top Bar & Marquee", icon: Bell },
   { key: "videos", label: "Video Carousel", icon: Video },
+  { key: "reviews", label: "Reviews Strip", icon: MessageSquareQuote },
   { key: "popup", label: "Welcome Popup", icon: Sparkles },
   { key: "about", label: "About Page", icon: BookOpen },
 ] as const;
@@ -54,6 +56,14 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
     if (slot) next[page] = slot;
     else delete next[page];
     set("videoCarouselPlacements", JSON.stringify(next));
+  };
+
+  const reviewPlacements = parsePlacements(s.reviewsStripPlacements);
+  const setReviewPlacement = (page: string, slot: string) => {
+    const next = { ...reviewPlacements };
+    if (slot) next[page] = slot;
+    else delete next[page];
+    set("reviewsStripPlacements", JSON.stringify(next));
   };
 
   const save = async () => {
@@ -359,7 +369,7 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
               on that page.
             </p>
             <div className="space-y-3">
-              {VIDEO_CAROUSEL_PAGES.map((p) => (
+              {PAGE_SLOTS.map((p) => (
                 <div
                   key={p.key}
                   className="grid sm:grid-cols-[160px_1fr] sm:items-center gap-2"
@@ -479,6 +489,120 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
                 </div>
               </div>
             ))}
+          </section>
+        </div>
+      )}
+
+      {/* REVIEWS STRIP */}
+      {tab === "reviews" && (
+        <div className="space-y-6 max-w-3xl">
+          <p className="text-sm text-muted-foreground">
+            Shows approved reviews from across the whole catalogue, so it works on
+            pages that aren&apos;t about one product. The per-product review section
+            on product pages is separate and always shows that product&apos;s own
+            reviews.
+          </p>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold">Show the reviews strip</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Hidden automatically when there are no approved reviews.
+                </p>
+              </div>
+              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-black"
+                  checked={s.reviewsStripEnabled === "true"}
+                  onChange={(e) =>
+                    set("reviewsStripEnabled", e.target.checked ? "true" : "false")
+                  }
+                />
+                Enabled
+              </label>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Heading</Label>
+                <Input
+                  value={s.reviewsStripTitle}
+                  onChange={(e) => set("reviewsStripTitle", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Subheading</Label>
+                <Input
+                  value={s.reviewsStripSubtitle}
+                  onChange={(e) => set("reviewsStripSubtitle", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>How many to show</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={s.reviewsStripCount}
+                  onChange={(e) => set("reviewsStripCount", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Minimum rating</Label>
+                <select
+                  value={s.reviewsStripMinRating}
+                  onChange={(e) => set("reviewsStripMinRating", e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={n}>
+                      {n} star{n === 1 ? "" : "s"} and above
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-black"
+                checked={s.reviewsStripShowProduct !== "false"}
+                onChange={(e) =>
+                  set("reviewsStripShowProduct", e.target.checked ? "true" : "false")
+                }
+              />
+              Show which product each review is for
+            </label>
+          </section>
+
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <h2 className="font-semibold">Where it appears</h2>
+            <p className="text-xs text-muted-foreground">
+              Same positions as the video carousel. Both can share a slot — the
+              videos render first.
+            </p>
+            <div className="space-y-3">
+              {PAGE_SLOTS.map((p) => (
+                <div key={p.key} className="grid sm:grid-cols-[160px_1fr] sm:items-center gap-2">
+                  <Label className="mb-0">{p.label}</Label>
+                  <select
+                    value={reviewPlacements[p.key] ?? ""}
+                    onChange={(e) => setReviewPlacement(p.key, e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="">Don&apos;t show</option>
+                    {p.slots.map((slot) => (
+                      <option key={slot.key} value={slot.key}>
+                        {slot.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
       )}

@@ -8,7 +8,7 @@ import { defaultOfferEndsAt } from "@/lib/utils";
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import type { Prisma } from "@prisma/client";
-import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
+import { SectionSlot } from "@/components/shop/section-slot";
 
 export const dynamic = "force-dynamic";
 
@@ -143,7 +143,7 @@ export default async function ProductsPage({
         </div>
       </section>
 
-      <VideoCarouselSection page="products" slot="top" />
+      <SectionSlot page="products" slot="top" />
 
       <div className="container py-8 md:py-12">
         <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 lg:gap-12">
@@ -256,7 +256,7 @@ export default async function ProductsPage({
         </section>
       )}
 
-      <VideoCarouselSection page="products" slot="end" />
+      <SectionSlot page="products" slot="end" />
     </div>
   );
 }

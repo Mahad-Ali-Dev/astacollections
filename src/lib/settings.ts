@@ -88,18 +88,28 @@ export type StoreSettings = {
   videoCarouselPages: string;     // legacy: comma-separated page keys, migrated to placements
   videoCarouselPlacements: string; // JSON map of page key → slot key, e.g. {"home":"bestsellers"}
   videoCarouselItems: string;     // JSON array of VideoCarouselItem
+
+  // Reviews strip — approved reviews pulled from the whole catalogue rather
+  // than one product, so it can sit on pages that aren't about a product.
+  reviewsStripEnabled: string;      // "true" | "false"
+  reviewsStripTitle: string;
+  reviewsStripSubtitle: string;
+  reviewsStripPlacements: string;   // JSON map of page key → slot key
+  reviewsStripCount: string;        // how many to show
+  reviewsStripMinRating: string;    // 1-5, only reviews at or above this
+  reviewsStripShowProduct: string;  // "true" | "false" — name the reviewed product
 };
 
 /**
- * Where the carousel can sit. Each page exposes named slots matching the
- * sections actually rendered on it, so the admin picks a position in the
+ * Where admin-placed sections can sit. Each page exposes named slots matching
+ * the sections actually rendered on it, so the admin picks a position in the
  * page's own language ("after Bestsellers") rather than a number.
  *
- * Slot keys are referenced by the <VideoCarouselSection slot="..."> calls
- * placed in each page — adding a slot here means adding the matching render
- * point in that page too.
+ * Slot keys are referenced by the <SectionSlot slot="..."> calls placed in
+ * each page — adding a slot here means adding the matching render point in
+ * that page too.
  */
-export const VIDEO_CAROUSEL_PAGES = [
+export const PAGE_SLOTS = [
   {
     key: "home",
     label: "Homepage",
@@ -154,6 +164,9 @@ export const VIDEO_CAROUSEL_PAGES = [
     ],
   },
 ] as const;
+
+/** Kept so existing imports keep working; slots are shared across sections. */
+export const VIDEO_CAROUSEL_PAGES = PAGE_SLOTS;
 
 export type VideoCarouselItem = {
   /** Direct video URL (ImageKit). */
@@ -242,6 +255,14 @@ const DEFAULTS: StoreSettings = {
   videoCarouselPages: "",
   videoCarouselPlacements: '{"home":"bestsellers"}',
   videoCarouselItems: "[]",
+
+  reviewsStripEnabled: "false",
+  reviewsStripTitle: "What our customers say",
+  reviewsStripSubtitle: "Real reviews from across the collection.",
+  reviewsStripPlacements: '{"home":"testimonials"}',
+  reviewsStripCount: "9",
+  reviewsStripMinRating: "4",
+  reviewsStripShowProduct: "true",
 };
 
 /**
@@ -291,6 +312,26 @@ export function parseVideoCarouselItems(raw: string): VideoCarouselItem[] {
  * the bottom-of-page position they already had, so upgrading doesn't move
  * anything unexpectedly.
  */
+export function parsePlacements(raw: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(raw || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return Object.fromEntries(
+        Object.entries(parsed).filter(([, v]) => typeof v === "string" && v !== "")
+      ) as Record<string, string>;
+    }
+  } catch {
+    /* unparseable — treat as unplaced */
+  }
+  return {};
+}
+
+/** Slot for the reviews strip on this page, or null when it's hidden here. */
+export function reviewsStripSlotFor(s: StoreSettings, page: string): string | null {
+  if (s.reviewsStripEnabled !== "true") return null;
+  return parsePlacements(s.reviewsStripPlacements)[page] ?? null;
+}
+
 export function parseVideoCarouselPlacements(s: StoreSettings): Record<string, string> {
   try {
     const parsed = JSON.parse(s.videoCarouselPlacements || "{}");

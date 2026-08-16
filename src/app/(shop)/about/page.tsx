@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/motion/reveal";
 import { ArrowRight, Award, Heart, Sparkles } from "lucide-react";
 import { getSettings } from "@/lib/settings";
-import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
+import { SectionSlot } from "@/components/shop/section-slot";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,7 @@ export default async function AboutPage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="about" slot="story" />
+      <SectionSlot page="about" slot="story" />
 
       <section className="container py-16 max-w-5xl">
         <Reveal className="grid md:grid-cols-3 gap-6">
@@ -79,7 +79,7 @@ export default async function AboutPage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="about" slot="values" />
+      <SectionSlot page="about" slot="values" />
 
       <section className="container pb-24">
         <Reveal className="bg-secondary rounded-3xl p-10 md:p-16 text-center max-w-3xl mx-auto">
@@ -96,7 +96,7 @@ export default async function AboutPage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="about" slot="end" />
+      <SectionSlot page="about" slot="end" />
     </>
   );
 }

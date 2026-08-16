@@ -13,7 +13,7 @@ import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
 import { defaultOfferEndsAt } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
-import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
+import { SectionSlot } from "@/components/shop/section-slot";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +117,7 @@ export default async function HomePage() {
       <Hero slides={heroSlides} />
       <Marquee phrases={settings.marqueePhrases.split("|").map((p) => p.trim()).filter(Boolean)} />
 
-      <VideoCarouselSection page="home" slot="hero" />
+      <SectionSlot page="home" slot="hero" />
 
       {/* TRUST PILLARS */}
       <Reveal as="section" className="bg-secondary/40">
@@ -129,7 +129,7 @@ export default async function HomePage() {
         </div>
       </Reveal>
 
-      <VideoCarouselSection page="home" slot="pillars" />
+      <SectionSlot page="home" slot="pillars" />
 
       {/* COLLECTION GRID */}
       <section className="container py-20 md:py-28">
@@ -152,7 +152,7 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="home" slot="collections" />
+      <SectionSlot page="home" slot="collections" />
 
       {/* OFFER TIMER */}
       <section className="container">
@@ -165,7 +165,7 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="home" slot="offer" />
+      <SectionSlot page="home" slot="offer" />
 
       {/* BESTSELLERS */}
       {bestsellers.length > 0 && (
@@ -203,7 +203,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <VideoCarouselSection page="home" slot="bestsellers" />
+      <SectionSlot page="home" slot="bestsellers" />
 
       {/* DUAL BANNER */}
       <section className="container pb-12">
@@ -229,7 +229,7 @@ export default async function HomePage() {
         </Reveal>
       </section>
 
-      <VideoCarouselSection page="home" slot="dual-banner" />
+      <SectionSlot page="home" slot="dual-banner" />
 
       {/* FULL BANNER */}
       <section className="blush-bg py-20 md:py-28">
@@ -247,7 +247,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <VideoCarouselSection page="home" slot="full-banner" />
+      <SectionSlot page="home" slot="full-banner" />
 
       {/* BUNDLES */}
       {bundles.length > 0 && (
@@ -265,7 +265,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <VideoCarouselSection page="home" slot="bundles" />
+      <SectionSlot page="home" slot="bundles" />
 
       {/* FEATURED */}
       {featured.length > 0 && (
@@ -306,7 +306,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <VideoCarouselSection page="home" slot="featured" />
+      <SectionSlot page="home" slot="featured" />
 
       {/* PROMISE — dark editorial */}
       <section>
@@ -321,12 +321,12 @@ export default async function HomePage() {
         />
       </section>
 
-      <VideoCarouselSection page="home" slot="promise" />
+      <SectionSlot page="home" slot="promise" />
 
       {/* TESTIMONIALS */}
       <Testimonials reviews={testimonials} />
 
-      <VideoCarouselSection page="home" slot="testimonials" />
+      <SectionSlot page="home" slot="testimonials" />
 
       {/* NEW ARRIVALS */}
       {latestProducts.length > 0 && (
@@ -362,7 +362,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <VideoCarouselSection page="home" slot="end" />
+      <SectionSlot page="home" slot="end" />
     </>
   );
 }
