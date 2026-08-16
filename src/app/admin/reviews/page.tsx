@@ -3,6 +3,7 @@ import { Star } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModerator } from "@/components/admin/review-moderator";
+import { ReviewImporter } from "@/components/admin/review-importer";
 import { formatDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ export default async function AdminReviewsPage({
           {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected
         </p>
       </div>
+
+      <ReviewImporter />
 
       <div className="flex flex-wrap gap-2">
         {STATUS_FILTERS.map((s) => {
