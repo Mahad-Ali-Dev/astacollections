@@ -27,16 +27,26 @@ export async function GET(req: NextRequest) {
     where.status = "APPROVED";
   }
 
-  const reviews = await prisma.review.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: admin ? 200 : 50,
-    include: admin
-      ? { product: { select: { name: true, slug: true } } }
-      : undefined,
-  });
+  // Paged so a product page can keep loading past the first batch. `total`
+  // travels with the response so the client knows when to stop asking.
+  const MAX_TAKE = admin ? 200 : 50;
+  const take = Math.min(MAX_TAKE, Math.max(1, Number(url.searchParams.get("take")) || MAX_TAKE));
+  const skip = Math.max(0, Number(url.searchParams.get("skip")) || 0);
 
-  return NextResponse.json({ reviews });
+  const [reviews, total] = await Promise.all([
+    prisma.review.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      include: admin
+        ? { product: { select: { name: true, slug: true } } }
+        : undefined,
+    }),
+    prisma.review.count({ where }),
+  ]);
+
+  return NextResponse.json({ reviews, total, skip, take });
 }
 
 export async function POST(req: NextRequest) {

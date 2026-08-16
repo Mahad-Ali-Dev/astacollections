@@ -34,18 +34,49 @@ export function ReviewsSection({
 }) {
   const [reviews, setReviews] = useState(initialReviews);
   const [showForm, setShowForm] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
 
-  // The list below is capped, so the summary uses server-side aggregates when
-  // they're supplied. Newly submitted reviews are added optimistically, hence
-  // the delta against the initial list.
-  const added = Math.max(0, reviews.length - initialReviews.length);
-  const count = totalCount !== undefined ? totalCount + added : reviews.length;
+  // The list starts capped and grows via Load more, so the summary can't be
+  // derived from it — it uses the server-side totals when supplied. Newly
+  // submitted reviews land as PENDING and never join this list, so nothing
+  // needs adding optimistically.
+  const count = totalCount ?? reviews.length;
   const avg =
     averageRating !== undefined && totalCount !== undefined && totalCount > 0
       ? averageRating
       : count > 0
         ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
         : 0;
+  const remaining = Math.max(0, count - reviews.length);
+  const canLoadMore = !exhausted && remaining > 0;
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const res = await fetch(
+        `/api/reviews?productId=${encodeURIComponent(productId)}&skip=${reviews.length}&take=50`
+      );
+      const data = await res.json();
+      const batch: Review[] = data.reviews ?? [];
+      if (batch.length === 0) {
+        setExhausted(true);
+        return;
+      }
+      // De-duplicate: a review submitted since page load shifts the offset,
+      // which would otherwise repeat a row across pages.
+      setReviews((current) => {
+        const seen = new Set(current.map((r) => r.id));
+        return [...current, ...batch.filter((r) => !seen.has(r.id))];
+      });
+      if (batch.length < 50) setExhausted(true);
+    } catch {
+      setExhausted(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   const distribution =
     serverDistribution ??
     [5, 4, 3, 2, 1].map((star) => ({
@@ -130,11 +161,29 @@ export function ReviewsSection({
             <p className="text-sm text-muted-foreground">Be the first to share your experience.</p>
           </div>
         ) : (
+          <>
           <div className="grid md:grid-cols-2 gap-5 mt-12">
             {reviews.map((r) => (
               <ReviewCard key={r.id} review={r} />
             ))}
           </div>
+
+          {canLoadMore && (
+            <div className="mt-8 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="inline-flex items-center gap-2 h-11 px-7 rounded-full border border-border hover:border-accent hover:text-accent transition-colors text-xs uppercase tracking-[0.2em] font-semibold disabled:opacity-60"
+              >
+                {loadingMore ? "Loading…" : `Load ${Math.min(50, remaining)} more`}
+              </button>
+              <p className="text-xs text-muted-foreground">
+                Showing {reviews.length} of {count}
+              </p>
+            </div>
+          )}
+          </>
         )}
       </div>
 
