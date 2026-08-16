@@ -18,6 +18,7 @@ import {
 import { slugify } from "@/lib/utils";
 import { toast } from "sonner";
 import { ImageUploadField } from "./image-upload-field";
+import { CategoryProductsDialog } from "./category-products-dialog";
 
 type Cat = {
   id: string;
@@ -47,6 +48,7 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
   const [categories, setCategories] = useState<Cat[]>(initial);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<typeof empty>(empty);
+  const [managing, setManaging] = useState<{ id: string; name: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const newCategory = () => {
@@ -154,7 +156,13 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
                     {c.isActive ? "Active" : "Hidden"}
                   </Badge>
                 </td>
-                <td className="p-3 text-right">
+                <td className="p-3 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => setManaging({ id: c.id, name: c.name })}
+                    className="px-2.5 py-1.5 text-xs rounded border hover:bg-muted mr-1 align-middle"
+                  >
+                    Manage products
+                  </button>
                   <button onClick={() => editCategory(c)} className="p-2 hover:bg-muted rounded mr-1">
                     <Edit className="h-4 w-4" />
                   </button>
@@ -170,6 +178,14 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
           </tbody>
         </table>
       </div>
+
+      {managing && (
+        <CategoryProductsDialog
+          categoryId={managing.id}
+          categoryName={managing.name}
+          onClose={() => setManaging(null)}
+        />
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg max-h-[88vh] overflow-y-auto">
