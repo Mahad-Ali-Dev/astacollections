@@ -3,41 +3,31 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 
-const REVIEWS = [
-  {
-    name: "Hira K.",
-    role: "Lahore",
-    quote:
-      "The kundan set arrived even better than the photos. Quality is incredible and the packaging felt like a gift. Wore it on my engagement and it photographed beautifully.",
-    product: "Kundan Bridal Set",
-  },
-  {
-    name: "Ayesha M.",
-    role: "Karachi",
-    quote:
-      "I've worn the pearl choker every week since it arrived. Doesn't fade, no allergic reaction, and gets compliments every single time. Best Rs. 8,500 I've spent.",
-    product: "Royal Pearl Choker Set",
-  },
-  {
-    name: "Sara R.",
-    role: "Islamabad",
-    quote:
-      "Ordered as a gift for my sister. She cried when she opened it — said it's the prettiest piece she owns. The team coordinated the delivery for her birthday too.",
-    product: "Vintage Floral Ring",
-  },
-];
+export type Testimonial = {
+  name: string;
+  role: string;
+  quote: string;
+  product: string;
+};
 
-export function Testimonials() {
+export function Testimonials({ reviews = [] }: { reviews?: Testimonial[] }) {
   const [i, setI] = useState(0);
+  const count = reviews.length;
 
   useEffect(() => {
-    const t = setInterval(() => setI((x) => (x + 1) % REVIEWS.length), 6000);
+    if (count < 2) return;
+    const t = setInterval(() => setI((x) => (x + 1) % count), 6000);
     return () => clearInterval(t);
-  }, []);
+  }, [count]);
 
-  const prev = () => setI((x) => (x - 1 + REVIEWS.length) % REVIEWS.length);
-  const next = () => setI((x) => (x + 1) % REVIEWS.length);
-  const r = REVIEWS[i];
+  const prev = () => setI((x) => (x - 1 + count) % count);
+  const next = () => setI((x) => (x + 1) % count);
+
+  // Nothing to show is better than placeholder people — an invented
+  // testimonial next to a real review section reads as fake.
+  if (count === 0) return null;
+
+  const r = reviews[Math.min(i, count - 1)];
 
   return (
     <section className="container py-24 md:py-32 max-w-4xl">
@@ -80,7 +70,7 @@ export function Testimonials() {
             <ChevronLeft className="h-4 w-4" />
           </button>
           <div className="flex items-center gap-2">
-            {REVIEWS.map((_, k) => (
+            {reviews.map((_, k) => (
               <button
                 key={k}
                 onClick={() => setI(k)}

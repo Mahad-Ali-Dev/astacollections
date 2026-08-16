@@ -14,16 +14,21 @@ const STATUS_FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED"];
 export default async function AdminReviewsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
   const sp = await searchParams;
   const status = sp.status && sp.status !== "ALL" ? sp.status : undefined;
+  const where = status ? { status: status as any } : {};
+
+  const PER_PAGE = 50;
+  const page = Math.max(1, Number(sp.page) || 1);
 
   const reviews = await prisma.review.findMany({
-    where: status ? { status: status as any } : {},
+    where,
     orderBy: { createdAt: "desc" },
     include: { product: { select: { name: true, slug: true } } },
-    take: 200,
+    skip: (page - 1) * PER_PAGE,
+    take: PER_PAGE,
   });
 
   // Feed the importer a product list so reviews can be attached from a
@@ -36,9 +41,8 @@ export default async function AdminReviewsPage({
 
   // The delete button acts on whatever the status filter is showing, so it
   // needs that filter's count rather than the overall total.
-  const deletableCount = await prisma.review.count({
-    where: status ? { status: status as any } : {},
-  });
+  const deletableCount = await prisma.review.count({ where });
+  const totalPages = Math.max(1, Math.ceil(deletableCount / PER_PAGE));
 
   const counts = {
     pending: await prisma.review.count({ where: { status: "PENDING" } }),
@@ -136,6 +140,55 @@ export default async function AdminReviewsPage({
           ))}
         </div>
       )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-4 flex-wrap pt-2">
+          <p className="text-xs text-muted-foreground">
+            Showing {(page - 1) * PER_PAGE + 1}–
+            {Math.min(page * PER_PAGE, deletableCount)} of {deletableCount}
+          </p>
+          <div className="flex items-center gap-2">
+            <PageLink status={sp.status} page={page - 1} disabled={page <= 1}>
+              Previous
+            </PageLink>
+            <span className="text-xs text-muted-foreground px-1">
+              Page {page} of {totalPages}
+            </span>
+            <PageLink status={sp.status} page={page + 1} disabled={page >= totalPages}>
+              Next
+            </PageLink>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function PageLink({
+  status,
+  page,
+  disabled,
+  children,
+}: {
+  status?: string;
+  page: number;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  const base =
+    "px-3 h-9 inline-flex items-center rounded-md border text-xs font-medium transition";
+  if (disabled) {
+    return (
+      <span className={`${base} text-muted-foreground/50 border-border/50`}>{children}</span>
+    );
+  }
+  const params = new URLSearchParams();
+  if (status && status !== "ALL") params.set("status", status);
+  if (page > 1) params.set("page", String(page));
+  const qs = params.toString();
+  return (
+    <Link href={`/admin/reviews${qs ? `?${qs}` : ""}`} className={`${base} hover:bg-secondary`}>
+      {children}
+    </Link>
   );
 }

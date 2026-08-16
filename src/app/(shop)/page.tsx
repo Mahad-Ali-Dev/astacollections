@@ -18,7 +18,7 @@ import { VideoCarouselSection } from "@/components/shop/video-carousel-section";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings] = await Promise.all([
+  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool] = await Promise.all([
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
@@ -56,7 +56,25 @@ export default async function HomePage() {
       },
     }),
     getSettings(),
+    // Strongest recent reviews for the homepage testimonial carousel. Longer
+    // bodies read better at that size, so short ones are filtered out.
+    prisma.review.findMany({
+      where: { status: "APPROVED", rating: { gte: 4 } },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+      include: { product: { select: { name: true } } },
+    }),
   ]);
+
+  const testimonials = reviewPool
+    .filter((r) => r.body.trim().length >= 60)
+    .slice(0, 6)
+    .map((r) => ({
+      name: r.customerName,
+      role: r.title ?? "",
+      quote: r.body,
+      product: r.product.name,
+    }));
 
   // Build hero slides from settings
   const heroSlides: HeroSlide[] = [
@@ -306,7 +324,7 @@ export default async function HomePage() {
       <VideoCarouselSection page="home" slot="promise" />
 
       {/* TESTIMONIALS */}
-      <Testimonials />
+      <Testimonials reviews={testimonials} />
 
       <VideoCarouselSection page="home" slot="testimonials" />
 

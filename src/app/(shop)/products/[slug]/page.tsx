@@ -117,16 +117,36 @@ export default async function ProductDetailPage({
     take: 4,
   });
 
-  const reviews = await prisma.review.findMany({
-    where: { productId: product.id, status: "APPROVED" },
-    orderBy: { createdAt: "desc" },
-    take: 12,
-  });
+  const reviewWhere = { productId: product.id, status: "APPROVED" as const };
+
+  // The visible list is capped, but the rating summary must describe every
+  // approved review — deriving it from the capped list understated both the
+  // count and the average once a product passed the cap.
+  const [reviews, ratingGroups] = await Promise.all([
+    prisma.review.findMany({
+      where: reviewWhere,
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.review.groupBy({
+      by: ["rating"],
+      where: reviewWhere,
+      _count: { _all: true },
+    }),
+  ]);
+
+  const reviewCount = ratingGroups.reduce((n, g) => n + g._count._all, 0);
+  const ratingDistribution = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: ratingGroups.find((g) => g.rating === star)?._count._all ?? 0,
+  }));
 
   const customer = await getCustomerFromCookie();
 
   const avgRating =
-    reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
+    reviewCount > 0
+      ? ratingGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / reviewCount
+      : 0;
 
   const jsonLd = productJsonLd({
     name: product.name,
@@ -137,7 +157,7 @@ export default async function ProductDetailPage({
     price: product.price,
     inStock: product.stock > 0,
     url: `/products/${product.slug}`,
-    reviewCount: reviews.length,
+    reviewCount,
     ratingValue: avgRating,
     reviews: reviews.slice(0, 5).map((r) => ({
       author: r.customerName,
@@ -179,7 +199,7 @@ export default async function ProductDetailPage({
         shippingFee={money.shippingFee}
         freeShippingThreshold={money.freeShippingThreshold}
         avgRating={avgRating}
-        reviewCount={reviews.length}
+        reviewCount={reviewCount}
       />
 
       <VideoCarouselSection page="product" slot="detail" />
@@ -195,6 +215,9 @@ export default async function ProductDetailPage({
           createdAt: r.createdAt.toISOString(),
         }))}
         customer={customer ? { id: customer.id, name: customer.name, email: customer.email } : null}
+        totalCount={reviewCount}
+        averageRating={avgRating}
+        distribution={ratingDistribution}
       />
 
       <VideoCarouselSection page="product" slot="reviews" />

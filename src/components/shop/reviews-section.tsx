@@ -20,20 +20,38 @@ export function ReviewsSection({
   productId,
   initialReviews,
   customer,
+  totalCount,
+  averageRating,
+  distribution: serverDistribution,
 }: {
   productId: string;
   initialReviews: Review[];
   customer: Customer;
+  /** Every approved review, not just the ones rendered below. */
+  totalCount?: number;
+  averageRating?: number;
+  distribution?: { star: number; count: number }[];
 }) {
   const [reviews, setReviews] = useState(initialReviews);
   const [showForm, setShowForm] = useState(false);
 
-  const count = reviews.length;
-  const avg = count > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / count : 0;
-  const distribution = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((r) => r.rating === star).length,
-  }));
+  // The list below is capped, so the summary uses server-side aggregates when
+  // they're supplied. Newly submitted reviews are added optimistically, hence
+  // the delta against the initial list.
+  const added = Math.max(0, reviews.length - initialReviews.length);
+  const count = totalCount !== undefined ? totalCount + added : reviews.length;
+  const avg =
+    averageRating !== undefined && totalCount !== undefined && totalCount > 0
+      ? averageRating
+      : count > 0
+        ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+        : 0;
+  const distribution =
+    serverDistribution ??
+    [5, 4, 3, 2, 1].map((star) => ({
+      star,
+      count: reviews.filter((r) => r.rating === star).length,
+    }));
 
   return (
     <section className="mt-24" id="reviews">
