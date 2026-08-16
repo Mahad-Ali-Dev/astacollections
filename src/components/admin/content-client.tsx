@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageUploadField } from "./image-upload-field";
+import { VideoUploadField } from "./video-upload-field";
 import {
   VIDEO_CAROUSEL_PAGES,
   parseVideoCarouselItemsRaw,
@@ -439,14 +440,11 @@ export function ContentClient({ initial }: { initial: StoreSettings }) {
                   </div>
                 </div>
 
-                <div>
-                  <Label>Video URL</Label>
-                  <Input
-                    value={v.url}
-                    onChange={(e) => updateVideo(i, { url: e.target.value })}
-                    placeholder="https://ik.imagekit.io/…/clip.mp4"
-                  />
-                </div>
+                <VideoUploadField
+                  value={v.url}
+                  onChange={(url) => updateVideo(i, { url })}
+                  label="Video"
+                />
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
                     <Label>Poster image (optional)</Label>

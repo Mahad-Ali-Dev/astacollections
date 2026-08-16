@@ -205,9 +205,25 @@ export function parseVideoCarouselItemsRaw(raw: string): VideoCarouselItem[] {
   }
 }
 
-/** Storefront view: only rows with a real URL are renderable. */
+/**
+ * A page URL is not a video. Instagram, TikTok, YouTube and Facebook links
+ * point at a player page, not a file a <video> tag can decode, so pasting one
+ * renders an empty card. Shared with the admin editor so the warning there and
+ * the filter here can never drift apart.
+ */
+const VIDEO_PAGE_HOSTS =
+  /(?:instagram\.com|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|vimeo\.com|drive\.google\.com|dropbox\.com)/i;
+
+export function isPlayableVideoUrl(url: string): boolean {
+  const u = url.trim();
+  if (!u) return false;
+  if (VIDEO_PAGE_HOSTS.test(u)) return false;
+  return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u);
+}
+
+/** Storefront view: only rows a browser can actually play are renderable. */
 export function parseVideoCarouselItems(raw: string): VideoCarouselItem[] {
-  return parseVideoCarouselItemsRaw(raw).filter((v) => v.url.trim() !== "");
+  return parseVideoCarouselItemsRaw(raw).filter((v) => isPlayableVideoUrl(v.url));
 }
 
 /** Is the carousel switched on for this page key? */
