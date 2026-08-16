@@ -8,6 +8,7 @@ import { ReviewsSection } from "@/components/shop/reviews-section";
 import { Reveal } from "@/components/motion/reveal";
 import { parseTags } from "@/lib/tags";
 import { getCustomerFromCookie } from "@/lib/auth";
+import { getSettings, settingsToNumbers } from "@/lib/settings";
 import { productJsonLd, breadcrumbJsonLd, SITE } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const money = settingsToNumbers(await getSettings());
   const product = await prisma.product.findUnique({
     where: { slug },
     include: {
@@ -173,6 +175,8 @@ export default async function ProductDetailPage({
       <ProductDetail
         product={{ ...product, tagsList: tags } as any}
         bundle={bundle as any}
+        shippingFee={money.shippingFee}
+        freeShippingThreshold={money.freeShippingThreshold}
       />
 
       <ReviewsSection

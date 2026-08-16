@@ -64,9 +64,15 @@ type Product = {
 export function ProductDetail({
   product,
   bundle,
+  shippingFee = 0,
+  freeShippingThreshold = 0,
 }: {
   product: Product;
   bundle?: BundleData | null;
+  /** Flat delivery charge applied below the free-shipping threshold. */
+  shippingFee?: number;
+  /** Order value at or above which delivery is free. 0 disables the threshold. */
+  freeShippingThreshold?: number;
 }) {
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
@@ -201,6 +207,13 @@ export function ProductDetail({
     day: "numeric",
     month: "short",
   });
+
+  // Delivery is free either when no fee is configured, or when this line's
+  // value already clears the threshold. Recomputed as qty changes so the
+  // badge never promises free delivery the customer won't actually get.
+  const lineTotal = product.price * qty;
+  const qualifiesForFreeShipping =
+    shippingFee <= 0 || (freeShippingThreshold > 0 && lineTotal >= freeShippingThreshold);
 
   return (
     <>
@@ -497,7 +510,15 @@ export function ProductDetail({
 
           {/* DELIVERY/PROMISES */}
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <Promise icon={Truck} title="Free shipping" sub={`Arrives ~${deliveryStr}`} />
+            <Promise
+              icon={Truck}
+              title={qualifiesForFreeShipping ? "Free delivery" : `${formatPrice(shippingFee)} delivery`}
+              sub={
+                qualifiesForFreeShipping
+                  ? `Arrives ~${deliveryStr}`
+                  : `Free over ${formatPrice(freeShippingThreshold)}`
+              }
+            />
             <Promise icon={RefreshCcw} title="7-day returns" sub="No questions asked" />
             <Promise icon={Package} title="COD or Bank" sub="Rs. 250 advance for COD" />
             <Promise icon={Award} title="Quality first" sub="Hand-inspected" />
@@ -570,8 +591,16 @@ export function ProductDetail({
               {activeTab === "shipping" && (
                 <div className="space-y-3">
                   <p>
-                    <strong className="text-foreground">Free shipping</strong> on orders above Rs.
-                    5,000. Standard delivery 3–5 business days across Pakistan.
+                    <strong className="text-foreground">Delivery:</strong>{" "}
+                    {shippingFee > 0 ? (
+                      <>
+                        {formatPrice(shippingFee)} per order — free on orders above{" "}
+                        {formatPrice(freeShippingThreshold)}.
+                      </>
+                    ) : (
+                      <>Free on every order.</>
+                    )}{" "}
+                    Standard delivery 3–5 business days across Pakistan.
                   </p>
                   <p>
                     <strong className="text-foreground">Cash on Delivery:</strong> Rs. 250 advance
