@@ -25,6 +25,14 @@ export default async function AdminReviewsPage({
     take: 200,
   });
 
+  // Feed the importer a product list so reviews can be attached from a
+  // dropdown instead of hand-typing a SKU.
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, sku: true },
+    orderBy: { name: "asc" },
+  });
+
   const counts = {
     pending: await prisma.review.count({ where: { status: "PENDING" } }),
     approved: await prisma.review.count({ where: { status: "APPROVED" } }),
@@ -40,7 +48,7 @@ export default async function AdminReviewsPage({
         </p>
       </div>
 
-      <ReviewImporter />
+      <ReviewImporter products={products} />
 
       <div className="flex flex-wrap gap-2">
         {STATUS_FILTERS.map((s) => {
