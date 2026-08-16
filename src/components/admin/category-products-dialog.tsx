@@ -163,6 +163,15 @@ export function CategoryProductsDialog({
               <Button type="button" variant="outline" size="sm" onClick={selectAllVisible}>
                 Select all shown
               </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelected(new Set())}
+                disabled={selected.size === 0}
+              >
+                Clear selection
+              </Button>
             </div>
 
             <p className="text-xs text-muted-foreground">
