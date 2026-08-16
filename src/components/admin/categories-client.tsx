@@ -29,7 +29,7 @@ type Cat = {
   parentId: string | null;
   isActive: boolean;
   sortOrder: number;
-  _count: { products: number };
+  _count: { products: number; extraProducts?: number };
 };
 
 const empty = {
@@ -149,7 +149,14 @@ export function CategoriesClient({ initial }: { initial: Cat[] }) {
               <tr key={c.id} className="border-b last:border-0 hover:bg-muted/20">
                 <td className="p-3 font-medium">{c.name}</td>
                 <td className="p-3 font-mono text-xs">{c.slug}</td>
-                <td className="p-3">{c._count.products}</td>
+                <td className="p-3">
+                  {c._count.products + (c._count.extraProducts ?? 0)}
+                  {(c._count.extraProducts ?? 0) > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1.5">
+                      ({c._count.extraProducts} added)
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 text-muted-foreground">{c.sortOrder}</td>
                 <td className="p-3">
                   <Badge variant={c.isActive ? "success" : "outline"}>

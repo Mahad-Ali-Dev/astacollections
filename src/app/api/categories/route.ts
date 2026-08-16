@@ -6,7 +6,7 @@ import { getAdminFromRequest } from "@/lib/auth";
 export async function GET() {
   const categories = await prisma.category.findMany({
     orderBy: { sortOrder: "asc" },
-    include: { _count: { select: { products: true } } },
+    include: { _count: { select: { products: true, extraProducts: true } } },
   });
   return NextResponse.json({ categories });
 }

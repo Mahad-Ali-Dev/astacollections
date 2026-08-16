@@ -29,7 +29,7 @@ export default async function HomePage() {
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
       take: 6,
-      include: { _count: { select: { products: true } } },
+      include: { _count: { select: { products: true, extraProducts: true } } },
     }),
     prisma.product.findMany({
       where: { isActive: true },
@@ -109,7 +109,9 @@ export default async function HomePage() {
     slug: c.slug,
     description: c.description,
     image: c.image ?? "",
-    productCount: c._count.products,
+    // Collections can hold products whose primary category is elsewhere,
+    // so both relations count towards what a shopper will actually see.
+    productCount: c._count.products + c._count.extraProducts,
   }));
 
   return (
