@@ -230,6 +230,7 @@ export default async function ProductDetailPage({
         freeShippingThreshold={money.freeShippingThreshold}
         avgRating={avgRating}
         reviewCount={reviewCount}
+        codAdvance={money.codAdvance}
       />
 
       <SectionSlot page="product" slot="detail" />

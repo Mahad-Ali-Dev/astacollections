@@ -68,6 +68,7 @@ export function ProductDetail({
   freeShippingThreshold = 0,
   avgRating = 0,
   reviewCount = 0,
+  codAdvance = 0,
 }: {
   product: Product;
   bundle?: BundleData | null;
@@ -79,6 +80,8 @@ export function ProductDetail({
   avgRating?: number;
   /** Number of approved reviews. The rating block is hidden when this is 0. */
   reviewCount?: number;
+  /** Advance collected before dispatch. 0 means pure cash on delivery. */
+  codAdvance?: number;
 }) {
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
@@ -541,7 +544,15 @@ export function ProductDetail({
               }
             />
             <Promise icon={RefreshCcw} title="7-day returns" sub="No questions asked" />
-            <Promise icon={Package} title="COD or Bank" sub="Rs. 250 advance for COD" />
+            <Promise
+              icon={Package}
+              title="COD or Bank"
+              sub={
+                codAdvance > 0
+                  ? `${formatPrice(codAdvance)} advance for COD`
+                  : "Pay in full on delivery"
+              }
+            />
             <Promise icon={Award} title="Quality first" sub="Hand-inspected" />
           </div>
 
