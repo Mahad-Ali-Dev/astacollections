@@ -198,14 +198,24 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
       toast.error("Your cart is empty");
       return;
     }
+    // Email is deliberately NOT required. On a cash-on-delivery order the
+    // phone number is what we actually contact people on, and demanding an
+    // email address turns a four-field form into a wall for mobile buyers who
+    // don't use one.
     if (
       !form.customerName ||
-      !form.customerEmail ||
       !form.customerPhone ||
       !form.shippingAddress ||
       !form.shippingCity
     ) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+    // A COD order is only as good as the phone number on it — an unreachable
+    // buyer means a parcel that ships and comes back. Cheap digit check that
+    // catches typos without rejecting the formats people actually type.
+    if (form.customerPhone.replace(/\D/g, "").length < 10) {
+      toast.error("Please enter a valid phone number");
       return;
     }
     if (needsProof && !proofUrl) {
@@ -311,7 +321,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                 <Input
                   value={form.customerName}
                   onChange={updateField("customerName")}
-                  placeholder="As on your ID"
+                  placeholder="Your name"
                   required
                 />
               </div>
@@ -326,16 +336,15 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                 />
               </div>
               <div className="sm:col-span-2">
-                <Label>Email *</Label>
+                <Label>Email (optional)</Label>
                 <Input
                   type="email"
                   value={form.customerEmail}
                   onChange={updateField("customerEmail")}
                   placeholder="you@example.com"
-                  required
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Order confirmation will be sent here
+                  Only for the order confirmation. We&apos;ll call or WhatsApp you either way.
                 </p>
               </div>
             </div>
