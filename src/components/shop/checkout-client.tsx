@@ -105,11 +105,29 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   // Reconcile the cart with live prices/stock as soon as checkout opens, so the
   // totals shown here reflect current product prices — not what they were when
   // the items were added to the bag.
+  // What the stock revalidation quietly took out of the bag on arrival.
+  // Without this the shopper watches their item disappear with no reason
+  // given, which reads as the site losing their order.
+  const [removedItems, setRemovedItems] = useState<string[]>([]);
   const revalidatedOnMount = useRef(false);
   useEffect(() => {
     if (revalidatedOnMount.current) return;
     revalidatedOnMount.current = true;
-    syncCart();
+    syncCart().then((result) => {
+      if (!result) return;
+      if (result.removed.length > 0) {
+        setRemovedItems(result.removed);
+        toast.error(
+          result.removed.length === 1
+            ? `${result.removed[0]} just sold out and was removed from your bag`
+            : `${result.removed.length} items sold out and were removed from your bag`
+        );
+      } else if (result.qtyAdjusted) {
+        toast("We reduced a quantity to match what's left in stock");
+      } else if (result.priceChanged) {
+        toast("Prices in your bag were updated to today's prices");
+      }
+    });
   }, [syncCart]);
 
   // Meta Pixel: InitiateCheckout once the cart has hydrated with items.
@@ -277,15 +295,28 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   };
 
   if (items.length === 0) {
+    const soldOut = removedItems.length > 0;
     return (
       <div className="text-center py-20 max-w-md mx-auto">
         <ShoppingBag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-serif mb-3">Your bag is empty</h2>
+        <h2 className="text-2xl font-serif mb-3">
+          {soldOut ? "That piece just sold out" : "Your bag is empty"}
+        </h2>
         <p className="text-muted-foreground mb-6">
-          Add some pieces to your bag before checking out.
+          {soldOut ? (
+            <>
+              {removedItems.join(", ")} sold out while it was in your bag, so we
+              couldn&apos;t take the order. We restock quickly — message us on
+              WhatsApp and we&apos;ll tell you when it&apos;s back.
+            </>
+          ) : (
+            <>Add some pieces to your bag before checking out.</>
+          )}
         </p>
         <Link href="/products">
-          <Button variant="gold" size="lg">Browse Products</Button>
+          <Button variant="gold" size="lg">
+            {soldOut ? "See what's in stock" : "Browse Products"}
+          </Button>
         </Link>
       </div>
     );
