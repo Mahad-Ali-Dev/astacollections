@@ -6,9 +6,15 @@ import { getAdminFromRequest } from "@/lib/auth";
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const q = url.searchParams.get("q");
-  const where = q
+  // Hidden products stay hidden here too. The storefront pages already filter
+  // on isActive, but this endpoint did not — so anything reading it (a
+  // catalogue feed, an ad integration) was still being handed products the
+  // shop had deliberately taken down. Admins can ask for everything.
+  const admin = await getAdminFromRequest(req);
+  const search = q
     ? { OR: [{ name: { contains: q } }, { sku: { contains: q } }] }
     : {};
+  const where = admin ? search : { ...search, isActive: true };
 
   const products = await prisma.product.findMany({
     where,
