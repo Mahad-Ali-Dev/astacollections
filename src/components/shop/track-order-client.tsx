@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice, formatDateTime } from "@/lib/utils";
+import { adjustmentLine } from "@/lib/payment";
 import { Badge } from "@/components/ui/badge";
 
 type OrderTrackData = {
@@ -36,6 +37,8 @@ type OrderTrackData = {
   subtotal: number;
   discountAmount: number;
   shippingFee: number;
+  paymentAdjustment: number;
+  paymentAdjustmentLabel: string | null;
   total: number;
   advancePaid: number;
   couponCode: string | null;
@@ -58,6 +61,7 @@ export function TrackOrderClient() {
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<OrderTrackData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const adj = order ? adjustmentLine(order.paymentAdjustment, order.paymentAdjustmentLabel) : null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,14 +115,14 @@ export function TrackOrderClient() {
           </label>
           <label className="block">
             <span className="block text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground mb-2">
-              Email
+              Email or Phone
             </span>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="you@example.com"
+              placeholder="you@example.com or 03xx-xxxxxxx"
               className="w-full h-12 px-4 rounded-full border border-border bg-white text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-colors"
             />
           </label>
@@ -141,7 +145,8 @@ export function TrackOrderClient() {
           )}
         </button>
         <p className="text-[11px] text-center text-muted-foreground/80">
-          Order number was sent to your email when you placed the order.
+          Your order number is on the confirmation page and email. Use the email or phone you
+          ordered with.
         </p>
       </form>
 
@@ -297,6 +302,12 @@ export function TrackOrderClient() {
                 <span>Shipping</span>
                 <span>{order.shippingFee === 0 ? "Free" : formatPrice(order.shippingFee)}</span>
               </div>
+              {adj && (
+                <div className={`flex justify-between ${adj.isDiscount ? "text-green-700" : "text-muted-foreground"}`}>
+                  <span>{adj.label}</span>
+                  <span className="tabular-nums">{adj.value}</span>
+                </div>
+              )}
               <div className="flex justify-between font-semibold text-base pt-2 border-t border-border">
                 <span>Total</span>
                 <span className="tabular-nums">{formatPrice(order.total)}</span>

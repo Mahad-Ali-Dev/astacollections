@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatPrice, formatDateTime } from "@/lib/utils";
+import { adjustmentLine } from "@/lib/payment";
 import { toast } from "sonner";
 
 type Order = {
@@ -43,6 +44,8 @@ type Order = {
   subtotal: number;
   discountAmount: number;
   shippingFee: number;
+  paymentAdjustment: number;
+  paymentAdjustmentLabel: string | null;
   total: number;
   paymentMethod: string;
   paymentStatus: string;
@@ -73,6 +76,7 @@ export function OrderDetailClient({ order: initial }: { order: Order }) {
   const [order, setOrder] = useState(initial);
   const [saving, setSaving] = useState<string | null>(null);
   const [proofOpen, setProofOpen] = useState(false);
+  const adj = adjustmentLine(order.paymentAdjustment, order.paymentAdjustmentLabel);
 
   const update = async (data: Record<string, string | null>, label: string) => {
     setSaving(label);
@@ -206,6 +210,9 @@ export function OrderDetailClient({ order: initial }: { order: Order }) {
                 />
               )}
               <Row label="Shipping" value={order.shippingFee === 0 ? "Free" : formatPrice(order.shippingFee)} />
+              {adj && (
+                <Row label={adj.label} value={adj.value} className={adj.isDiscount ? "text-green-700" : ""} />
+              )}
               <Separator />
               <Row label="Total" value={formatPrice(order.total)} bold />
               <Row label="Advance Paid" value={formatPrice(order.advancePaid)} className="text-green-700" />
@@ -238,9 +245,13 @@ export function OrderDetailClient({ order: initial }: { order: Order }) {
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground mb-1">Email</p>
-                <a href={`mailto:${order.customerEmail}`} className="font-medium hover:text-accent flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> {order.customerEmail}
-                </a>
+                {order.customerEmail ? (
+                  <a href={`mailto:${order.customerEmail}`} className="font-medium hover:text-accent flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> {order.customerEmail}
+                  </a>
+                ) : (
+                  <p className="text-muted-foreground">Not given</p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground mb-1">Shipping Address</p>

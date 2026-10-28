@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice, formatDateTime } from "@/lib/utils";
+import { adjustmentLine } from "@/lib/payment";
 import { PurchaseTracker } from "@/components/analytics/purchase-tracker";
 
 export const metadata = { title: "Order Confirmed" };
@@ -23,6 +24,7 @@ export default async function OrderSuccessPage({
   });
 
   if (!order) notFound();
+  const adj = adjustmentLine(order.paymentAdjustment, order.paymentAdjustmentLabel);
 
   return (
     <div className="container py-12 max-w-3xl">
@@ -43,7 +45,13 @@ export default async function OrderSuccessPage({
         <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto mb-4" />
         <h1 className="text-3xl md:text-4xl font-serif">Thank you for your order!</h1>
         <p className="text-muted-foreground mt-2">
-          A confirmation has been sent to <strong>{order.customerEmail}</strong>.
+          {order.customerEmail ? (
+            <>
+              A confirmation has been sent to <strong>{order.customerEmail}</strong>.
+            </>
+          ) : (
+            <>We&apos;ll call or WhatsApp you on {order.customerPhone} to confirm.</>
+          )}
         </p>
         <p className="text-sm mt-4">
           Order #{" "}
@@ -108,12 +116,17 @@ export default async function OrderSuccessPage({
             />
           )}
           <Row label="Shipping" value={order.shippingFee === 0 ? "Free" : formatPrice(order.shippingFee)} />
+          {adj && (
+            <Row label={adj.label} value={adj.value} className={adj.isDiscount ? "text-green-700" : ""} />
+          )}
           <Separator />
           <Row label="Total" value={formatPrice(order.total)} bold />
           {order.paymentMethod === "COD" && (
             <>
               <Separator />
-              <Row label="Advance Paid" value={formatPrice(order.advancePaid)} className="text-green-700" />
+              {order.advancePaid > 0 && (
+                <Row label="Advance Paid" value={formatPrice(order.advancePaid)} className="text-green-700" />
+              )}
               <Row
                 label="Balance on Delivery"
                 value={formatPrice(order.total - order.advancePaid)}
@@ -141,9 +154,11 @@ export default async function OrderSuccessPage({
               <p className="flex items-center gap-1 mt-1">
                 <Phone className="h-3 w-3" /> {order.customerPhone}
               </p>
-              <p className="flex items-center gap-1">
-                <Mail className="h-3 w-3" /> {order.customerEmail}
-              </p>
+              {order.customerEmail && (
+                <p className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" /> {order.customerEmail}
+                </p>
+              )}
             </div>
           </div>
           <div>
@@ -152,9 +167,11 @@ export default async function OrderSuccessPage({
               {order.paymentMethod === "COD" ? "Cash on Delivery" : "Bank Transfer"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {order.paymentMethod === "COD"
-                ? "We have received your advance. Pay the balance to the courier on delivery."
-                : "Your transfer screenshot has been received and is being verified."}
+              {order.paymentMethod !== "COD"
+                ? "Your transfer screenshot has been received and is being verified."
+                : order.advancePaid > 0
+                  ? "We have received your advance. Pay the balance to the courier on delivery."
+                  : "Pay the full amount to the courier when your order arrives."}
             </p>
           </div>
         </div>
@@ -171,8 +188,18 @@ export default async function OrderSuccessPage({
 
       <div className="mt-10 bg-secondary/50 border border-border rounded-2xl p-6 text-center max-w-xl mx-auto">
         <p className="text-sm text-muted-foreground">
-          We&apos;ve sent a confirmation email to <strong className="text-foreground">{order.customerEmail}</strong> with your order details.
-          When your order ships you&apos;ll receive a second email with the tracking number — or you can check status anytime at <Link href="/track-order" className="text-accent hover:underline">/track-order</Link>.
+          {order.customerEmail ? (
+            <>
+              We&apos;ve sent a confirmation email to <strong className="text-foreground">{order.customerEmail}</strong> with your order details.
+              When your order ships you&apos;ll receive a second email with the tracking number — or you can check status anytime at <Link href="/track-order" className="text-accent hover:underline">/track-order</Link>.
+            </>
+          ) : (
+            <>
+              Keep your order number handy. You can check status anytime at{" "}
+              <Link href="/track-order" className="text-accent hover:underline">/track-order</Link>{" "}
+              with the order number and your phone number.
+            </>
+          )}
         </p>
       </div>
     </div>

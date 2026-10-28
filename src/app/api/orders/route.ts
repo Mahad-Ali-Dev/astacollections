@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkoutSchema } from "@/lib/validators";
 import { calculateDiscount, generateOrderNumber } from "@/lib/utils";
-import { getSettings, settingsToNumbers } from "@/lib/settings";
-import { resolvePaymentConfig } from "@/lib/payment";
+import { getSettings } from "@/lib/settings";
+import { checkoutFields, computeCheckoutTotals, resolvePaymentConfig } from "@/lib/payment";
 import { getAdminFromRequest, getCustomerFromRequest } from "@/lib/auth";
 import { sendOrderConfirmation } from "@/lib/email";
 import { NextRequest } from "next/server";
@@ -24,8 +24,8 @@ export async function POST(req: Request) {
     // Fetch settings first — they are the source of truth for which payment
     // methods are live and how much (if any) advance a COD order collects.
     const settings = await getSettings();
-    const { codAdvance, shippingFee, freeShippingThreshold } = settingsToNumbers(settings);
     const payCfg = resolvePaymentConfig(settings);
+    const fields = checkoutFields(settings);
 
     // Reject a method the admin has switched off — never trust the client.
     if (!payCfg.enabled.includes(data.paymentMethod)) {
@@ -35,16 +35,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Screenshot rules: bank transfer always needs proof; COD needs it only
-    // when an advance is collected (a pure-COD store — advance 0 — does not).
-    if (data.paymentMethod === "BANK_TRANSFER" && !data.paymentProof) {
-      return NextResponse.json({ error: "Payment screenshot is required" }, { status: 400 });
+    // Field rules come from the checkout designer. Hidden fields are dropped
+    // even if a stale page still sends them.
+    const customerEmail =
+      fields.email === "hidden" ? "" : (data.customerEmail ?? "").trim().toLowerCase();
+    const shippingArea = fields.area === "hidden" ? null : data.shippingArea?.trim() || null;
+    const notes = fields.notes === "hidden" ? null : data.notes?.trim() || null;
+    if (fields.email === "required" && !customerEmail) {
+      return NextResponse.json({ error: "Please enter your email" }, { status: 400 });
     }
-    if (data.paymentMethod === "COD" && codAdvance > 0 && !data.paymentProof) {
-      return NextResponse.json(
-        { error: "Advance payment screenshot is required for COD" },
-        { status: 400 }
-      );
+    if (fields.area === "required" && !shippingArea) {
+      return NextResponse.json({ error: "Please enter your area / postal code" }, { status: 400 });
+    }
+    if (fields.notes === "required" && !notes) {
+      return NextResponse.json({ error: "Please add your order notes" }, { status: 400 });
     }
 
     // Fetch products with attributes — server-side source of truth for price
@@ -115,7 +119,7 @@ export async function POST(req: Request) {
     let coupon = null;
     let discountAmount = 0;
     let couponCode: string | null = null;
-    if (data.couponCode) {
+    if (data.couponCode && fields.coupon) {
       coupon = await prisma.coupon.findUnique({
         where: { code: data.couponCode.toUpperCase() },
       });
@@ -137,10 +141,27 @@ export async function POST(req: Request) {
       }
     }
 
-    const afterDiscount = subtotal - discountAmount;
-    const finalShipping = afterDiscount >= freeShippingThreshold ? 0 : shippingFee;
-    const total = afterDiscount + finalShipping;
-    const advancePaid = data.paymentMethod === "COD" ? codAdvance : total;
+    // Same calculation the checkout page showed — shipping, the payment
+    // method's fee/discount, and how much is due now vs. on delivery.
+    const totals = computeCheckoutTotals(settings, {
+      subtotal,
+      discount: discountAmount,
+      method: data.paymentMethod,
+    });
+
+    // Screenshot rules: anything collected before dispatch (a bank transfer,
+    // or a COD advance) needs proof. Pure COD collects nothing up front.
+    if (totals.needsProof && !data.paymentProof) {
+      return NextResponse.json(
+        {
+          error:
+            data.paymentMethod === "COD"
+              ? "Advance payment screenshot is required for COD"
+              : "Payment screenshot is required",
+        },
+        { status: 400 }
+      );
+    }
 
     const orderNumber = generateOrderNumber();
 
@@ -154,20 +175,22 @@ export async function POST(req: Request) {
         data: {
           orderNumber,
           customerName: data.customerName,
-          customerEmail: data.customerEmail.toLowerCase(),
+          customerEmail,
           customerPhone: data.customerPhone,
           shippingAddress: data.shippingAddress,
           shippingCity: data.shippingCity,
-          shippingArea: data.shippingArea,
-          notes: data.notes,
+          shippingArea,
+          notes,
           subtotal,
-          discountAmount,
-          shippingFee: finalShipping,
-          total,
+          discountAmount: totals.discount,
+          shippingFee: totals.shipping,
+          paymentAdjustment: totals.adjustment,
+          paymentAdjustmentLabel: totals.adjustmentLabel || null,
+          total: totals.total,
           paymentMethod: data.paymentMethod,
           paymentStatus: "PENDING",
-          paymentProof: data.paymentProof,
-          advancePaid,
+          paymentProof: totals.needsProof ? data.paymentProof : null,
+          advancePaid: totals.payNow,
           status: "PENDING",
           couponId: coupon?.id ?? null,
           couponCode,
@@ -222,8 +245,8 @@ export async function POST(req: Request) {
             couponId: coupon.id,
             orderId: created.id,
             customerId: loggedInCustomer?.id ?? null,
-            customerEmail: data.customerEmail.toLowerCase(),
-            amountSaved: discountAmount,
+            customerEmail,
+            amountSaved: totals.discount,
           },
         });
       }
@@ -231,8 +254,9 @@ export async function POST(req: Request) {
       return created;
     });
 
-    // Fire-and-forget order confirmation email (don't block on this)
-    sendOrderConfirmation({
+    // Fire-and-forget order confirmation email (don't block on this). No
+    // address, no email — the store reaches these customers by phone.
+    if (order.customerEmail) sendOrderConfirmation({
       orderId: order.id,
       orderNumber: order.orderNumber,
       customerName: order.customerName,
@@ -245,6 +269,8 @@ export async function POST(req: Request) {
       subtotal: order.subtotal,
       discountAmount: order.discountAmount,
       shippingFee: order.shippingFee,
+      paymentAdjustment: order.paymentAdjustment,
+      paymentAdjustmentLabel: order.paymentAdjustmentLabel,
       total: order.total,
       advancePaid: order.advancePaid,
       couponCode: order.couponCode,
