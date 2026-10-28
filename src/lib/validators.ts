@@ -55,7 +55,12 @@ export const couponSchema = z.object({
 
 export const checkoutSchema = z.object({
   customerName: z.string().min(2, "Please enter your name"),
-  customerEmail: z.string().email("Please enter a valid email"),
+  // Optional by default — whether it's required (or asked at all) is an admin
+  // setting, enforced in the order route. Blank is allowed; a typo is not.
+  customerEmail: z
+    .union([z.literal(""), z.string().trim().email("Please enter a valid email")])
+    .optional()
+    .nullable(),
   customerPhone: z.string().min(7, "Please enter a valid phone"),
   shippingAddress: z.string().min(5, "Please enter your full address"),
   shippingCity: z.string().min(2, "Please enter your city"),

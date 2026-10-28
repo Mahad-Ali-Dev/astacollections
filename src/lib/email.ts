@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { formatPrice, formatDateTime } from "./utils";
+import { adjustmentLine } from "./payment";
 import { prisma } from "./prisma";
 
 const FROM = process.env.RESEND_FROM ?? "Asta Collections <orders@astacollections.com>";
@@ -37,6 +38,8 @@ type OrderEmailData = {
   subtotal: number;
   discountAmount: number;
   shippingFee: number;
+  paymentAdjustment?: number;
+  paymentAdjustmentLabel?: string | null;
   total: number;
   advancePaid: number;
   couponCode?: string | null;
@@ -244,6 +247,7 @@ export async function sendOrderConfirmation(
 
 function orderConfirmationHtml(o: OrderEmailData) {
   const balanceOnDelivery = Math.max(0, o.total - o.advancePaid);
+  const adj = adjustmentLine(o.paymentAdjustment, o.paymentAdjustmentLabel);
   const itemsRows = o.items
     .map(
       (i) => `
@@ -349,6 +353,7 @@ function orderConfirmationHtml(o: OrderEmailData) {
                 ${totalRow("Subtotal", formatPrice(o.subtotal))}
                 ${o.discountAmount > 0 ? totalRow(`Discount${o.couponCode ? ` (${o.couponCode})` : ""}`, `- ${formatPrice(o.discountAmount)}`, { color: "#15803d" }) : ""}
                 ${totalRow("Shipping", o.shippingFee === 0 ? "Free" : formatPrice(o.shippingFee))}
+                ${adj ? totalRow(adj.label, adj.value, adj.isDiscount ? { color: "#15803d" } : undefined) : ""}
                 <tr><td colspan="2" style="padding:8px 0;border-top:1px solid #ece6e0;"></td></tr>
                 ${totalRow("Total", formatPrice(o.total), { bold: true })}
                 ${

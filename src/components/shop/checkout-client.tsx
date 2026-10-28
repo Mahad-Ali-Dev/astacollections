@@ -33,7 +33,13 @@ import { track } from "@/lib/fbpixel";
 import { formatPrice, calculateDiscount } from "@/lib/utils";
 import { toast } from "sonner";
 import type { StoreSettings } from "@/lib/settings";
-import { resolvePaymentConfig, type PaymentMethodKey } from "@/lib/payment";
+import {
+  checkoutFields,
+  computeCheckoutTotals,
+  methodSubtitle,
+  resolvePaymentConfig,
+  type PaymentMethodKey,
+} from "@/lib/payment";
 
 type AppliedCoupon = {
   code: string;
@@ -77,20 +83,18 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
   const [submitting, setSubmitting] = useState(false);
 
   const sub = subtotal();
-  const codAdvance = payCfg.codAdvance; // 0 ⇒ pure COD (no advance / screenshot)
-  const freeThreshold = Number(settings.freeShippingThreshold) || 5000;
-  const baseShipping = Number(settings.shippingFee) || 0;
-
+  const fields = checkoutFields(settings);
+  const buttonText = settings.checkoutButtonText || "Place Order";
   const discount = appliedCoupon ? calculateDiscount(sub, appliedCoupon) : 0;
-  const afterDiscount = sub - discount;
-  const shippingFee = afterDiscount >= freeThreshold ? 0 : baseShipping;
-  const total = afterDiscount + shippingFee;
-  const payNow = paymentMethod === "COD" ? codAdvance : total;
-  const balanceOnDelivery = paymentMethod === "COD" ? Math.max(0, total - codAdvance) : 0;
-  // Pure COD (advance = 0) collects everything on delivery — no bank transfer,
+
+  // Everything money-related comes from the shared calculator the order API
+  // also uses, so what's shown here is exactly what gets charged.
+  const totals = computeCheckoutTotals(settings, { subtotal: sub, discount, method: paymentMethod });
+  const { shipping: shippingFee, adjustment, total, payNow, balanceOnDelivery, needsProof } = totals;
+  const codAdvance = totals.payNow; // what a COD order transfers up front
+  // Pure COD (no advance) collects everything on delivery — no bank transfer,
   // so no payment screenshot is required to place the order.
-  const isPureCod = paymentMethod === "COD" && codAdvance <= 0;
-  const needsProof = paymentMethod === "BANK_TRANSFER" || (paymentMethod === "COD" && codAdvance > 0);
+  const isPureCod = paymentMethod === "COD" && !needsProof;
 
   useEffect(() => {
     if (!proofFile) {
@@ -220,13 +224,21 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
     // phone number is what we actually contact people on, and demanding an
     // email address turns a four-field form into a wall for mobile buyers who
     // don't use one.
+    // The admin can make email, area or notes required in the checkout designer.
     if (
       !form.customerName ||
       !form.customerPhone ||
       !form.shippingAddress ||
-      !form.shippingCity
+      !form.shippingCity ||
+      (fields.email === "required" && !form.customerEmail.trim()) ||
+      (fields.area === "required" && !form.shippingArea.trim()) ||
+      (fields.notes === "required" && !form.notes.trim())
     ) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+    if (form.customerEmail.trim() && !/^\S+@\S+\.\S+$/.test(form.customerEmail.trim())) {
+      toast.error("Please enter a valid email, or leave it blank");
       return;
     }
     // A COD order is only as good as the phone number on it — an unreachable
@@ -345,7 +357,11 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
       <div className="grid lg:grid-cols-[1fr_420px] gap-8 lg:gap-12">
         <div className="space-y-6">
           {/* CONTACT */}
-          <CheckoutSection number={1} title="Contact Information" icon={User}>
+          <CheckoutSection
+            number={1}
+            title={settings.checkoutContactTitle || "Contact Information"}
+            icon={User}
+          >
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label>Full Name *</Label>
@@ -366,23 +382,32 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                   required
                 />
               </div>
-              <div className="sm:col-span-2">
-                <Label>Email (optional)</Label>
-                <Input
-                  type="email"
-                  value={form.customerEmail}
-                  onChange={updateField("customerEmail")}
-                  placeholder="you@example.com"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Only for the order confirmation. We&apos;ll call or WhatsApp you either way.
-                </p>
-              </div>
+              {fields.email !== "hidden" && (
+                <div className="sm:col-span-2">
+                  <Label>{fields.email === "required" ? "Email *" : "Email (optional)"}</Label>
+                  <Input
+                    type="email"
+                    value={form.customerEmail}
+                    onChange={updateField("customerEmail")}
+                    placeholder="you@example.com"
+                    required={fields.email === "required"}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {fields.email === "required"
+                      ? "Your order confirmation will be sent here."
+                      : "Only for the order confirmation. We'll call or WhatsApp you either way."}
+                  </p>
+                </div>
+              )}
             </div>
           </CheckoutSection>
 
           {/* SHIPPING */}
-          <CheckoutSection number={2} title="Shipping Address" icon={MapPin}>
+          <CheckoutSection
+            number={2}
+            title={settings.checkoutShippingTitle || "Shipping Address"}
+            icon={MapPin}
+          >
             <div className="space-y-4">
               <div>
                 <Label>Street Address *</Label>
@@ -394,7 +419,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                   required
                 />
               </div>
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className={fields.area !== "hidden" ? "grid sm:grid-cols-2 gap-4" : ""}>
                 <div>
                   <Label>City *</Label>
                   <Input
@@ -404,25 +429,38 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                     required
                   />
                 </div>
+                {fields.area !== "hidden" && (
+                  <div>
+                    <Label>Area / Postal Code{fields.area === "required" ? " *" : ""}</Label>
+                    <Input
+                      value={form.shippingArea}
+                      onChange={updateField("shippingArea")}
+                      required={fields.area === "required"}
+                    />
+                  </div>
+                )}
+              </div>
+              {fields.notes !== "hidden" && (
                 <div>
-                  <Label>Area / Postal Code</Label>
-                  <Input value={form.shippingArea} onChange={updateField("shippingArea")} />
+                  <Label>{fields.notes === "required" ? "Order Notes *" : "Order Notes (optional)"}</Label>
+                  <Textarea
+                    value={form.notes}
+                    onChange={updateField("notes")}
+                    placeholder="Gift message, delivery instructions, etc."
+                    rows={2}
+                    required={fields.notes === "required"}
+                  />
                 </div>
-              </div>
-              <div>
-                <Label>Order Notes (optional)</Label>
-                <Textarea
-                  value={form.notes}
-                  onChange={updateField("notes")}
-                  placeholder="Gift message, delivery instructions, etc."
-                  rows={2}
-                />
-              </div>
+              )}
             </div>
           </CheckoutSection>
 
           {/* PAYMENT */}
-          <CheckoutSection number={3} title="Payment Method" icon={CreditCard}>
+          <CheckoutSection
+            number={3}
+            title={settings.checkoutPaymentTitle || "Payment Method"}
+            icon={CreditCard}
+          >
             <div
               className={
                 payCfg.enabled.length > 1 ? "grid sm:grid-cols-2 gap-3 mb-4" : "mb-4"
@@ -434,11 +472,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                   onClick={() => setPaymentMethod("COD")}
                   icon={Banknote}
                   title={settings.codTitle || "Cash on Delivery"}
-                  subtitle={
-                    codAdvance > 0
-                      ? `${formatPrice(codAdvance)} advance · balance on delivery`
-                      : "Pay in full when it arrives"
-                  }
+                  subtitle={methodSubtitle(settings, "COD")}
                   badge={settings.codBadge || undefined}
                 />
               )}
@@ -448,7 +482,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                   onClick={() => setPaymentMethod("BANK_TRANSFER")}
                   icon={Building2}
                   title={settings.bankTransferTitle || "Bank Transfer"}
-                  subtitle="Pay full amount now"
+                  subtitle={methodSubtitle(settings, "BANK_TRANSFER")}
                   badge={settings.bankTransferBadge || undefined}
                 />
               )}
@@ -544,7 +578,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
         <aside id="order-summary" className="lg:sticky lg:top-24 h-fit space-y-4 scroll-mt-28">
           <div className="border rounded-xl bg-card overflow-hidden">
             <div className="p-6 space-y-4">
-              <h2 className="font-serif text-xl">Order Summary</h2>
+              <h2 className="font-serif text-xl">{settings.checkoutSummaryTitle || "Order Summary"}</h2>
 
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                 {items.map((i) => (
@@ -575,10 +609,9 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                 ))}
               </div>
 
-              <Separator />
-
-              {/* COUPON */}
-              {!appliedCoupon ? (
+              {/* COUPON — the admin can switch the box off entirely */}
+              {fields.coupon && <Separator />}
+              {!fields.coupon ? null : !appliedCoupon ? (
                 <div>
                   <button
                     onClick={() => setCouponOpen(!couponOpen)}
@@ -635,6 +668,15 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                   label="Shipping"
                   value={shippingFee === 0 ? "Free" : formatPrice(shippingFee)}
                 />
+                {adjustment !== 0 && (
+                  <Row
+                    label={totals.adjustmentLabel}
+                    value={
+                      adjustment > 0 ? formatPrice(adjustment) : `- ${formatPrice(-adjustment)}`
+                    }
+                    className={adjustment < 0 ? "text-green-700" : ""}
+                  />
+                )}
               </div>
 
               <Separator />
@@ -676,15 +718,17 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
                     Placing order...
                   </>
                 ) : payNow > 0 ? (
-                  `Place Order · ${formatPrice(payNow)}`
+                  `${buttonText} · ${formatPrice(payNow)}`
                 ) : (
-                  "Place Order"
+                  buttonText
                 )}
               </Button>
-              <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
-                <Lock className="h-3 w-3" />
-                Your information is secure
-              </p>
+              {settings.checkoutSecureText && (
+                <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                  <Lock className="h-3 w-3" />
+                  {settings.checkoutSecureText}
+                </p>
+              )}
             </div>
           </div>
 

@@ -396,6 +396,9 @@ model Order {
   shippingFee    Float @default(0)
   total          Float
   advancePaid    Float @default(0)
+  // Fee (+) or discount (−) for the chosen payment method, already in total.
+  paymentAdjustment      Float   @default(0)
+  paymentAdjustmentLabel String?
 
   // Payment
   paymentMethod PaymentMethod

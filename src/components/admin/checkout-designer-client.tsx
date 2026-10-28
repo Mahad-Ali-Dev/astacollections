@@ -10,6 +10,11 @@ import {
   Info,
   AlertTriangle,
   Eye,
+  Lock,
+  Tag,
+  User,
+  MapPin,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,19 +28,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StoreSettings } from "@/lib/settings";
-import { resolvePaymentConfig, parseCodAdvance } from "@/lib/payment";
+import {
+  checkoutFields,
+  computeCheckoutTotals,
+  describePricing,
+  methodPricing,
+  methodSubtitle,
+  parseCodAdvance,
+  resolvePaymentConfig,
+  type PaymentMethodKey,
+} from "@/lib/payment";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "sonner";
 
-const SAMPLE_SUBTOTAL = 1399; // used only for the pricing preview
+const DEFAULT_SAMPLE_SUBTOTAL = 3500; // starting value for the pricing preview
+
+type SetFn = <K extends keyof StoreSettings>(k: K, v: StoreSettings[K]) => void;
 
 export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) {
   const router = useRouter();
   const [s, setS] = useState<StoreSettings>(initial);
   const [saving, setSaving] = useState(false);
 
-  const set = <K extends keyof StoreSettings>(k: K, v: StoreSettings[K]) =>
-    setS((prev) => ({ ...prev, [k]: v }));
+  const set: SetFn = (k, v) => setS((prev) => ({ ...prev, [k]: v }));
 
   const codEnabled = s.codEnabled !== "false";
   const bankEnabled = s.bankTransferEnabled !== "false";
@@ -78,8 +93,8 @@ export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) 
         <div>
           <h1 className="text-2xl font-serif">Checkout</h1>
           <p className="text-sm text-muted-foreground">
-            Design the payment step — choose which methods customers see, the copy, and how much
-            they pay now vs. on delivery.
+            Design the whole checkout page — which payment methods customers see, what each one
+            costs, which details you ask for, and every heading and button.
           </p>
         </div>
         <Button onClick={save} disabled={saving || bothOff} variant="gold">
@@ -98,16 +113,16 @@ export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) 
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[1fr_380px] gap-6 items-start">
+      <div className="grid lg:grid-cols-[1fr_400px] gap-6 items-start">
         {/* ─────────────── CONTROLS ─────────────── */}
         <div className="space-y-6 min-w-0">
           {/* PAYMENT METHODS */}
           <section className="bg-card border rounded-xl p-6 space-y-5">
             <div>
-              <h2 className="font-semibold">Payment Methods</h2>
+              <h2 className="font-semibold">Payment Methods &amp; Pricing</h2>
               <p className="text-xs text-muted-foreground mt-1">
-                Turn each method on or off. Keep both for maximum choice, or run a single-method
-                checkout.
+                Offer Cash on Delivery, Bank Transfer, or both. Each method can add a fee or give a
+                discount — the order total updates when the customer switches method.
               </p>
             </div>
 
@@ -168,6 +183,7 @@ export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) 
                       )}
                     </p>
                   </div>
+                  <MethodPricingFields method="COD" s={s} set={set} />
                   <div>
                     <Label>Extra note (optional)</Label>
                     <Textarea
@@ -213,10 +229,11 @@ export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) 
                       <Input
                         value={s.bankTransferBadge}
                         onChange={(e) => set("bankTransferBadge", e.target.value)}
-                        placeholder="e.g. Fastest"
+                        placeholder="e.g. Save 5%"
                       />
                     </div>
                   </div>
+                  <MethodPricingFields method="BANK_TRANSFER" s={s} set={set} />
                   <div>
                     <Label>Extra note (optional)</Label>
                     <Textarea
@@ -292,36 +309,118 @@ export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) 
             </section>
           )}
 
+          {/* CUSTOMER DETAILS */}
+          <section className="bg-card border rounded-xl p-6 space-y-4">
+            <div>
+              <h2 className="font-semibold">Customer Details</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Name, phone, street address and city are always required — an order can&apos;t ship
+                without them. Choose how to handle the rest. Fewer fields usually means more orders.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <FieldModeSelect
+                label="Email"
+                value={s.checkoutEmailField}
+                fallback="optional"
+                onChange={(v) => set("checkoutEmailField", v)}
+              />
+              <FieldModeSelect
+                label="Area / Postal code"
+                value={s.checkoutAreaField}
+                fallback="optional"
+                onChange={(v) => set("checkoutAreaField", v)}
+              />
+              <FieldModeSelect
+                label="Order notes"
+                value={s.checkoutNotesField}
+                fallback="optional"
+                onChange={(v) => set("checkoutNotesField", v)}
+              />
+            </div>
+            {s.checkoutEmailField === "hidden" && (
+              <p className="text-xs text-muted-foreground">
+                With email hidden, customers get no confirmation email; they track orders with
+                their phone number instead.
+              </p>
+            )}
+            <label className="flex items-center gap-3 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={s.checkoutCouponEnabled !== "false"}
+                onChange={(e) =>
+                  set("checkoutCouponEnabled", e.target.checked ? "true" : "false")
+                }
+                className="h-4 w-4 accent-amber-600"
+              />
+              <Tag className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">Show the &ldquo;Have a coupon code?&rdquo; box</span>
+            </label>
+          </section>
+
           {/* PAGE TEXT */}
           <section className="bg-card border rounded-xl p-6 space-y-4">
             <div>
               <h2 className="font-semibold">Checkout Page Text</h2>
               <p className="text-xs text-muted-foreground mt-1">
-                The heading shown at the top of the checkout page.
+                Every heading and button on the page. Leave a field blank to use the default shown
+                in grey.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <Label>Heading</Label>
-                <Input
-                  value={s.checkoutHeading}
-                  onChange={(e) => set("checkoutHeading", e.target.value)}
-                  placeholder="Checkout"
-                />
-              </div>
-              <div>
-                <Label>Subheading</Label>
-                <Input
-                  value={s.checkoutSubheading}
-                  onChange={(e) => set("checkoutSubheading", e.target.value)}
-                  placeholder="Almost there — just a few details."
-                />
-              </div>
+              <TextField
+                label="Page heading"
+                value={s.checkoutHeading}
+                placeholder="Checkout"
+                onChange={(v) => set("checkoutHeading", v)}
+              />
+              <TextField
+                label="Page subheading"
+                value={s.checkoutSubheading}
+                placeholder="Almost there — just a few details."
+                onChange={(v) => set("checkoutSubheading", v)}
+              />
+              <TextField
+                label="Step 1 title"
+                value={s.checkoutContactTitle}
+                placeholder="Contact Information"
+                onChange={(v) => set("checkoutContactTitle", v)}
+              />
+              <TextField
+                label="Step 2 title"
+                value={s.checkoutShippingTitle}
+                placeholder="Shipping Address"
+                onChange={(v) => set("checkoutShippingTitle", v)}
+              />
+              <TextField
+                label="Step 3 title"
+                value={s.checkoutPaymentTitle}
+                placeholder="Payment Method"
+                onChange={(v) => set("checkoutPaymentTitle", v)}
+              />
+              <TextField
+                label="Summary title"
+                value={s.checkoutSummaryTitle}
+                placeholder="Order Summary"
+                onChange={(v) => set("checkoutSummaryTitle", v)}
+              />
+              <TextField
+                label="Order button"
+                value={s.checkoutButtonText}
+                placeholder="Place Order"
+                onChange={(v) => set("checkoutButtonText", v)}
+              />
+              <TextField
+                label="Line under the button"
+                value={s.checkoutSecureText}
+                placeholder="(blank hides it)"
+                onChange={(v) => set("checkoutSecureText", v)}
+              />
             </div>
           </section>
 
           <p className="text-xs text-muted-foreground">
-            Store info and shipping fees live under{" "}
+            Store info, the delivery charge and the free-shipping threshold live under{" "}
             <a href="/admin/settings" className="underline hover:text-foreground">
               Settings
             </a>
@@ -335,41 +434,375 @@ export function CheckoutDesignerClient({ initial }: { initial: StoreSettings }) 
             <Eye className="h-4 w-4" />
             Customer preview
           </div>
-          <PaymentPreview s={s} />
+          <CheckoutPreview s={s} />
         </aside>
       </div>
     </div>
   );
 }
 
-/** Mirrors the storefront payment cards + shows how the money splits. */
-function PaymentPreview({ s }: { s: StoreSettings }) {
+/** Fee / discount controls for one payment method. */
+function MethodPricingFields({
+  method,
+  s,
+  set,
+}: {
+  method: PaymentMethodKey;
+  s: StoreSettings;
+  set: SetFn;
+}) {
+  const cod = method === "COD";
+  const typeKey = cod ? "codAdjustType" : "bankTransferAdjustType";
+  const modeKey = cod ? "codAdjustMode" : "bankTransferAdjustMode";
+  const valueKey = cod ? "codAdjustValue" : "bankTransferAdjustValue";
+  const labelKey = cod ? "codAdjustLabel" : "bankTransferAdjustLabel";
+
+  const type = s[typeKey] === "FEE" || s[typeKey] === "DISCOUNT" ? s[typeKey] : "NONE";
+  const mode = s[modeKey] === "PERCENTAGE" ? "PERCENTAGE" : "FIXED";
+  const pricing = methodPricing(s, method);
+
+  return (
+    <div className="rounded-lg border bg-background/60 p-3 space-y-3">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Pricing for this method
+      </p>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <Label>Price change</Label>
+          <Select value={type} onValueChange={(v) => set(typeKey, v)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="NONE">No change</SelectItem>
+              <SelectItem value="FEE">Add a fee</SelectItem>
+              <SelectItem value="DISCOUNT">Give a discount</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {type !== "NONE" && (
+          <>
+            <div>
+              <Label>Amount</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={mode === "PERCENTAGE" ? 100 : undefined}
+                  value={s[valueKey]}
+                  onChange={(e) => set(valueKey, e.target.value)}
+                  placeholder="0"
+                />
+                <Select value={mode} onValueChange={(v) => set(modeKey, v)}>
+                  <SelectTrigger className="w-[76px] shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FIXED">Rs.</SelectItem>
+                    <SelectItem value="PERCENTAGE">%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Label on the bill</Label>
+              <Input
+                value={s[labelKey]}
+                onChange={(e) => set(labelKey, e.target.value)}
+                placeholder={pricing.label || (type === "FEE" ? "Charges" : "Discount")}
+              />
+            </div>
+          </>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {pricing.kind === "NONE"
+          ? "Customers pay the same total as with any other method."
+          : `Customers see "${describePricing(pricing)}". ${
+              pricing.mode === "PERCENTAGE"
+                ? "Percentages apply to the items after any coupon, not to delivery."
+                : ""
+            }`}
+      </p>
+    </div>
+  );
+}
+
+function FieldModeSelect({
+  label,
+  value,
+  fallback,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  fallback: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Select value={value || fallback} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="required">Required</SelectItem>
+          <SelectItem value="optional">Optional</SelectItem>
+          <SelectItem value="hidden">Hidden</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+/**
+ * A scaled-down checkout page built from the unsaved settings, plus the bill
+ * for a sample order under each enabled method. Totals come from the same
+ * calculator the storefront and order API use.
+ */
+function CheckoutPreview({ s }: { s: StoreSettings }) {
   const cfg = resolvePaymentConfig(s);
-  const advance = cfg.codAdvance;
+  const fields = checkoutFields(s);
+  const [sample, setSample] = useState(String(DEFAULT_SAMPLE_SUBTOTAL));
+  const [method, setMethod] = useState<PaymentMethodKey>(cfg.defaultMethod);
+  const active: PaymentMethodKey = cfg.enabled.includes(method) ? method : cfg.defaultMethod;
 
-  const shippingFee = Number(s.shippingFee) || 0;
-  const freeThreshold = Number(s.freeShippingThreshold) || 5000;
-  const shipping = SAMPLE_SUBTOTAL >= freeThreshold ? 0 : shippingFee;
-  const total = SAMPLE_SUBTOTAL + shipping;
+  const subtotal = Math.max(0, Number(sample) || 0);
+  const t = computeCheckoutTotals(s, { subtotal, discount: 0, method: active });
+  const buttonText = s.checkoutButtonText || "Place Order";
 
-  const Card = ({
-    active,
-    icon: Icon,
-    title,
-    subtitle,
-    badge,
-    tone,
-  }: {
-    active: boolean;
-    icon: React.ElementType;
-    title: string;
-    subtitle: string;
-    badge?: string;
-    tone: string;
-  }) => (
-    <div
-      className={`relative border-2 rounded-xl p-4 ${
-        active ? "border-accent bg-accent/5 shadow-sm" : "border-border"
+  const fieldList = [
+    "Full name *",
+    "Phone *",
+    fields.email !== "hidden" && `Email${fields.email === "required" ? " *" : " (optional)"}`,
+  ].filter(Boolean) as string[];
+  const addressList = [
+    "Street address *",
+    "City *",
+    fields.area !== "hidden" && `Area / Postal code${fields.area === "required" ? " *" : ""}`,
+    fields.notes !== "hidden" && `Order notes${fields.notes === "required" ? " *" : " (optional)"}`,
+  ].filter(Boolean) as string[];
+
+  return (
+    <div className="border rounded-xl bg-card overflow-hidden text-sm">
+      <div className="bg-gradient-to-br from-secondary via-background to-secondary/40 border-b px-5 py-4">
+        <p className="font-serif text-xl leading-tight">{s.checkoutHeading || "Checkout"}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {s.checkoutSubheading || "Almost there — just a few details."}
+        </p>
+      </div>
+
+      <div className="p-5 space-y-4">
+        <PreviewStep n={1} icon={User} title={s.checkoutContactTitle || "Contact Information"}>
+          <FieldChips items={fieldList} />
+        </PreviewStep>
+        <PreviewStep n={2} icon={MapPin} title={s.checkoutShippingTitle || "Shipping Address"}>
+          <FieldChips items={addressList} />
+        </PreviewStep>
+        <PreviewStep n={3} icon={CreditCard} title={s.checkoutPaymentTitle || "Payment Method"}>
+          <div className="space-y-2">
+            {cfg.enabled.map((m) => (
+              <MethodCard
+                key={m}
+                active={active === m}
+                onClick={() => setMethod(m)}
+                icon={m === "COD" ? Banknote : Building2}
+                tone={m === "COD" ? "text-amber-600" : "text-blue-600"}
+                title={
+                  m === "COD"
+                    ? s.codTitle || "Cash on Delivery"
+                    : s.bankTransferTitle || "Bank Transfer"
+                }
+                subtitle={methodSubtitle(s, m)}
+                badge={(m === "COD" ? s.codBadge : s.bankTransferBadge) || undefined}
+              />
+            ))}
+          </div>
+          {cfg.enabled.length > 1 && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Click a method to see its bill below.
+            </p>
+          )}
+        </PreviewStep>
+
+        {/* Summary */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-serif text-base">{s.checkoutSummaryTitle || "Order Summary"}</p>
+              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Info className="h-3 w-3" />
+                Sample items
+                <Input
+                  type="number"
+                  min={0}
+                  value={sample}
+                  onChange={(e) => setSample(e.target.value)}
+                  className="h-7 w-24 text-xs"
+                  aria-label="Sample order value"
+                />
+              </label>
+            </div>
+            {fields.coupon && (
+              <p className="text-xs text-accent flex items-center gap-1.5">
+                <Tag className="h-3 w-3" />
+                Have a coupon code?
+              </p>
+            )}
+            <div className="space-y-1 text-xs pt-1">
+              <PreviewRow label="Subtotal" value={formatPrice(t.subtotal)} />
+              <PreviewRow
+                label="Shipping"
+                value={t.shipping === 0 ? "Free" : formatPrice(t.shipping)}
+              />
+              {t.adjustment !== 0 && (
+                <PreviewRow
+                  label={t.adjustmentLabel}
+                  value={
+                    t.adjustment > 0
+                      ? formatPrice(t.adjustment)
+                      : `- ${formatPrice(-t.adjustment)}`
+                  }
+                  className={t.adjustment < 0 ? "text-green-700" : ""}
+                />
+              )}
+              <div className="border-t pt-1.5 mt-1.5">
+                <PreviewRow label="Total" value={formatPrice(t.total)} bold />
+              </div>
+              {active === "COD" && (
+                <>
+                  {t.payNow > 0 && (
+                    <PreviewRow
+                      label="Pay now (advance)"
+                      value={formatPrice(t.payNow)}
+                      className="text-accent"
+                    />
+                  )}
+                  <PreviewRow label="Pay on delivery" value={formatPrice(t.balanceOnDelivery)} />
+                </>
+              )}
+            </div>
+          </div>
+          <div className="bg-muted/40 border-t p-3 space-y-1.5">
+            <div className="w-full rounded-md bg-accent text-accent-foreground text-center text-xs font-semibold py-2.5">
+              {t.payNow > 0 ? `${buttonText} · ${formatPrice(t.payNow)}` : buttonText}
+            </div>
+            {s.checkoutSecureText && (
+              <p className="text-[11px] text-muted-foreground text-center flex items-center justify-center gap-1">
+                <Lock className="h-3 w-3" />
+                {s.checkoutSecureText}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Side-by-side totals so the admin sees the price gap between methods */}
+        {cfg.enabled.length > 1 && (
+          <div className="rounded-lg bg-muted/40 p-3 space-y-1 text-xs">
+            <p className="font-medium mb-1">Total by method on this order</p>
+            {cfg.enabled.map((m) => {
+              const mt = computeCheckoutTotals(s, { subtotal, discount: 0, method: m });
+              return (
+                <PreviewRow
+                  key={m}
+                  label={
+                    m === "COD"
+                      ? s.codTitle || "Cash on Delivery"
+                      : s.bankTransferTitle || "Bank Transfer"
+                  }
+                  value={formatPrice(mt.total)}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PreviewStep({
+  n,
+  icon: Icon,
+  title,
+  children,
+}: {
+  n: number;
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border rounded-lg p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="bg-accent/10 text-accent w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold">
+          {n}
+        </span>
+        <p className="font-serif text-sm flex items-center gap-1.5">
+          <Icon className="h-3.5 w-3.5" />
+          {title}
+        </p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function FieldChips({ items }: { items: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((f) => (
+        <span key={f} className="text-[11px] border rounded px-2 py-1 bg-background text-muted-foreground">
+          {f}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MethodCard({
+  active,
+  onClick,
+  icon: Icon,
+  title,
+  subtitle,
+  badge,
+  tone,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ElementType;
+  title: string;
+  subtitle: string;
+  badge?: string;
+  tone: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-full text-left border-2 rounded-xl p-3 transition ${
+        active ? "border-accent bg-accent/5 shadow-sm" : "border-border hover:border-foreground/30"
       }`}
     >
       {badge && (
@@ -377,8 +810,8 @@ function PaymentPreview({ s }: { s: StoreSettings }) {
           {badge}
         </span>
       )}
-      <div className="flex items-start justify-between mb-2">
-        <Icon className={`h-5 w-5 ${tone}`} />
+      <div className="flex items-start justify-between mb-1.5">
+        <Icon className={`h-4 w-4 ${tone}`} />
         <span
           className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
             active ? "border-accent" : "border-border"
@@ -388,84 +821,26 @@ function PaymentPreview({ s }: { s: StoreSettings }) {
         </span>
       </div>
       <p className="font-semibold text-sm">{title}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
-    </div>
-  );
-
-  return (
-    <div className="border rounded-xl bg-card p-5 space-y-4">
-      <div className="space-y-2">
-        {cfg.codEnabled && (
-          <Card
-            active={cfg.defaultMethod === "COD"}
-            icon={Banknote}
-            title={s.codTitle || "Cash on Delivery"}
-            subtitle={
-              advance > 0
-                ? `${formatPrice(advance)} advance · balance on delivery`
-                : "Pay in full when it arrives"
-            }
-            badge={s.codBadge || undefined}
-            tone="text-amber-600"
-          />
-        )}
-        {cfg.bankEnabled && (
-          <Card
-            active={cfg.defaultMethod === "BANK_TRANSFER"}
-            icon={Building2}
-            title={s.bankTransferTitle || "Bank Transfer"}
-            subtitle="Pay full amount now"
-            badge={s.bankTransferBadge || undefined}
-            tone="text-blue-600"
-          />
-        )}
-      </div>
-
-      {/* Pricing breakdown for a sample order */}
-      <div className="border-t pt-4 space-y-3">
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-1.5">
-          <Info className="h-3 w-3" />
-          On a sample {formatPrice(total)} order
-        </p>
-
-        {cfg.codEnabled && (
-          <div className="text-xs space-y-1">
-            <p className="font-medium">{s.codTitle || "Cash on Delivery"}</p>
-            {advance > 0 ? (
-              <>
-                <PreviewRow label="Pay now (advance)" value={formatPrice(advance)} accent />
-                <PreviewRow label="Pay on delivery" value={formatPrice(total - advance)} />
-              </>
-            ) : (
-              <PreviewRow label="Pay on delivery" value={formatPrice(total)} accent />
-            )}
-          </div>
-        )}
-
-        {cfg.bankEnabled && (
-          <div className="text-xs space-y-1">
-            <p className="font-medium">{s.bankTransferTitle || "Bank Transfer"}</p>
-            <PreviewRow label="Pay now (full)" value={formatPrice(total)} accent />
-          </div>
-        )}
-      </div>
-    </div>
+      <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+    </button>
   );
 }
 
 function PreviewRow({
   label,
   value,
-  accent,
+  bold,
+  className,
 }: {
   label: string;
   value: string;
-  accent?: boolean;
+  bold?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={`tabular-nums ${accent ? "text-accent font-semibold" : ""}`}>{value}</span>
+    <div className={`flex justify-between ${bold ? "font-semibold text-sm" : ""} ${className ?? ""}`}>
+      <span className={bold ? "" : "text-muted-foreground"}>{label}</span>
+      <span className="tabular-nums">{value}</span>
     </div>
   );
 }

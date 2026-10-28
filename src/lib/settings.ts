@@ -30,9 +30,32 @@ export type StoreSettings = {
   bankTransferTitle: string;
   bankTransferBadge: string;
   bankTransferNote: string;
-  // Checkout page header text.
+  // Per-method pricing. Type: "NONE" | "FEE" | "DISCOUNT"; mode: "FIXED" |
+  // "PERCENTAGE"; value in rupees or percent; label shown on the summary.
+  // Read through methodPricing() in lib/payment — never parse these directly.
+  codAdjustType: string;
+  codAdjustMode: string;
+  codAdjustValue: string;
+  codAdjustLabel: string;
+  bankTransferAdjustType: string;
+  bankTransferAdjustMode: string;
+  bankTransferAdjustValue: string;
+  bankTransferAdjustLabel: string;
+  // Checkout page text.
   checkoutHeading: string;
   checkoutSubheading: string;
+  checkoutContactTitle: string;
+  checkoutShippingTitle: string;
+  checkoutPaymentTitle: string;
+  checkoutSummaryTitle: string;
+  checkoutButtonText: string;
+  checkoutSecureText: string;
+  // Customer fields: "required" | "optional" | "hidden". Name, phone, address
+  // and city are always required — an order can't ship without them.
+  checkoutEmailField: string;
+  checkoutAreaField: string;
+  checkoutNotesField: string;
+  checkoutCouponEnabled: string; // "true" | "false"
 
   // ───── UI images / content ─────
   // Hero carousel — 3 slides
@@ -209,8 +232,26 @@ const DEFAULTS: StoreSettings = {
   bankTransferTitle: "Bank Transfer",
   bankTransferBadge: "",
   bankTransferNote: "",
+  codAdjustType: "NONE",
+  codAdjustMode: "FIXED",
+  codAdjustValue: "0",
+  codAdjustLabel: "",
+  bankTransferAdjustType: "NONE",
+  bankTransferAdjustMode: "PERCENTAGE",
+  bankTransferAdjustValue: "0",
+  bankTransferAdjustLabel: "",
   checkoutHeading: "Checkout",
   checkoutSubheading: "Almost there — just a few details.",
+  checkoutContactTitle: "Contact Information",
+  checkoutShippingTitle: "Shipping Address",
+  checkoutPaymentTitle: "Payment Method",
+  checkoutSummaryTitle: "Order Summary",
+  checkoutButtonText: "Place Order",
+  checkoutSecureText: "Your information is secure",
+  checkoutEmailField: "optional",
+  checkoutAreaField: "optional",
+  checkoutNotesField: "optional",
+  checkoutCouponEnabled: "true",
 
   // Hero defaults
   hero1Image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1800&auto=format&fit=crop&q=85",
