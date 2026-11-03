@@ -8,6 +8,7 @@ import { Reveal } from "@/components/motion/reveal";
 import { SectionSlot } from "@/components/shop/section-slot";
 import { TrustLine } from "@/components/shop/trust-strip";
 import { COLLECTION_COPY, fillRange } from "@/lib/collection-copy";
+import { guidesForCollections } from "@/lib/guides";
 import { getStorePolicy } from "@/lib/store-policy";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -169,6 +170,7 @@ export default async function CategoryPage({
       ? [category.description]
       : [];
   const faqs = copy?.faqs ?? [];
+  const guides = guidesForCollections([category.slug, ...(parent ? [parent.slug] : [])]).slice(0, 3);
   const crumbs = [
     { name: "Home", url: "/" },
     { name: "Shop", url: "/products" },
@@ -292,7 +294,7 @@ export default async function CategoryPage({
       </div>
 
       {/* ABOUT THIS COLLECTION — helpful copy + FAQs + related collections */}
-      {(intro.length > 1 || faqs.length > 0 || siblings.length > 0) && (
+      {(intro.length > 1 || faqs.length > 0 || siblings.length > 0 || guides.length > 0) && (
         <section className="container pb-6">
           <div className="grid gap-10 md:grid-cols-2 md:gap-16 border-t pt-12">
             <div className="space-y-4 max-w-prose">
@@ -311,6 +313,20 @@ export default async function CategoryPage({
                           className="px-4 h-10 inline-flex items-center rounded-full border border-border text-sm hover:border-accent hover:text-accent transition-colors"
                         >
                           {COLLECTION_COPY[sc.slug]?.h1 ?? sc.name.trim()}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {guides.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-3">Helpful guides</p>
+                  <ul className="space-y-2">
+                    {guides.map((g) => (
+                      <li key={g.slug}>
+                        <Link href={`/guides/${g.slug}`} className="text-sm underline underline-offset-4 hover:text-accent">
+                          {g.title}
                         </Link>
                       </li>
                     ))}

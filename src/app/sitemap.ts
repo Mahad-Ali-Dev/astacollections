@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { SITE } from "@/lib/seo";
+import { GUIDES } from "@/lib/guides";
 
 // Built per request from the database so new products appear without a deploy.
 export const dynamic = "force-dynamic";
@@ -26,6 +27,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${SITE.url}/`, priority: 1.0, changeFrequency: "weekly" },
     { url: `${SITE.url}/products`, priority: 0.9, changeFrequency: "daily" },
+    { url: `${SITE.url}/guides`, priority: 0.6, changeFrequency: "weekly" },
+    ...GUIDES.map((g) => ({
+      url: `${SITE.url}/guides/${g.slug}`,
+      lastModified: new Date(g.updated),
+      priority: 0.6,
+      changeFrequency: "monthly" as const,
+    })),
     { url: `${SITE.url}/faq`, priority: 0.6, changeFrequency: "monthly" },
     { url: `${SITE.url}/shipping`, priority: 0.5, changeFrequency: "monthly" },
     { url: `${SITE.url}/about`, priority: 0.5, changeFrequency: "monthly" },

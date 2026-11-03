@@ -130,6 +130,7 @@ export function Footer() {
             <FootLink href="/about">About Us</FootLink>
             <FootLink href="/shipping">Shipping & Returns</FootLink>
             <FootLink href="/faq">FAQ</FootLink>
+            <FootLink href="/guides">Jewellery Guides</FootLink>
             <FootLink href="/contact">Contact</FootLink>
           </ul>
         </div>

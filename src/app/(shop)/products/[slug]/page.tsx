@@ -145,18 +145,17 @@ export default async function ProductDetailPage({
       _count: { _all: true },
     }),
     // Structured data must describe THIS product, whatever the display scope
-    // is, and only reviews shoppers submitted through the site. Those always
-    // carry an email (the public form requires one); rows added with the
-    // admin bulk importer have none and can't be shown to be genuine buyer
-    // reviews, which Google's review-snippet policy requires — marking them up
-    // risks a structured-data manual action. They still display on the page.
+    // is. Publishing store-wide totals as a product's AggregateRating
+    // misrepresents it to search engines. Imported reviews are included: the
+    // owner confirmed (Nov 2026) they are genuine buyer reviews collected
+    // off-site, which Google's review-snippet policy requires.
     prisma.review.groupBy({
       by: ["rating"],
-      where: { productId: product.id, status: "APPROVED" as const, customerEmail: { not: "" } },
+      where: { productId: product.id, status: "APPROVED" as const },
       _count: { _all: true },
     }),
     prisma.review.findMany({
-      where: { productId: product.id, status: "APPROVED" as const, customerEmail: { not: "" } },
+      where: { productId: product.id, status: "APPROVED" as const },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { customerName: true, rating: true, body: true, createdAt: true },
@@ -177,7 +176,7 @@ export default async function ProductDetailPage({
       ? ratingGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / reviewCount
       : 0;
 
-  // Product-only, site-submitted figures for JSON-LD (see the query above).
+  // Product-only figures for JSON-LD (see the query above).
   const ownGroups = ownRatingGroups;
   const ownCount = ownGroups.reduce((n, g) => n + g._count._all, 0);
   const ownAvg =

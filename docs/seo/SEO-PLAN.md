@@ -61,7 +61,21 @@ Autocomplete shows what people in Pakistan actually type. Volumes aren't public,
 
 All collection copy lives in `src/lib/collection-copy.ts`. Prices in it are filled live from the database, so they can't go stale.
 
-## 4. Content roadmap (needs the owner's go-ahead)
+## 4. Guides (owner approved 3 Nov 2026, shipped)
+
+Live at `/guides` (content in `src/lib/guides.ts`; prices in the copy are filled live from the DB):
+
+| URL | Target |
+|---|---|
+| /guides/does-stainless-steel-jewellery-tarnish | does stainless steel tarnish · non tarnish jewellery pakistan |
+| /guides/how-to-clean-stainless-steel-jewellery | how to clean stainless steel jewelry (at home) |
+| /guides/ring-size-guide | ring size pakistan · ring size chart in mm |
+| /guides/couple-rings-guide | couple rings pakistan · promise rings pakistan |
+| /guides/jewellery-gift-ideas-for-her-under-2000 | gift for wife pakistan · eid / birthday gift |
+
+Each guide puts a short answer first, adds Article, Breadcrumb and FAQPage markup, cites its sources, shows a live "shop the guide" grid, and is linked from the footer, the FAQ, related collection pages, the sitemap and llms.txt.
+
+### Original roadmap
 
 A small `/guides` section, each post fact-checked, linking into the matching collection:
 

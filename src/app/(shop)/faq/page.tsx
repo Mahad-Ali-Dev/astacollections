@@ -93,6 +93,10 @@ export default async function FaqPage() {
           Can&apos;t find what you&apos;re looking for?{" "}
           <Link href="/contact" className="underline underline-offset-4 hover:text-foreground">
             Get in touch
+          </Link>{" "}
+          or read our{" "}
+          <Link href="/guides" className="underline underline-offset-4 hover:text-foreground">
+            jewellery guides
           </Link>
           .
         </p>

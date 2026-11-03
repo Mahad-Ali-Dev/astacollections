@@ -3,6 +3,7 @@ import { SITE } from "@/lib/seo";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { codLine, deliveryLine, getStorePolicy } from "@/lib/store-policy";
 import { formatPrice } from "@/lib/utils";
+import { GUIDES } from "@/lib/guides";
 
 // llms.txt (https://llmstxt.org): a plain-markdown map of the site for AI
 // assistants and answer engines. Generated from the database so collections,
@@ -33,6 +34,10 @@ export async function GET() {
     })
     .join("\n");
 
+  const guideLines = GUIDES.map(
+    (g) => `- [${g.title}](${SITE.url}/guides/${g.slug}): ${g.description}`
+  ).join("\n");
+
   const min = priceAgg._min.price;
   const max = priceAgg._max.price;
 
@@ -56,6 +61,10 @@ ${SITE.name} is an online jewellery store based in ${SITE.contact.city}, ${SITE.
 ## Collections
 
 ${collections}
+
+## Guides
+
+${guideLines}
 
 ## Key pages
 
