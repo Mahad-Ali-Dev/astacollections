@@ -7,12 +7,12 @@ import { getNavTree } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { MobileTabBar } from "@/components/shop/mobile-tab-bar";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
-import { syncDeliveryAmount } from "@/lib/store-policy";
+import { codLine, getStorePolicy, syncDeliveryAmount } from "@/lib/store-policy";
 
 export const dynamic = "force-dynamic";
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
-  const [settings, navItems, categories] = await Promise.all([
+  const [settings, navItems, categories, policy] = await Promise.all([
     getSettings(),
     getNavTree(),
     // Thumbnails for the header mega menu.
@@ -21,6 +21,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
       orderBy: { sortOrder: "asc" },
       select: { slug: true, name: true, image: true, parentId: true },
     }),
+    getStorePolicy(),
   ]);
   const collections = categories.map((c) => ({
     href: `/category/${c.slug}`,
@@ -36,6 +37,7 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         announcementCode={settings.announcementCode}
         navItems={navItems}
         collections={collections}
+        delivery={{ fee: policy.shippingFee, freeThreshold: policy.freeShippingThreshold, codLabel: codLine(policy) }}
       />
       {/* pb on phones keeps the last content clear of the bottom tab bar */}
       <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</main>

@@ -35,34 +35,49 @@ export function EditTiles({ tiles }: { tiles: EditTile[] }) {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 md:grid-rows-2 md:gap-6">
-        <Tile tile={main} className="aspect-[4/5] md:row-span-2 md:aspect-auto md:min-h-[640px]" priority />
+      {/* Phones: swipe carousel with a peek of the next tile. md+: one tall
+          tile beside two stacked ones, sized to fit a laptop screen. */}
+      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-2 md:grid-rows-2 md:gap-6 md:overflow-visible md:px-0 md:pb-0">
+        <Tile tile={main} className="aspect-[4/5] w-[82vw] max-w-[420px] shrink-0 snap-start md:row-span-2 md:aspect-auto md:h-[600px] md:w-auto md:max-w-none" priority />
         {rest.slice(0, 2).map((t) => (
-          <Tile key={t.href} tile={t} className="aspect-[4/3] md:aspect-auto md:min-h-[308px]" />
+          <Tile key={t.href} tile={t} compact className="aspect-[4/5] w-[82vw] max-w-[420px] shrink-0 snap-start md:aspect-auto md:h-[288px] md:w-auto md:max-w-none" />
         ))}
       </div>
     </section>
   );
 }
 
-function Tile({ tile, className, priority }: { tile: EditTile; className: string; priority?: boolean }) {
+function Tile({
+  tile,
+  className,
+  priority,
+  compact,
+}: {
+  tile: EditTile;
+  className: string;
+  priority?: boolean;
+  /** Stacked desktop tiles are short, so their text steps down a size there. */
+  compact?: boolean;
+}) {
   return (
-    <Link href={tile.href} className={`group relative isolate block overflow-hidden rounded-[1.75rem] bg-secondary ${className}`}>
+    <Link href={tile.href} className={`press group relative isolate block overflow-hidden rounded-[1.75rem] bg-secondary ${className}`}>
       <Image
         src={tile.image}
         alt=""
         fill
         priority={priority}
         sizes="(max-width:768px) 100vw, 50vw"
-        className="-z-10 object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06] motion-reduce:transition-none"
+        className="-z-10 object-cover transition-transform duration-[1200ms] ease-out [@media(hover:hover)]:group-hover:scale-[1.04] motion-reduce:transition-none"
       />
-      {/* bottom scrim: strong enough for white text on bright photos */}
-      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-[#2a1a16]/85 via-[#2a1a16]/25 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 p-6 text-background md:p-9">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-rose-200">{tile.eyebrow}</p>
-        <h3 className="mt-2 font-serif text-3xl leading-tight text-balance md:text-[2.6rem]">{tile.title}</h3>
-        <p className="mt-2 max-w-sm text-sm text-background/85 md:text-base">{tile.line}</p>
-        <span className="mt-5 inline-flex items-center gap-2 border-b border-background/60 pb-1 text-xs font-semibold uppercase tracking-[0.22em] transition-colors group-hover:border-rose-200 group-hover:text-rose-100">
+      {/* Scrim: a light overall tint plus a tall bottom gradient, so white
+          text stays readable even on very bright photos (e.g. white lace). */}
+      <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[#24160f]/10" />
+      <div aria-hidden="true" className="absolute inset-x-0 bottom-0 -z-10 h-3/4 bg-gradient-to-t from-[#24160f]/90 via-[#24160f]/45 to-transparent" />
+      <div className={`absolute inset-x-0 bottom-0 p-6 text-background ${compact ? "md:p-7" : "md:p-9"}`}>
+        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-rose-100">{tile.eyebrow}</p>
+        <h3 className={`mt-2 font-serif text-3xl leading-tight text-balance [text-shadow:0_2px_16px_rgba(0,0,0,0.25)] ${compact ? "md:text-3xl" : "md:text-[2.4rem]"}`}>{tile.title}</h3>
+        <p className={`mt-2 max-w-sm text-sm text-background/85 ${compact ? "md:line-clamp-1" : "md:text-base"}`}>{tile.line}</p>
+        <span className="mt-4 inline-flex items-center gap-2 border-b border-background/60 pb-1 text-xs font-semibold uppercase tracking-[0.22em] transition-colors group-hover:border-rose-200 group-hover:text-rose-100">
           {tile.cta}
           <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </span>

@@ -5,10 +5,11 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Menu, ShoppingBag, Search, X, User, ChevronDown, ArrowRight } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
-import { CartDrawer } from "./cart-drawer";
+import { CartDrawer, type DrawerDelivery } from "./cart-drawer";
 import { SearchOverlay } from "./search-overlay";
 import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
+import { useBump } from "@/lib/use-bump";
 
 type NavNode = {
   id: string;
@@ -35,6 +36,8 @@ type HeaderProps = {
   announcementCode?: string;
   navItems?: NavNode[];
   collections?: HeaderCollection[];
+  /** Delivery terms for the bag drawer (display only). */
+  delivery?: DrawerDelivery;
 };
 
 /** Event other components dispatch to open the search overlay (e.g. the mobile tab bar). */
@@ -45,15 +48,29 @@ export function Header({
   announcementCode = "WELCOME10",
   navItems,
   collections = [],
+  delivery,
 }: HeaderProps = {}) {
   const imageFor = (href: string) => collections.find((c) => c.href === href)?.image ?? null;
   const topCollections = collections.filter((c) => c.topLevel && c.image);
   const NAV_LINKS = navItems && navItems.length > 0 ? navItems : FALLBACK_NAV;
   const count = useCart((s) => s.count());
   const open = useCart((s) => s.open);
+  const bump = useBump(count);
   const [mobile, setMobile] = useState(false);
   const [search, setSearch] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  // Mobile menu: lock page scroll and close on Escape while open.
+  useEffect(() => {
+    if (!mobile) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobile(false);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobile]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -81,7 +98,7 @@ export function Header({
   return (
     <>
       {/* Announcement bar — admin-editable from /admin/content */}
-      <div className="bg-foreground text-background text-[10px] uppercase tracking-[0.3em] py-2.5 px-4 text-center font-medium">
+      <div className="bg-foreground text-background text-[11px] uppercase tracking-[0.3em] py-2.5 px-4 text-center font-medium">
         {announcementText}
         {announcementCode && (
           <>
@@ -254,9 +271,9 @@ export function Header({
               className="relative p-2 hover:text-accent transition-all hover:scale-110 active:scale-95"
               aria-label={`Cart with ${count} items`}
             >
-              <ShoppingBag className="h-5 w-5" strokeWidth={1.6} />
+              <ShoppingBag className={cn("h-5 w-5", bump && "bag-bounce")} strokeWidth={1.6} />
               {count > 0 && (
-                <span className="absolute top-1 right-1 bg-accent text-accent-foreground rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold px-1 animate-in zoom-in duration-200">
+                <span className={cn("absolute top-1 right-1 bg-accent text-accent-foreground rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[11px] font-bold px-1", bump && "count-bump")}>
                   {count}
                 </span>
               )}
@@ -264,59 +281,94 @@ export function Header({
           </div>
         </div>
 
-        {/* Mobile nav drawer */}
-        {mobile && (
-          <nav id="mobile-nav" aria-label="Main menu" className="lg:hidden border-t border-border/60 bg-white animate-in slide-in-from-top-2 duration-300">
-            <div className="container py-6 flex flex-col gap-1">
-              {NAV_LINKS.map((l) => (
-                <div key={l.id} className="border-b border-border/40 last:border-0">
-                  <Link
-                    href={l.href}
-                    target={l.openInNewTab ? "_blank" : undefined}
-                    onClick={() => setMobile(false)}
-                    className="block py-3 text-sm uppercase tracking-[0.2em] font-medium hover:text-accent transition-colors"
-                  >
-                    {l.label}
-                  </Link>
-                  {l.children && l.children.length > 0 && (
-                    <div className="pb-4 grid grid-cols-2 gap-2">
-                      {l.children.map((c) => {
-                        const img = imageFor(c.href) ?? imageFor(l.href);
-                        return (
-                          <Link
-                            key={c.id}
-                            href={c.href}
-                            target={c.openInNewTab ? "_blank" : undefined}
-                            onClick={() => setMobile(false)}
-                            className="flex items-center gap-2.5 rounded-xl border border-border/60 p-1.5 pr-2 min-w-0 hover:border-accent transition-colors"
-                          >
-                            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-secondary">
-                              {img && <Image src={img} alt="" fill sizes="40px" className="object-cover" />}
-                            </span>
-                            <span className="text-[11px] uppercase tracking-[0.12em] leading-tight text-foreground/80 min-w-0">
-                              {c.label}
-                            </span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div className="flex flex-wrap gap-x-5 gap-y-3 pt-6 text-xs uppercase tracking-[0.2em]">
-                <Link href="/account" onClick={() => setMobile(false)} className="text-muted-foreground hover:text-foreground transition-colors">My Account</Link>
-                <Link href="/track-order" onClick={() => setMobile(false)} className="text-muted-foreground hover:text-foreground transition-colors">Track Order</Link>
-                <Link href="/about" onClick={() => setMobile(false)} className="text-muted-foreground hover:text-foreground transition-colors">About</Link>
-                <Link href="/contact" onClick={() => setMobile(false)} className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
-                <Link href="/faq" onClick={() => setMobile(false)} className="text-muted-foreground hover:text-foreground transition-colors">FAQ</Link>
-              </div>
-            </div>
-          </nav>
-        )}
+
       </header>
 
+      {/* Mobile menu: slide-in sheet from the left with an overlay */}
+      {mobile && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => setMobile(false)} aria-hidden />
+          <nav
+            id="mobile-nav"
+            aria-label="Main menu"
+            className="absolute inset-y-0 left-0 flex w-[86vw] max-w-sm flex-col bg-white shadow-2xl animate-in slide-in-from-left duration-300 ease-out"
+          >
+            <div className="flex items-center justify-between border-b border-border/70 px-5 py-3">
+              <span className="flex items-center gap-3">
+                <Logo variant="mark" size="sm" />
+                <span className="font-serif text-xl">Menu</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobile(false)}
+                aria-label="Close menu"
+                className="press flex h-11 w-11 items-center justify-center rounded-full border border-border"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+              <ul>
+                {NAV_LINKS.map((l) => (
+                  <li key={l.id} className="border-b border-border/50 last:border-0">
+                    <Link
+                      href={l.href}
+                      target={l.openInNewTab ? "_blank" : undefined}
+                      onClick={() => setMobile(false)}
+                      className="flex min-h-[52px] items-center justify-between font-serif text-xl transition-colors hover:text-accent"
+                    >
+                      {l.label}
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    </Link>
+                    {l.children && l.children.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 pb-4">
+                        {l.children.map((c) => {
+                          const img = imageFor(c.href) ?? imageFor(l.href);
+                          return (
+                            <Link
+                              key={c.id}
+                              href={c.href}
+                              target={c.openInNewTab ? "_blank" : undefined}
+                              onClick={() => setMobile(false)}
+                              className="press flex min-h-[52px] min-w-0 items-center gap-2.5 rounded-xl border border-border/60 p-1.5 pr-2 transition-colors hover:border-accent"
+                            >
+                              <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-secondary">
+                                {img && <Image src={img} alt="" fill sizes="40px" className="object-cover" />}
+                              </span>
+                              <span className="min-w-0 text-xs leading-tight text-foreground/85">{c.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-t border-border/70 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 text-sm">
+              {[
+                { href: "/account", label: "My account" },
+                { href: "/track-order", label: "Track order" },
+                { href: "/faq", label: "FAQ" },
+                { href: "/contact", label: "Contact" },
+              ].map((x) => (
+                <Link
+                  key={x.href}
+                  href={x.href}
+                  onClick={() => setMobile(false)}
+                  className="flex min-h-[44px] items-center rounded-xl bg-secondary/60 px-3 text-foreground/85"
+                >
+                  {x.label}
+                </Link>
+              ))}
+            </div>
+          </nav>
+        </div>
+      )}
+
+
       <SearchOverlay open={search} onClose={() => setSearch(false)} />
-      <CartDrawer />
+      <CartDrawer delivery={delivery} />
     </>
   );
 }

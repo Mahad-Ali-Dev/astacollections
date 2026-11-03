@@ -134,7 +134,7 @@ function Author({ r, small }: { r: HomeReview; small?: boolean }) {
         <span className="flex items-center gap-1.5 text-sm font-semibold">
           {r.name}
           {r.verified && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
               <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified buyer
             </span>
           )}

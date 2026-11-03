@@ -7,6 +7,7 @@ import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
 import { SectionSlot } from "@/components/shop/section-slot";
 import { TrustLine } from "@/components/shop/trust-strip";
+import { CollectionToolbar } from "@/components/shop/collection-toolbar";
 import { COLLECTION_COPY, fillRange } from "@/lib/collection-copy";
 import { guidesForCollections } from "@/lib/guides";
 import { getStorePolicy } from "@/lib/store-policy";
@@ -81,10 +82,13 @@ function priceRange(prices: number[]): string {
 
 export default async function CategoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ sort?: string; price?: string }>;
 }) {
   const { slug } = await params;
+  const { sort = "newest", price = "" } = await searchParams;
   const category = await prisma.category.findUnique({ where: { slug } });
   if (!category || !category.isActive) notFound();
   const copy = COLLECTION_COPY[category.slug];
@@ -108,6 +112,12 @@ export default async function CategoryPage({
     include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
     orderBy: { createdAt: "desc" },
   });
+
+  // Sort / price filter for display only (hero range + JSON-LD use the full set).
+  const [pMin, pMax] = price.split("-").map(Number);
+  const shown = products
+    .filter((p) => !price || !Number.isFinite(pMin) || !Number.isFinite(pMax) || (p.price >= pMin && p.price <= pMax))
+    .sort((a, b) => (sort === "price-low" ? a.price - b.price : sort === "price-high" ? b.price - a.price : 0));
 
   // Featured + New Arrivals (across other categories) for the discovery sections at the bottom.
   // "Other" = anything outside this category's subtree.
@@ -241,14 +251,14 @@ export default async function CategoryPage({
             {range && <> · {range}</>}
           </p>
 
-          {/* Subcategory pills */}
+          {/* Subcategory pills: one swipeable row on phones (they stacked 7 deep); wrapped from md. */}
           {subcategories.length > 0 && (
-            <div className="mt-5 md:mt-6 flex flex-wrap justify-center gap-2">
+            <div className="no-scrollbar -mx-4 mt-5 flex snap-x gap-2 overflow-x-auto px-4 md:mx-0 md:mt-6 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
               {subcategories.map((sc) => (
                 <Link
                   key={sc.id}
                   href={`/category/${sc.slug}`}
-                  className="px-4 h-10 inline-flex items-center rounded-full bg-white border border-border text-xs uppercase tracking-[0.18em] font-medium hover:border-accent hover:text-accent transition-colors"
+                  className="press inline-flex h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full border border-border bg-white px-4 text-xs font-medium uppercase tracking-[0.14em] transition-colors hover:border-accent hover:text-accent"
                 >
                   {COLLECTION_COPY[sc.slug]?.h1 ?? sc.name.trim()}
                 </Link>
@@ -264,14 +274,28 @@ export default async function CategoryPage({
 
       <SectionSlot page="category" slot="top" />
 
-      <div className="container py-10 md:py-14">
-        {products.length === 0 ? (
-          <div className="text-center py-20 border-2 border-dashed rounded-2xl">
-            <p className="text-muted-foreground">No products in this category yet.</p>
+      <div className="container py-8 md:py-12">
+        {products.length > 0 && (
+          <div className="mb-6 md:mb-8">
+            <CollectionToolbar count={shown.length} />
+          </div>
+        )}
+        {products.length === 0 || shown.length === 0 ? (
+          <div className="rounded-[1.75rem] border border-dashed border-border bg-secondary/30 px-6 py-16 text-center">
+            <p className="font-serif text-2xl">{products.length === 0 ? "New pieces are on the way" : "Nothing in that price range"}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {products.length === 0 ? "This collection is being restocked." : "Try another range or clear the filter."}
+            </p>
+            <Link
+              href={products.length === 0 ? "/products" : `/category/${category.slug}`}
+              className="press mt-6 inline-flex h-12 items-center rounded-full bg-foreground px-6 text-xs font-semibold uppercase tracking-[0.18em] text-background"
+            >
+              {products.length === 0 ? "Shop all jewellery" : "Clear filter"}
+            </Link>
           </div>
         ) : (
           <Reveal className="product-grid" stagger={0.05}>
-            {products.map((p) => (
+            {shown.map((p) => (
               <ProductCard
                 key={p.id}
                 product={{

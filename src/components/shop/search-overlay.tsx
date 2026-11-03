@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { formatPrice } from "@/lib/utils";
 import { X, Search, ArrowRight, TrendingUp } from "lucide-react";
 
 // Terms that return results in the current catalogue (all stainless steel).
@@ -57,6 +59,43 @@ export function SearchOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Live results: debounced query against the public products API.
+  const [results, setResults] = useState<LiveResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const term = q.trim();
+    if (!open || term.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/products?q=${encodeURIComponent(term)}&take=6`, { signal: ctrl.signal });
+        const data = await res.json();
+        setResults(
+          (data.products ?? []).map((p: any) => ({
+            slug: p.slug,
+            name: p.name,
+            price: p.price,
+            comparePrice: p.comparePrice,
+            image: p.images?.[0]?.url ?? null,
+          }))
+        );
+      } catch {
+        /* aborted or offline: keep previous results */
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [q, open]);
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim()) return;
@@ -66,79 +105,135 @@ export function SearchOverlay({
 
   if (!open) return null;
 
+  const term = q.trim();
+
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="container py-6 md:py-10 max-w-3xl">
-        <div className="flex items-center justify-between mb-8">
-          <p className="text-sm uppercase tracking-widest text-muted-foreground">Search</p>
-          <button onClick={onClose} aria-label="Close search" className="p-2 hover:bg-muted rounded-full">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 backdrop-blur-md animate-in fade-in duration-200" role="dialog" aria-modal="true" aria-label="Search">
+      <div className="container max-w-3xl pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4 md:py-10">
+        <div className="mb-5 flex items-center justify-between md:mb-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">Search</p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close search"
+            className="press flex h-11 w-11 items-center justify-center rounded-full border border-border transition-colors hover:border-accent"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={submit} className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <form onSubmit={submit} className="relative" role="search">
+          <Search className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <input
             type="search"
-            placeholder="Search by name, tag, or material..."
+            enterKeyHint="search"
+            placeholder="Rings, pendants, zircon…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="w-full h-16 pl-12 pr-32 text-lg md:text-xl rounded-full border-2 bg-card focus:outline-none focus:border-accent transition-colors"
+            aria-label="Search jewellery"
+            className="h-14 w-full rounded-full border-2 border-border bg-card pl-12 pr-16 [&::-webkit-search-cancel-button]:appearance-none text-base transition-colors focus:border-accent focus:outline-none md:h-16 md:pr-36 md:text-lg"
             autoFocus
           />
           <button
             type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-foreground text-background px-5 h-12 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+            aria-label="Search"
+            className="press absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center gap-2 rounded-full bg-foreground text-sm font-medium text-background transition-colors hover:bg-accent md:h-12 md:w-auto md:px-5"
           >
-            Search
-            <ArrowRight className="h-4 w-4" />
+            <span className="hidden md:inline">Search</span>
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </form>
 
-        <div className="mt-10 space-y-8">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-              <TrendingUp className="h-3 w-3" />
-              Popular searches
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {POPULAR_TAGS.map((t) => (
-                <Link
-                  key={t}
-                  href={`/products?q=${encodeURIComponent(t)}`}
-                  onClick={onClose}
-                  className="px-4 py-2 bg-secondary hover:bg-accent hover:text-accent-foreground rounded-full text-sm font-medium border transition-colors capitalize"
+        {term.length >= 2 ? (
+          <div className="mt-6" aria-live="polite">
+            {loading && results.length === 0 ? (
+              <ul className="space-y-3">
+                {[0, 1, 2].map((i) => (
+                  <li key={i} className="flex items-center gap-4">
+                    <span className="h-16 w-16 shrink-0 rounded-xl shimmer" />
+                    <span className="h-4 flex-1 rounded shimmer" />
+                  </li>
+                ))}
+              </ul>
+            ) : results.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No pieces match &ldquo;{term}&rdquo;. Try &ldquo;ring&rdquo;, &ldquo;pendant&rdquo; or &ldquo;studs&rdquo;.
+              </p>
+            ) : (
+              <>
+                <ul className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-card">
+                  {results.map((r) => (
+                    <li key={r.slug}>
+                      <Link href={`/products/${r.slug}`} onClick={onClose} className="press flex items-center gap-4 p-3 transition-colors hover:bg-secondary/50">
+                        <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-secondary">
+                          {r.image && <Image src={r.image} alt="" fill sizes="64px" className="object-cover" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="line-clamp-2 text-sm font-medium leading-snug">{r.name}</span>
+                          <span className="mt-1 flex items-baseline gap-2 text-sm">
+                            <span className="font-semibold tabular-nums">{formatPrice(r.price)}</span>
+                            {r.comparePrice && r.comparePrice > r.price && (
+                              <span className="text-xs tabular-nums text-muted-foreground line-through">{formatPrice(r.comparePrice)}</span>
+                            )}
+                          </span>
+                        </span>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={submit as unknown as () => void}
+                  className="press mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border text-xs font-semibold uppercase tracking-[0.18em] transition-colors hover:border-accent hover:text-accent"
                 >
-                  {t}
-                </Link>
-              ))}
+                  See all results for &ldquo;{term}&rdquo; <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="mt-8 space-y-8">
+            <div>
+              <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+                Popular searches
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {POPULAR_TAGS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setQ(t)}
+                    className="press h-11 rounded-full border bg-secondary px-4 text-sm font-medium capitalize transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Shop by collection</p>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {QUICK_LINKS.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={onClose}
+                    className="press group flex min-h-[56px] items-center justify-between rounded-xl border bg-card p-4 text-sm font-medium transition hover:border-accent hover:shadow-sm"
+                  >
+                    {l.label}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
-
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
-              Quick links
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {QUICK_LINKS.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={onClose}
-                  className="bg-card border rounded-xl p-4 hover:border-accent hover:shadow-sm transition flex items-center justify-between text-sm font-medium group"
-                >
-                  {l.label}
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground text-center pt-4 border-t">
-            Press <kbd className="px-1.5 py-0.5 border rounded text-[10px] font-mono">Esc</kbd> to close
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );
 }
+
+type LiveResult = { slug: string; name: string; price: number; comparePrice: number | null; image: string | null };

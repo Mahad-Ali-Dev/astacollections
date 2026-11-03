@@ -185,7 +185,7 @@ export function RegisterForm() {
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Account"}
       </button>
-      <p className="text-[10px] text-center text-muted-foreground/70 pt-1 uppercase tracking-[0.2em]">
+      <p className="text-[11px] text-center text-muted-foreground/70 pt-1 uppercase tracking-[0.2em]">
         By signing up you agree to our Terms & Privacy
       </p>
     </form>

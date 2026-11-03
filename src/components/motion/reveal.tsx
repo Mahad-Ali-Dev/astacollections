@@ -1,259 +1,75 @@
 "use client";
 
-import { useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useGSAP } from "@gsap/react";
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger, useGSAP);
-}
+import { useEffect, useRef, useState } from "react";
 
 type RevealProps = {
   children: React.ReactNode;
   className?: string;
+  /** Extra delay before the first child, in seconds. */
   delay?: number;
+  /** Rise distance in px (capped at 16 so motion stays subtle). */
   y?: number;
+  /** Kept for call-site compatibility; timing is fixed in CSS (450ms). */
   duration?: number;
+  /** Seconds between children (capped by CSS after the 5th child). */
   stagger?: number;
   once?: boolean;
   as?: keyof React.JSX.IntrinsicElements;
 };
 
 /**
- * Reveal: fades + slides children up when scrolled into view.
- * Supports stagger when multiple children are passed.
+ * Reveal: children fade in and rise ~14px when the block scrolls into view.
+ *
+ * Replaces a GSAP + ScrollTrigger version, so GSAP is no longer shipped to the
+ * browser. How it stays safe:
+ *  - The server HTML has no hidden state, so nothing above the fold waits on
+ *    JavaScript (no flash, no LCP delay) and content shows if JS fails.
+ *  - After mount, only blocks still BELOW the viewport switch to "out"
+ *    (invisible until an IntersectionObserver flips them to "in").
+ *  - Only opacity and the `translate` property animate (no layout shift, and
+ *    `translate` composes with any Tailwind transform on the children).
+ *  - prefers-reduced-motion: never hidden, never animated (globals.css).
  */
 export function Reveal({
   children,
   className = "",
   delay = 0,
-  y = 28,
-  duration = 0.9,
-  stagger = 0.07,
-  once = true,
+  y = 14,
+  stagger = 0.06,
   as: Tag = "div",
 }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
+  const [state, setState] = useState<"idle" | "out" | "in">("idle");
 
-  useGSAP(
-    () => {
-      const el = ref.current;
-      if (!el) return;
-      const targets = el.children.length > 1 ? gsap.utils.toArray<HTMLElement>(el.children) : el;
-
-      gsap.fromTo(
-        targets,
-        { opacity: 0, y },
-        {
-          opacity: 1,
-          y: 0,
-          duration,
-          delay,
-          stagger,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: el,
-            start: "top 88%",
-            toggleActions: once ? "play none none none" : "play none none reverse",
-          },
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.92) return; // already on screen
+    setState("out");
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setState("in");
+          io.disconnect();
         }
-      );
-    },
-    { scope: ref }
-  );
+      },
+      { rootMargin: "0px 0px -8% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  const style = {
+    "--reveal-y": `${Math.min(Math.abs(y), 16)}px`,
+    "--reveal-delay": `${delay}s`,
+    "--reveal-stagger": `${Math.min(stagger, 0.07)}s`,
+  } as React.CSSProperties;
 
   return (
     // @ts-expect-error - generic dynamic tag
-    <Tag ref={ref} className={className}>
+    <Tag ref={ref} className={className} data-reveal={state} style={style}>
       {children}
     </Tag>
-  );
-}
-
-type ParallaxProps = {
-  children: React.ReactNode;
-  className?: string;
-  speed?: number;
-};
-
-/** Scrub-based vertical parallax. Speed positive moves up faster, negative slower/reverse. */
-export function Parallax({ children, className = "", speed = 0.3 }: ParallaxProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useGSAP(
-    () => {
-      const el = ref.current;
-      if (!el) return;
-      gsap.to(el, {
-        yPercent: -speed * 30,
-        ease: "none",
-        scrollTrigger: {
-          trigger: el,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: true,
-        },
-      });
-    },
-    { scope: ref }
-  );
-
-  return (
-    <div ref={ref} className={className}>
-      {children}
-    </div>
-  );
-}
-
-/**
- * RevealLines: split a heading into lines wrapped in spans and reveal each from below.
- * Pass each line as a child element.
- */
-export function RevealLines({
-  children,
-  className = "",
-  delay = 0,
-  duration = 1,
-  stagger = 0.1,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  delay?: number;
-  duration?: number;
-  stagger?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useGSAP(
-    () => {
-      const el = ref.current;
-      if (!el) return;
-      const lines = gsap.utils.toArray<HTMLElement>(".reveal-line-inner", el);
-      gsap.set(lines, { yPercent: 110 });
-      gsap.to(lines, {
-        yPercent: 0,
-        duration,
-        delay,
-        stagger,
-        ease: "power3.out",
-        scrollTrigger: { trigger: el, start: "top 90%" },
-      });
-    },
-    { scope: ref }
-  );
-
-  return (
-    <div ref={ref} className={className}>
-      {children}
-    </div>
-  );
-}
-
-/** Wrap each child of a string in line containers — used inside <RevealLines> */
-export function Line({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <span className={`overflow-hidden block ${className}`}>
-      <span className="reveal-line-inner inline-block">{children}</span>
-    </span>
-  );
-}
-
-/**
- * ImageReveal: clip-path mask reveal triggered by scroll.
- */
-export function ImageReveal({
-  children,
-  className = "",
-  duration = 1.4,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  duration?: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useGSAP(
-    () => {
-      const el = ref.current;
-      if (!el) return;
-      gsap.fromTo(
-        el,
-        { clipPath: "inset(0 0 100% 0)" },
-        {
-          clipPath: "inset(0 0 0% 0)",
-          duration,
-          ease: "power3.out",
-          scrollTrigger: { trigger: el, start: "top 85%" },
-        }
-      );
-      const img = el.querySelector("img");
-      if (img) {
-        gsap.fromTo(
-          img,
-          { scale: 1.15 },
-          {
-            scale: 1,
-            duration: duration * 1.2,
-            ease: "power3.out",
-            scrollTrigger: { trigger: el, start: "top 85%" },
-          }
-        );
-      }
-    },
-    { scope: ref }
-  );
-
-  return (
-    <div ref={ref} className={className}>
-      {children}
-    </div>
-  );
-}
-
-/** Animates a number from 0 to value when entering viewport */
-export function CountUp({
-  value,
-  className = "",
-  prefix = "",
-  suffix = "",
-  duration = 1.6,
-}: {
-  value: number;
-  className?: string;
-  prefix?: string;
-  suffix?: string;
-  duration?: number;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useGSAP(
-    () => {
-      const el = ref.current;
-      if (!el) return;
-      const counter = { v: 0 };
-      gsap.to(counter, {
-        v: value,
-        duration,
-        ease: "power2.out",
-        scrollTrigger: { trigger: el, start: "top 90%" },
-        onUpdate: () => {
-          el.textContent = `${prefix}${Math.round(counter.v).toLocaleString()}${suffix}`;
-        },
-      });
-    },
-    { scope: ref, dependencies: [value] }
-  );
-
-  return (
-    <span ref={ref} className={className}>
-      {prefix}0{suffix}
-    </span>
   );
 }

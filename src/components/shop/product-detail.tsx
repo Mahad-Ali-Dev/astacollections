@@ -97,6 +97,8 @@ export function ProductDetail({
   );
   const [wishlisted, setWishlisted] = useState(false);
   const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
+  // Brief "Added ✓" confirmation on the button after a successful add.
+  const [justAdded, setJustAdded] = useState(false);
 
   const add = useCart((s) => s.add);
   const open = useCart((s) => s.open);
@@ -189,6 +191,8 @@ export function ProductDetail({
     );
     // AddToCart is tracked centrally in the cart store (useCart.add).
     toast.success(`${qty} × ${product.name} added`);
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1600);
     open();
   };
 
@@ -487,10 +491,22 @@ export function ProductDetail({
                 <button
                   type="button"
                   onClick={handleAdd}
-                  className="group flex h-14 w-full items-center justify-center gap-2 rounded-full bg-foreground text-xs font-semibold uppercase tracking-[0.2em] text-background transition-all hover:bg-accent gold-button-glow"
+                  className={`press group flex h-14 w-full items-center justify-center gap-2 rounded-full text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors duration-300 gold-button-glow ${
+                    justAdded ? "bg-emerald-700" : "bg-foreground hover:bg-accent"
+                  }`}
+                  aria-live="polite"
                 >
-                  <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-                  Add to bag · {formatPrice(effectivePrice * qty)}
+                  {justAdded ? (
+                    <>
+                      <Check className="h-4 w-4 animate-in zoom-in duration-300" aria-hidden="true" />
+                      Added to bag
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+                      Add to bag · {formatPrice(effectivePrice * qty)}
+                    </>
+                  )}
                 </button>
                 <a
                   href={whatsappHref}
@@ -639,10 +655,12 @@ export function ProductDetail({
           </button>
           <button
             onClick={handleAdd}
-            className="bg-foreground text-background px-6 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-colors flex items-center gap-2 shrink-0"
+            className={`press text-background px-6 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold transition-colors duration-300 flex items-center gap-2 shrink-0 ${
+              justAdded ? "bg-emerald-700" : "bg-foreground hover:bg-accent"
+            }`}
           >
-            <ShoppingBag className="h-4 w-4" />
-            Add to Bag
+            {justAdded ? <Check className="h-4 w-4" aria-hidden="true" /> : <ShoppingBag className="h-4 w-4" aria-hidden="true" />}
+            {justAdded ? "Added" : "Add to Bag"}
           </button>
         </div>
       )}
@@ -738,12 +756,12 @@ function GalleryBadges({ discount, featured }: { discount: number; featured: boo
   return (
     <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-1.5">
       {discount > 0 && (
-        <span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent shadow-sm">
+        <span className="rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-accent shadow-sm">
           −{discount}%
         </span>
       )}
       {featured && (
-        <span className="rounded-full bg-foreground px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-background">
+        <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-background">
           Bestseller
         </span>
       )}

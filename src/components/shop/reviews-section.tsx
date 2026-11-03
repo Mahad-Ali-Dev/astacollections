@@ -516,7 +516,7 @@ function ReviewFormModal({
                 )}
               </button>
 
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70 text-center">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/70 text-center">
                 Reviews appear after a brief moderation
               </p>
             </form>

@@ -112,11 +112,12 @@
     font-feature-settings: "ss01" 0;
   }
 
+  /* 12px minimum for labels (was 11px; too small to read on phones). */
   .eyebrow {
-    @apply text-[11px] uppercase tracking-[0.3em] text-muted-foreground font-medium;
+    @apply text-xs uppercase tracking-[0.24em] text-muted-foreground font-medium;
   }
   .eyebrow-accent {
-    @apply text-[11px] uppercase tracking-[0.3em] text-accent font-semibold;
+    @apply text-xs uppercase tracking-[0.24em] text-accent font-semibold;
   }
   .display-1 {
     @apply font-serif text-balance leading-[0.96];
@@ -220,3 +221,85 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--accent) / 0.7); }
+
+/* ───────────────────────── Motion system ─────────────────────────
+   One timing language for the storefront: 450ms, ease-out, opacity +
+   translate only (compositor-friendly, no layout shift). Everything is
+   switched off under prefers-reduced-motion at the end of this block. */
+:root {
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* lets <details> animate to height:auto where supported */
+  interpolate-size: allow-keywords;
+}
+
+/* Scroll reveal (src/components/motion/reveal.tsx). "idle" = untouched. */
+[data-reveal="out"] > * {
+  opacity: 0;
+  translate: 0 var(--reveal-y, 14px);
+}
+[data-reveal="in"] > * {
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 450ms var(--ease-out-soft), translate 450ms var(--ease-out-soft);
+  transition-delay: calc(var(--reveal-delay, 0s) + var(--reveal-i, 0) * var(--reveal-stagger, 0.06s));
+}
+[data-reveal] > :nth-child(2) { --reveal-i: 1; }
+[data-reveal] > :nth-child(3) { --reveal-i: 2; }
+[data-reveal] > :nth-child(4) { --reveal-i: 3; }
+[data-reveal] > :nth-child(n + 5) { --reveal-i: 4; }
+
+/* Images fade in once loaded (FadeImage). Only images found still loading
+   after hydration get data-loaded="false"; server-rendered or already-loaded
+   images are never hidden, so a missed load event can't leave a blank. */
+.img-fade { transition: opacity 500ms var(--ease-out-soft), transform 700ms var(--ease-out-soft), scale 700ms var(--ease-out-soft); }
+.img-fade[data-loaded="false"] { opacity: 0; }
+
+/* Press feedback on touch screens. */
+@media (hover: none) {
+  .press { transition: transform 150ms var(--ease-out-soft); }
+  .press:active { transform: scale(0.98); }
+}
+
+/* Accordions: animate open/close height + fade where supported. */
+details::details-content {
+  block-size: 0;
+  opacity: 0;
+  overflow: clip;
+  transition: block-size 320ms var(--ease-out-soft), opacity 320ms var(--ease-out-soft),
+    content-visibility 320ms allow-discrete;
+}
+details[open]::details-content { block-size: auto; opacity: 1; }
+
+/* Page enter: a quick fade on client navigation ((shop)/template.tsx). */
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+/* `backwards`, not `both`: a fill that outlives the animation keeps a
+   stacking context on the page wrapper, which trapped the page's own z-50
+   sheets (filter sheet, photo zoom) under the fixed tab bar. */
+.page-in { animation: page-in 260ms var(--ease-out-soft) backwards; }
+
+/* Bag icon bounce + count bump after Add to bag. */
+@keyframes bag-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-4px) scale(1.12); }
+  60% { transform: translateY(0) scale(0.96); }
+}
+@keyframes count-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+.bag-bounce { animation: bag-bounce 600ms var(--ease-out-soft); }
+.count-bump { animation: count-bump 500ms var(--ease-out-soft); }
+
+/* Link underline that slides in from the left. */
+.link-slide { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 300ms var(--ease-out-soft); }
+.link-slide:hover, .link-slide:focus-visible { background-size: 100% 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] > * { opacity: 1 !important; translate: none !important; transition: none !important; }
+  .img-fade[data-loaded="false"] { opacity: 1; }
+  .img-fade { transition: none; }
+  .press:active { transform: none; }
+  details::details-content { transition: none; }
+  .page-in, .bag-bounce, .count-bump { animation: none; }
+}

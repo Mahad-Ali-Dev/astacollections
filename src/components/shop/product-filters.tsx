@@ -76,7 +76,7 @@ export function ProductFilters({ categories, materials }: FilterSidebarProps) {
           <SlidersHorizontal className="h-4 w-4" />
           Filters
           {activeCount > 0 && (
-            <span className="bg-accent text-accent-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">
+            <span className="bg-accent text-accent-foreground rounded-full w-5 h-5 flex items-center justify-center text-[11px] font-bold">
               {activeCount}
             </span>
           )}

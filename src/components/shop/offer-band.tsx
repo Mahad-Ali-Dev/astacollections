@@ -45,7 +45,7 @@ export function OfferBand({
 
         <div className="relative grid items-center gap-8 md:grid-cols-[1.2fr_auto] md:gap-12">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-rose-200">Welcome offer</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-rose-200">Welcome offer</p>
             <h2 className="mt-3 font-serif text-4xl leading-[1.05] text-balance md:text-6xl">{headline}</h2>
             <p className="mt-3 max-w-md text-sm text-background/75 md:text-base">{terms}</p>
             {expiresAt && <Countdown to={expiresAt} />}
@@ -59,11 +59,11 @@ export function OfferBand({
               className="group flex min-h-[64px] items-center justify-between gap-4 rounded-2xl border-2 border-dashed border-rose-200/60 bg-white/10 px-5 py-3 backdrop-blur transition-colors hover:bg-white/15 md:min-w-[280px]"
             >
               <span className="text-left">
-                <span className="block text-[10px] uppercase tracking-[0.28em] text-background/60">Your code</span>
+                <span className="block text-[11px] uppercase tracking-[0.28em] text-background/60">Your code</span>
                 <span className="block font-mono text-2xl font-semibold tracking-[0.14em]">{code}</span>
               </span>
               <span
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${
                   copied ? "bg-emerald-400 text-emerald-950" : "bg-white text-foreground"
                 }`}
                 aria-live="polite"
@@ -108,7 +108,7 @@ function Countdown({ to }: { to: string }) {
       {parts.map((p) => (
         <span key={p.l} className="min-w-[60px] rounded-xl bg-white/10 px-3 py-2 text-center">
           <span className="block font-serif text-3xl tabular-nums leading-none">{String(p.v).padStart(2, "0")}</span>
-          <span className="mt-1 block text-[9px] uppercase tracking-[0.22em] text-background/60">{p.l}</span>
+          <span className="mt-1 block text-[11px] uppercase tracking-[0.22em] text-background/60">{p.l}</span>
         </span>
       ))}
     </div>

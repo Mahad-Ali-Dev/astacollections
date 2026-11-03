@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromRequest, getAdminFromRequest } from "@/lib/auth";
+import { PUBLIC_REVIEW_SELECT } from "@/lib/public-fields";
 
 const reviewSchema = z.object({
   productId: z.string().min(1),
@@ -33,19 +34,21 @@ export async function GET(req: NextRequest) {
   const take = Math.min(MAX_TAKE, Math.max(1, Number(url.searchParams.get("take")) || MAX_TAKE));
   const skip = Math.max(0, Number(url.searchParams.get("skip")) || 0);
 
+  // Site-wide listings need the product named on each card, otherwise a
+  // shopper can't tell which piece a review is about.
+  const productName = { product: { select: { name: true, slug: true } } };
   const [reviews, total] = await Promise.all([
-    prisma.review.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip,
-      take,
-      // Site-wide listings need the product named on each card, otherwise a
-      // shopper can't tell which piece a review is about.
-      include:
-        admin || !productId
-          ? { product: { select: { name: true, slug: true } } }
-          : undefined,
-    }),
+    // Admins get full rows (email, status) for moderation. The public gets
+    // only display fields: this used to return every reviewer's email.
+    admin
+      ? prisma.review.findMany({ where, orderBy: { createdAt: "desc" }, skip, take, include: productName })
+      : prisma.review.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take,
+          select: { ...PUBLIC_REVIEW_SELECT, ...(!productId ? productName : {}) },
+        }),
     prisma.review.count({ where }),
   ]);
 

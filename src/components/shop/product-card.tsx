@@ -8,6 +8,7 @@ import { ShoppingBag, Heart, PlayCircle, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart-store";
 import { formatPrice, getDiscountPercent } from "@/lib/utils";
 import { toast } from "sonner";
+import { FadeImage } from "@/components/ui/fade-image";
 
 export type ProductCardData = {
   id: string;
@@ -81,19 +82,19 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
   return (
     <article className="group flex flex-col">
-      <Link href={href} className="block">
+      <Link href={href} className="block press">
         <div
           className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-secondary/60 card-soft card-hover"
           onMouseEnter={hasVideo ? handleMouseEnter : undefined}
           onMouseLeave={hasVideo ? handleMouseLeave : undefined}
         >
           {product.image ? (
-            <Image
+            <FadeImage
               src={product.image}
               alt={product.name}
               fill
               sizes="(max-width:768px) 50vw, (max-width:1200px) 33vw, 25vw"
-              className={`object-cover transition-all duration-700 ease-out group-hover:scale-[1.06] ${
+              className={`object-cover transition-all duration-700 ease-out [@media(hover:hover)]:group-hover:scale-[1.04] ${
                 hoverImage ? "[@media(hover:hover)]:group-hover:opacity-0" : ""
               }`}
             />
@@ -135,7 +136,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
           {/* Small "Video" badge so customers know there's a clip available */}
           {hasVideo && !outOfStock && (
-            <span className="absolute bottom-3 left-3 bg-foreground/85 text-background text-[10px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-full backdrop-blur flex items-center gap-1 group-hover:opacity-0 transition-opacity">
+            <span className="absolute bottom-3 left-3 bg-foreground/85 text-background text-[11px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-full backdrop-blur flex items-center gap-1 group-hover:opacity-0 transition-opacity">
               <PlayCircle className="h-3 w-3" strokeWidth={2} />
               Video
             </span>
@@ -143,12 +144,12 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
           {/* Top-left badge */}
           {discount > 0 && !outOfStock && (
-            <span className="absolute top-3 left-3 bg-white/95 text-accent text-[10px] uppercase tracking-[0.16em] font-bold px-2.5 py-1.5 rounded-full shadow-sm">
+            <span className="absolute top-3 left-3 bg-white/95 text-accent text-[11px] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full shadow-sm">
               −{discount}%
             </span>
           )}
           {product.isFeatured && !discount && !outOfStock && (
-            <span className="absolute top-3 left-3 bg-foreground text-background text-[10px] uppercase tracking-[0.18em] font-semibold px-3 py-1.5 rounded-full">
+            <span className="absolute top-3 left-3 bg-foreground text-background text-[11px] uppercase tracking-[0.14em] font-semibold px-3 py-1 rounded-full">
               Bestseller
             </span>
           )}
@@ -163,7 +164,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             }}
             aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}
             aria-pressed={wishlisted}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white hover:scale-110 active:scale-95 transition-all"
+            className="absolute top-2 right-2 w-11 h-11 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white hover:scale-110 active:scale-95 transition-all"
           >
             <Heart
               className={`h-4 w-4 transition-colors ${
@@ -199,7 +200,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
                 type="button"
                 onClick={quickAdd}
                 aria-label={product.hasOptions ? `Choose options for ${product.name}` : `Add ${product.name} to bag`}
-                className="[@media(hover:hover)]:hidden absolute bottom-2.5 right-2.5 h-10 w-10 rounded-full bg-white/95 text-foreground shadow-md flex items-center justify-center active:scale-90 transition-transform"
+                className="[@media(hover:hover)]:hidden absolute bottom-2 right-2 h-11 w-11 rounded-full bg-white/95 text-foreground shadow-md flex items-center justify-center active:scale-90 transition-transform"
               >
                 <ShoppingBag className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
                 {!product.hasOptions && (

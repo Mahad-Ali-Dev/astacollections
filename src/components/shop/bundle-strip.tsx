@@ -60,7 +60,7 @@ export function BundleStrip({ bundles }: { bundles: BundleListItem[] }) {
                   </div>
                 ))}
               </div>
-              <span className="absolute top-4 right-4 bg-accent text-accent-foreground text-[10px] uppercase tracking-[0.18em] font-bold px-3 py-1.5 rounded-full">
+              <span className="absolute top-4 right-4 bg-accent text-accent-foreground text-[11px] uppercase tracking-[0.18em] font-bold px-3 py-1.5 rounded-full">
                 Save {pricing.percent}%
               </span>
             </div>

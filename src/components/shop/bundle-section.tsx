@@ -119,7 +119,7 @@ export function BundleSection({
       <header className="p-5 border-b border-accent/20 bg-accent/5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-accent font-medium mb-1">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-accent font-medium mb-1">
               <Tag className="h-3 w-3 inline mr-1 -mt-0.5" />
               Bundle & Save
             </p>

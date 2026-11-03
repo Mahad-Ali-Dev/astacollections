@@ -57,7 +57,7 @@ export default async function HomePage() {
     prisma.product.findMany({
       where: { isActive: true },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
-      take: 4,
+      take: 10,
       orderBy: { createdAt: "desc" },
     }),
     prisma.product.findMany({
@@ -283,7 +283,7 @@ export default async function HomePage() {
       <SectionSlot page="home" slot="pillars" />
 
       {/* COLLECTION GRID */}
-      <section className="container py-20 md:py-28">
+      <section className="container py-14 md:py-24">
         <Reveal className="flex items-end justify-between flex-wrap gap-4 mb-12 md:mb-16">
           <SectionHeader
             eyebrow="Shop by Collection"
@@ -310,7 +310,7 @@ export default async function HomePage() {
 
       {/* BESTSELLERS */}
       {bestsellers.length > 0 && (
-        <section className="container py-20 md:py-28">
+        <section className="container py-14 md:py-24">
           <Reveal className="flex items-end justify-between mb-12 flex-wrap gap-4">
             <SectionHeader
               eyebrow="Top Picks"
@@ -428,7 +428,7 @@ export default async function HomePage() {
 
       {/* BUNDLES */}
       {bundles.length > 0 && (
-        <section className="container py-20 md:py-28">
+        <section className="container py-14 md:py-24">
           <Reveal className="flex items-end justify-between flex-wrap gap-4 mb-12 md:mb-16">
             <SectionHeader
               eyebrow="Bundle & Save"
@@ -446,7 +446,7 @@ export default async function HomePage() {
 
       {/* FEATURED */}
       {featured.length > 0 && (
-        <section className="container py-20 md:py-28">
+        <section className="container py-14 md:py-24">
           <Reveal className="flex items-end justify-between mb-12 flex-wrap gap-4">
             <SectionHeader
               eyebrow="Editor's Choice"
@@ -460,28 +460,7 @@ export default async function HomePage() {
               View All <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </Reveal>
-          <Reveal className="product-grid" stagger={0.06} y={36}>
-            {featured.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={{
-                  id: p.id,
-                  name: p.name,
-                  slug: p.slug,
-                  price: p.price,
-                  comparePrice: p.comparePrice,
-                  sku: p.sku,
-                  stock: p.stock,
-                  image: p.images[0]?.url,
-                  hoverImage: p.images[1]?.url,
-                  hasOptions: p._count.attributes > 0,
-                  video: p.videoUrl,
-                  videoPoster: p.videoPoster,
-                  isFeatured: p.isFeatured,
-                }}
-              />
-            ))}
-          </Reveal>
+          <ProductCarousel products={featured.map(toCard)} />
         </section>
       )}
 
@@ -509,7 +488,7 @@ export default async function HomePage() {
 
       {/* NEW ARRIVALS */}
       {latestProducts.length > 0 && (
-        <section className="container py-20 md:py-28">
+        <section className="container py-14 md:py-24">
           <Reveal className="text-center max-w-2xl mx-auto mb-12">
             <p className="eyebrow-accent mb-4 flex items-center justify-center gap-3">
               <span className="h-px w-8 bg-accent" />
@@ -518,28 +497,7 @@ export default async function HomePage() {
             </p>
             <h2 className="display-2">New arrivals</h2>
           </Reveal>
-          <Reveal className="product-grid" stagger={0.06}>
-            {latestProducts.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={{
-                  id: p.id,
-                  name: p.name,
-                  slug: p.slug,
-                  price: p.price,
-                  comparePrice: p.comparePrice,
-                  sku: p.sku,
-                  stock: p.stock,
-                  image: p.images[0]?.url,
-                  hoverImage: p.images[1]?.url,
-                  hasOptions: p._count.attributes > 0,
-                  video: p.videoUrl,
-                  videoPoster: p.videoPoster,
-                  isFeatured: p.isFeatured,
-                }}
-              />
-            ))}
-          </Reveal>
+          <ProductCarousel products={latestProducts.map(toCard)} />
         </section>
       )}
 

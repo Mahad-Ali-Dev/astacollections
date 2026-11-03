@@ -30,11 +30,11 @@ export function HomeIntro({
         aria-hidden="true"
         className="pointer-events-none absolute -right-40 top-0 h-[520px] w-[720px] rounded-full bg-[radial-gradient(closest-side,rgba(233,205,193,0.55),transparent)]"
       />
-      <div className="container relative grid items-center gap-12 py-14 md:grid-cols-2 md:gap-10 md:py-24">
+      <div className="container relative grid grid-cols-1 items-center gap-12 py-14 md:grid-cols-2 md:gap-10 md:py-24">
         <div className="max-w-xl">
           <p className="eyebrow-accent flex items-center gap-3">
             <span className="h-px w-8 bg-accent" aria-hidden="true" />
-            Gold-tone &amp; silver-tone stainless steel
+            Stainless steel · gold &amp; silver tone
           </p>
           <h1 className="mt-5 font-serif text-[2.6rem] leading-[1.02] tracking-tight text-balance sm:text-6xl lg:text-[4.5rem]">
             Stainless steel jewellery, <span className="italic font-light rose-gold-text">made to be worn</span> every day
@@ -44,17 +44,17 @@ export function HomeIntro({
             {fromPrice ? <>, from <strong className="font-semibold text-foreground">{fromPrice}</strong></> : null}.
             Delivered across Pakistan, paid in cash at your door.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center">
             <Link
               href="/products"
-              className="group inline-flex h-12 items-center gap-2 rounded-full bg-foreground px-7 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors hover:bg-accent"
+              className="press group inline-flex h-12 items-center justify-center gap-2 rounded-full bg-foreground px-5 text-xs font-semibold uppercase tracking-[0.18em] text-background transition-colors hover:bg-accent sm:px-7"
             >
-              Shop the collection
+              Shop<span className="hidden sm:inline"> the collection</span>
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
             </Link>
             <Link
               href="/guides/jewellery-gift-ideas-for-her-under-2000"
-              className="inline-flex h-12 items-center rounded-full border border-border px-6 text-xs font-semibold uppercase tracking-[0.2em] transition-colors hover:border-accent hover:text-accent"
+              className="press inline-flex h-12 items-center justify-center rounded-full border border-border px-5 text-xs font-semibold uppercase tracking-[0.18em] transition-colors hover:border-accent hover:text-accent sm:px-6"
             >
               Gift ideas
             </Link>
@@ -102,7 +102,7 @@ export function HomeIntro({
                       <Image src={col.image} alt="" fill sizes="104px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
                     )}
                   </span>
-                  <span className="text-[11px] font-medium uppercase leading-tight tracking-[0.14em] transition-colors group-hover:text-accent">
+                  <span className="text-xs font-medium uppercase leading-tight tracking-[0.14em] transition-colors group-hover:text-accent">
                     {col.label}
                   </span>
                 </Link>

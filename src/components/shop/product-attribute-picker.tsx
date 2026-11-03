@@ -144,7 +144,7 @@ export function ProductAttributePicker({ attributes, selected, onChange }: Props
                         </span>
                       ) : null}
                       {soldOut && (
-                        <span className="text-[10px] uppercase ml-1.5 tracking-wide">
+                        <span className="text-[11px] uppercase ml-1.5 tracking-wide">
                           · Out
                         </span>
                       )}

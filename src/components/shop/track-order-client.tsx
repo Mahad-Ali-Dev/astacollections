@@ -410,7 +410,7 @@ function StatusTimeline({ current }: { current: string }) {
                 )}
               </div>
               <p
-                className={`mt-2 text-[9px] sm:text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] font-medium leading-tight ${
+                className={`mt-2 text-[11px] sm:text-[11px] uppercase tracking-[0.16em] sm:tracking-[0.2em] font-medium leading-tight ${
                   reached ? "text-foreground" : "text-muted-foreground"
                 }`}
               >

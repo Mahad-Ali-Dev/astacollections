@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { productSchema } from "@/lib/validators";
 import { getAdminFromRequest } from "@/lib/auth";
+import { toPublicProduct } from "@/lib/public-fields";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -13,8 +14,13 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       images: { orderBy: { sortOrder: "asc" } },
     },
   });
-  if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ product });
+  // The admin product form loads full records here. Everyone else gets
+  // active products only, without internal fields such as cost price.
+  const admin = await getAdminFromRequest(req);
+  if (!product || (!admin && !product.isActive)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json({ product: admin ? product : toPublicProduct(product) });
 }
 
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

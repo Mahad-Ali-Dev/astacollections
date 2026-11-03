@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { productSchema } from "@/lib/validators";
 import { getAdminFromRequest } from "@/lib/auth";
+import { toPublicProduct } from "@/lib/public-fields";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -11,9 +12,19 @@ export async function GET(req: NextRequest) {
   // catalogue feed, an ad integration) was still being handed products the
   // shop had deliberately taken down. Admins can ask for everything.
   const admin = await getAdminFromRequest(req);
+  // Case-insensitive so the storefront's live search finds "Ring" for "ring".
   const search = q
-    ? { OR: [{ name: { contains: q } }, { sku: { contains: q } }] }
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { sku: { contains: q, mode: "insensitive" as const } },
+          { tags: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
     : {};
+  // Optional cap (live search asks for a handful); admin lists stay unlimited.
+  const takeParam = Number(url.searchParams.get("take"));
+  const take = Number.isFinite(takeParam) && takeParam > 0 ? Math.min(50, takeParam) : undefined;
   const where = admin ? search : { ...search, isActive: true };
 
   const products = await prisma.product.findMany({
@@ -23,8 +34,10 @@ export async function GET(req: NextRequest) {
       images: { orderBy: { sortOrder: "asc" } },
     },
     orderBy: { createdAt: "desc" },
+    ...(take ? { take } : {}),
   });
-  return NextResponse.json({ products });
+  // Cost price (the store's margin) is for admins only.
+  return NextResponse.json({ products: admin ? products : products.map(toPublicProduct) });
 }
 
 export async function POST(req: NextRequest) {

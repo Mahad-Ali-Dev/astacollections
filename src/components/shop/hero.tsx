@@ -97,7 +97,7 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
 
       <div className="container relative min-h-[560px] sm:min-h-[640px] md:min-h-[720px] lg:min-h-[820px] flex items-center py-16 sm:py-20 md:py-24">
         <div key={active} className="max-w-2xl text-background space-y-5 sm:space-y-7 w-full">
-          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
+          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[11px] sm:text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
             <span className="h-px w-6 sm:w-8 bg-rose-300" />
             {slide.eyebrow}
           </p>

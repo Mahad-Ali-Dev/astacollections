@@ -191,7 +191,7 @@ export function WelcomePopup({
                 No thanks, I&apos;ll pay full price
               </button>
 
-              <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/70 pt-1">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground/70 pt-1">
                 We respect your inbox · Unsubscribe anytime
               </p>
             </div>
@@ -216,7 +216,7 @@ export function WelcomePopup({
                 onClick={copyCode}
                 className="w-full bg-secondary border-2 border-dashed border-accent rounded-2xl py-6 px-6 hover:bg-accent/5 transition-colors group"
               >
-                <p className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground mb-2">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-2">
                   Tap to copy
                 </p>
                 <p className="font-mono text-3xl md:text-4xl font-bold tracking-[0.2em] flex items-center justify-center gap-3">
@@ -238,7 +238,7 @@ export function WelcomePopup({
               </Link>
 
               <div className="flex items-center justify-center gap-3 pt-2">
-                <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">Follow us</p>
+                <p className="text-[11px] uppercase tracking-[0.32em] text-muted-foreground">Follow us</p>
                 <a
                   href="https://www.instagram.com/astacollections"
                   target="_blank"

@@ -20,6 +20,11 @@ export function WhatsAppWidget() {
   // bar, so the floating button (which covered the description and sat on the
   // bar) is hidden there. Everywhere else it sits clear of the bottom tab bar.
   const onProductPage = /^\/products\/[^/]+/.test(pathname);
+  // The floating button sat on top of Add to bag / Place order on desktop,
+  // so it stays off pages whose main actions live in the bottom-right:
+  // product pages (they have "Order on WhatsApp" + a sticky-bar button),
+  // the bag and checkout.
+  const hideFloating = onProductPage || pathname.startsWith("/cart") || pathname.startsWith("/checkout");
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -48,7 +53,7 @@ export function WhatsAppWidget() {
   return (
     <>
       {/* Tooltip bubble */}
-      {showTooltip && !open && !onProductPage && (
+      {showTooltip && !open && !hideFloating && (
         <div className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
           <button
             onClick={() => setShowTooltip(false)}
@@ -99,7 +104,7 @@ export function WhatsAppWidget() {
                 Welcome to Asta Collections! Send us a message and we&apos;ll get back to you on
                 WhatsApp.
               </p>
-              <p className="text-[10px] text-muted-foreground mt-2 text-right">Just now</p>
+              <p className="text-[11px] text-muted-foreground mt-2 text-right">Just now</p>
             </div>
           </div>
 
@@ -120,7 +125,7 @@ export function WhatsAppWidget() {
               <Send className="h-3.5 w-3.5" />
               Send via WhatsApp
             </button>
-            <p className="text-[10px] text-center text-muted-foreground">
+            <p className="text-[11px] text-center text-muted-foreground">
               Opens WhatsApp · {WHATSAPP_DISPLAY}
             </p>
           </div>
@@ -135,7 +140,7 @@ export function WhatsAppWidget() {
         aria-label={open ? "Close WhatsApp chat" : "Open WhatsApp support"}
         className={cn(
           "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 right-4 md:right-6 z-40 w-11 h-11 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-lg md:shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all items-center justify-center group",
-          onProductPage && !open ? "hidden md:flex" : "flex",
+          hideFloating && !open ? "hidden" : "flex",
           onProductPage && open && "bottom-[calc(6rem+env(safe-area-inset-bottom))]"
         )}
       >
