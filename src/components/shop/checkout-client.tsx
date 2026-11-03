@@ -342,7 +342,7 @@ export function CheckoutClient({ settings }: { settings: StoreSettings }) {
         </span>
       </a>
 
-      <div className="grid lg:grid-cols-[1fr_420px] gap-8 lg:gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-8 lg:gap-12">
         <div className="space-y-6">
           {/* CONTACT */}
           <CheckoutSection number={1} title="Contact Information" icon={User}>

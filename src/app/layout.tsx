@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Cormorant_Garamond, Special_Elite } from "next/font/google";
 import { Toaster } from "sonner";
-import { SITE, organizationJsonLd, websiteJsonLd, storeJsonLd } from "@/lib/seo";
+import { SITE, organizationJsonLd, websiteJsonLd, jsonLdString } from "@/lib/seo";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
 import "./globals.css";
 
@@ -29,22 +29,24 @@ const wordmark = Special_Elite({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
-    default: `${SITE.name} — Timeless Jewellery, Crafted with Care`,
+    default: `${SITE.name}: Stainless Steel Jewellery in Pakistan`,
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
-  keywords: SITE.keywords,
   applicationName: SITE.name,
   authors: [{ name: SITE.name, url: SITE.url }],
   creator: SITE.name,
   publisher: SITE.name,
-  alternates: { canonical: "/" },
+  // No site-wide canonical here: a canonical set in the root layout is
+  // inherited by every page that doesn't override it, which told Google that
+  // every product and category was a copy of the home page. Each indexable
+  // page sets its own via pageMeta() in src/lib/seo.ts.
   openGraph: {
     type: "website",
     locale: SITE.locale,
     url: SITE.url,
     siteName: SITE.name,
-    title: `${SITE.name} — Timeless Jewellery, Crafted with Care`,
+    title: `${SITE.name}: Stainless Steel Jewellery in Pakistan`,
     description: SITE.description,
     // Images come from src/app/opengraph-image.tsx (auto-generated 1200x630).
     // Pages can override with their own metadata.openGraph.images.
@@ -96,16 +98,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${cormorant.variable} ${wordmark.variable}`}>
+    <html lang="en-PK" className={`${inter.variable} ${cormorant.variable} ${wordmark.variable}`}>
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify([organizationJsonLd(), websiteJsonLd(), storeJsonLd()]),
+            __html: jsonLdString([organizationJsonLd(), websiteJsonLd()]),
           }}
         />
-        <link rel="preconnect" href="https://images.unsplash.com" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://ik.imagekit.io" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://ik.imagekit.io" />
       </head>
       <body>
         <MetaPixel />

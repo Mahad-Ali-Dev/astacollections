@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Truck, ShieldCheck, RefreshCcw, Award } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
 import { ProductCarousel } from "@/components/shop/product-carousel";
@@ -14,11 +14,33 @@ import { Reveal } from "@/components/motion/reveal";
 import { defaultOfferEndsAt } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 import { SectionSlot } from "@/components/shop/section-slot";
+import { TrustStrip } from "@/components/shop/trust-strip";
+import { getStorePolicy } from "@/lib/store-policy";
+import { COLLECTION_COPY } from "@/lib/collection-copy";
+import { pageMeta, SITE } from "@/lib/seo";
+import { formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = pageMeta({
+  title: "Asta Collections: Stainless Steel Jewellery Online in Pakistan",
+  description: SITE.description,
+  path: "/",
+  absoluteTitle: true,
+});
+
+// Collections linked from the home intro, in the order shoppers search for them.
+const INTRO_LINKS = [
+  { slug: "rings", label: "Rings" },
+  { slug: "couple-rings", label: "Couple rings" },
+  { slug: "pendant", label: "Pendant sets" },
+  { slug: "studs", label: "Stud earrings" },
+  { slug: "bracelets", label: "Bracelets" },
+  { slug: "hand-cuff", label: "Handcuffs" },
+];
+
 export default async function HomePage() {
-  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool] = await Promise.all([
+  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest] = await Promise.all([
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
@@ -64,6 +86,12 @@ export default async function HomePage() {
       take: 24,
       include: { product: { select: { name: true } } },
     }),
+    getStorePolicy(),
+    prisma.product.findFirst({
+      where: { isActive: true },
+      orderBy: { price: "asc" },
+      select: { price: true },
+    }),
   ]);
 
   const testimonials = reviewPool
@@ -105,7 +133,8 @@ export default async function HomePage() {
   ].filter((s) => s.image && s.title);
 
   const collections = categoriesWithCount.map((c) => ({
-    name: c.name,
+    // Some category names in the database are slugs ("couple-rings").
+    name: COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
     slug: c.slug,
     description: c.description,
     image: c.image ?? "",
@@ -121,15 +150,37 @@ export default async function HomePage() {
 
       <SectionSlot page="home" slot="hero" />
 
-      {/* TRUST PILLARS */}
-      <Reveal as="section" className="bg-secondary/40">
-        <div className="container py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
-          <Pillar icon={Truck} title="Free shipping" sub="Above Rs. 5,000" />
-          <Pillar icon={ShieldCheck} title="Quality assured" sub="Premium materials" />
-          <Pillar icon={RefreshCcw} title="Easy returns" sub="7-day policy" />
-          <Pillar icon={Award} title="Handpicked" sub="Curated edit" />
+      {/* INTRO — the page's one H1, plus links into the main collections */}
+      <section className="container pt-12 md:pt-16 pb-8 text-center">
+        <h1 className="display-2 max-w-3xl mx-auto">
+          Stainless steel jewellery, delivered across Pakistan
+        </h1>
+        <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
+          Rings, pendant sets, stud earrings, bracelets and handcuffs in gold-tone and
+          silver-tone stainless steel
+          {cheapest ? <>, from {formatPrice(cheapest.price)}</> : null}. Made for everyday
+          wear, with cash on delivery to your door.
+        </p>
+        <ul className="mt-6 flex flex-wrap justify-center gap-2">
+          {INTRO_LINKS.map((l) => (
+            <li key={l.slug}>
+              <Link
+                href={`/category/${l.slug}`}
+                className="px-4 h-10 inline-flex items-center rounded-full border border-border text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+              >
+                {l.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* TRUST — every figure from the admin settings */}
+      <section className="bg-secondary/40 border-y border-border/60">
+        <div className="container py-8">
+          <TrustStrip policy={policy} />
         </div>
-      </Reveal>
+      </section>
 
       <SectionSlot page="home" slot="pillars" />
 
@@ -213,17 +264,17 @@ export default async function HomePage() {
           <DualBanner
             banners={[
               {
-                eyebrow: "Bridal",
-                title: "For the day you'll always remember",
-                description: "Complete kundan and pearl bridal sets, hand-set with care.",
-                cta: { label: "Shop Bridal", href: "/category/bridal-sets" },
+                eyebrow: "Gift sets",
+                title: "Sets that are ready to gift",
+                description: "3-piece and 6-piece necklace and earring sets in gold and silver tones.",
+                cta: { label: "Shop Sets", href: "/category/pendant" },
                 image: settings.bannerDualLeftImage,
               },
               {
                 eyebrow: "Everyday",
                 title: "Pieces you'll never take off",
-                description: "Minimalist rings, layering necklaces and stud earrings.",
-                cta: { label: "Shop Everyday", href: "/category/rings" },
+                description: "Adjustable rings, stud sets and handcuffs made for daily wear.",
+                cta: { label: "Shop Rings", href: "/category/rings" },
                 image: settings.bannerDualRightImage,
               },
             ]}
@@ -238,10 +289,10 @@ export default async function HomePage() {
         <div className="container">
           <Reveal>
             <FullBanner
-              eyebrow="The Bridal Story"
-              title={<>Heirlooms in <span className="italic font-light rose-gold-text">the making</span>.</>}
-              description="Every piece in our bridal collection is designed with the moment in mind — the first meeting of eyes, the exchange of vows, the dance under fairy lights. Crafted to be passed down for generations."
-              cta={{ label: "Explore Bridal", href: "/category/bridal-sets" }}
+              eyebrow="Couple Rings"
+              title={<>Made <span className="italic font-light rose-gold-text">to match</span>.</>}
+              description="Matching stainless steel ring sets for promises, nikkahs and anniversaries. Most are adjustable, so you don't need to know both ring sizes to surprise someone."
+              cta={{ label: "Shop Couple Rings", href: "/category/couple-rings" }}
               image={settings.bannerBridalImage}
               imagePosition="left"
             />
@@ -315,7 +366,7 @@ export default async function HomePage() {
         <FullBanner
           eyebrow="Our Promise"
           title="Quality you can feel."
-          description="Hand-inspected before shipping. Hypoallergenic settings. Premium plating that doesn't fade. If anything is off, we'll make it right."
+          description={`Stainless steel made for everyday wear, cash on delivery anywhere in Pakistan, and a ${policy.returnDays}-day return window if something isn't right.`}
           cta={{ label: "Read Our Story", href: "/about" }}
           image={settings.bannerPromiseImage}
           imagePosition="right"
@@ -390,28 +441,6 @@ function SectionHeader({
           {description}
         </p>
       )}
-    </div>
-  );
-}
-
-function Pillar({
-  icon: Icon,
-  title,
-  sub,
-}: {
-  icon: React.ElementType;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <div className="flex items-center gap-3.5">
-      <div className="bg-white border border-border w-11 h-11 rounded-full flex items-center justify-center text-accent shrink-0">
-        <Icon className="h-4 w-4" strokeWidth={1.6} />
-      </div>
-      <div>
-        <p className="text-sm font-semibold leading-tight">{title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
-      </div>
     </div>
   );
 }

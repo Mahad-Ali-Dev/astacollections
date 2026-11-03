@@ -6,6 +6,18 @@ import { ProductCard } from "@/components/shop/product-card";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
 import { SectionSlot } from "@/components/shop/section-slot";
+import { TrustLine } from "@/components/shop/trust-strip";
+import { COLLECTION_COPY, fillRange } from "@/lib/collection-copy";
+import { getStorePolicy } from "@/lib/store-policy";
+import { formatPrice } from "@/lib/utils";
+import {
+  pageMeta,
+  clip,
+  breadcrumbJsonLd,
+  itemListJsonLd,
+  faqJsonLd,
+  jsonLdString,
+} from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -47,11 +59,23 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const c = await prisma.category.findUnique({ where: { slug } });
-  if (!c) return {};
-  return {
-    title: c.name,
-    description: c.description ?? `Shop ${c.name} at Asta Collections.`,
-  };
+  // notFound() here (not just in the page) so crawlers get a real 404 status:
+  // metadata resolves before the streamed shell, the page body does not.
+  if (!c || !c.isActive) notFound();
+  const copy = COLLECTION_COPY[c.slug];
+  return pageMeta({
+    title: copy?.title ?? `${c.name.trim()}: Price in Pakistan`,
+    description: copy?.description ?? clip(c.description ?? `Shop ${c.name.trim()} at Asta Collections. Cash on delivery across Pakistan.`),
+    path: `/category/${c.slug}`,
+    image: c.image,
+  });
+}
+
+function priceRange(prices: number[]): string {
+  if (prices.length === 0) return "";
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  return min === max ? formatPrice(min) : `${formatPrice(min)} to ${formatPrice(max)}`;
 }
 
 export default async function CategoryPage({
@@ -61,7 +85,9 @@ export default async function CategoryPage({
 }) {
   const { slug } = await params;
   const category = await prisma.category.findUnique({ where: { slug } });
-  if (!category) notFound();
+  if (!category || !category.isActive) notFound();
+  const copy = COLLECTION_COPY[category.slug];
+  const heading = copy?.h1 ?? category.name.trim();
 
   // Walk the category tree to collect this category + all descendant subcategories.
   // Then query products across the entire subtree so a parent like "Necklaces" shows
@@ -84,7 +110,7 @@ export default async function CategoryPage({
 
   // Featured + New Arrivals (across other categories) for the discovery sections at the bottom.
   // "Other" = anything outside this category's subtree.
-  const [featuredOther, newArrivals, bundles] = await Promise.all([
+  const [featuredOther, newArrivals, bundles, policy, parent, siblings] = await Promise.all([
     prisma.product.findMany({
       where: {
         isActive: true,
@@ -118,7 +144,42 @@ export default async function CategoryPage({
         },
       },
     }),
+    getStorePolicy(),
+    category.parentId
+      ? prisma.category.findUnique({
+          where: { id: category.parentId },
+          select: { name: true, slug: true },
+        })
+      : Promise.resolve(null),
+    // Related collections for internal linking: same parent, or the other
+    // top-level collections when this one has no parent.
+    prisma.category.findMany({
+      where: { isActive: true, parentId: category.parentId, id: { not: category.id } },
+      orderBy: { sortOrder: "asc" },
+      select: { name: true, slug: true },
+    }),
   ]);
+
+  const range = priceRange(products.map((p) => p.price));
+  // Collections added later in the admin have no entry in COLLECTION_COPY;
+  // they fall back to the description typed in the admin.
+  const intro = copy
+    ? copy.intro.map((t) => fillRange(t, range))
+    : category.description
+      ? [category.description]
+      : [];
+  const faqs = copy?.faqs ?? [];
+  const crumbs = [
+    { name: "Home", url: "/" },
+    { name: "Shop", url: "/products" },
+    ...(parent ? [{ name: COLLECTION_COPY[parent.slug]?.h1 ?? parent.name.trim(), url: `/category/${parent.slug}` }] : []),
+    { name: heading, url: `/category/${category.slug}` },
+  ];
+  const jsonLd = [
+    breadcrumbJsonLd(crumbs),
+    itemListJsonLd(heading, products),
+    ...(faqs.length > 0 ? [faqJsonLd(faqs)] : []),
+  ];
 
   // Prefer admin-set category.image, fall back to hardcoded default per slug
   const headerImage = category.image || CATEGORY_HEADER_IMAGES[category.slug];
@@ -132,51 +193,72 @@ export default async function CategoryPage({
 
   return (
     <>
-      {/* Category hero banner */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
+
+      {/* Category hero banner — compact on phones so products start above the fold */}
       <section className="relative overflow-hidden border-b">
         <div className="absolute inset-0">
           {headerImage && (
             <Image
               src={headerImage}
-              alt={category.name}
+              alt=""
               fill
               priority
               sizes="100vw"
               className="object-cover"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/60" />
         </div>
-        <div className="container relative py-20 md:py-28 text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-accent font-medium mb-3">
-            Collection
-          </p>
-          <h1 className="text-5xl md:text-7xl font-serif text-balance">{category.name}</h1>
-          {category.description && (
-            <p className="text-muted-foreground mt-4 max-w-xl mx-auto text-pretty">
-              {category.description}
+        <div className="container relative py-10 md:py-24 text-center">
+          <nav aria-label="Breadcrumb" className="mb-4 md:mb-6">
+            {/* Light pill so the crumbs stay readable over busy header photos */}
+            <ol className="inline-flex flex-wrap items-center justify-center gap-x-2 rounded-full bg-white/85 px-3 py-1 text-xs text-foreground/75">
+              {crumbs.map((c, i) => (
+                <li key={c.url} className="flex items-center gap-2">
+                  {i > 0 && <span aria-hidden="true">/</span>}
+                  {i < crumbs.length - 1 ? (
+                    <Link href={c.url} className="hover:text-foreground underline-offset-2 hover:underline">
+                      {c.name}
+                    </Link>
+                  ) : (
+                    <span aria-current="page" className="text-foreground">{c.name}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+          <h1 className="text-4xl md:text-7xl font-serif text-balance">{heading}</h1>
+          {intro[0] && (
+            <p className="text-muted-foreground mt-3 md:mt-4 max-w-xl mx-auto text-pretty text-sm md:text-base">
+              {intro[0]}
             </p>
           )}
           <p className="text-xs text-muted-foreground mt-3">
             {products.length} {products.length === 1 ? "piece" : "pieces"}
+            {range && <> · {range}</>}
           </p>
 
           {/* Subcategory pills */}
           {subcategories.length > 0 && (
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <div className="mt-5 md:mt-6 flex flex-wrap justify-center gap-2">
               {subcategories.map((sc) => (
                 <Link
                   key={sc.id}
                   href={`/category/${sc.slug}`}
-                  className="px-4 h-9 inline-flex items-center rounded-full bg-white border border-border text-xs uppercase tracking-[0.18em] font-medium hover:border-accent hover:text-accent transition-colors"
+                  className="px-4 h-10 inline-flex items-center rounded-full bg-white border border-border text-xs uppercase tracking-[0.18em] font-medium hover:border-accent hover:text-accent transition-colors"
                 >
-                  {sc.name}
+                  {COLLECTION_COPY[sc.slug]?.h1 ?? sc.name.trim()}
                 </Link>
               ))}
             </div>
           )}
         </div>
       </section>
+
+      <div className="container pt-5 flex justify-center">
+        <TrustLine policy={policy} className="justify-center text-center" />
+      </div>
 
       <SectionSlot page="category" slot="top" />
 
@@ -208,6 +290,53 @@ export default async function CategoryPage({
           </Reveal>
         )}
       </div>
+
+      {/* ABOUT THIS COLLECTION — helpful copy + FAQs + related collections */}
+      {(intro.length > 1 || faqs.length > 0 || siblings.length > 0) && (
+        <section className="container pb-6">
+          <div className="grid gap-10 md:grid-cols-2 md:gap-16 border-t pt-12">
+            <div className="space-y-4 max-w-prose">
+              <h2 className="text-2xl md:text-3xl font-serif">About our {heading.toLowerCase()}</h2>
+              {intro.slice(1).map((t) => (
+                <p key={t} className="text-sm md:text-base text-muted-foreground leading-relaxed">{t}</p>
+              ))}
+              {siblings.length > 0 && (
+                <div className="pt-2">
+                  <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-3">Related collections</p>
+                  <ul className="flex flex-wrap gap-2">
+                    {siblings.map((sc) => (
+                      <li key={sc.slug}>
+                        <Link
+                          href={`/category/${sc.slug}`}
+                          className="px-4 h-10 inline-flex items-center rounded-full border border-border text-sm hover:border-accent hover:text-accent transition-colors"
+                        >
+                          {COLLECTION_COPY[sc.slug]?.h1 ?? sc.name.trim()}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {faqs.length > 0 && (
+              <div>
+                <h2 className="text-2xl md:text-3xl font-serif mb-4">Questions</h2>
+                <div className="divide-y border-y">
+                  {faqs.map((f) => (
+                    <details key={f.q} className="group py-4">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
+                        {f.q}
+                        <span aria-hidden="true" className="text-accent text-xl transition-transform group-open:rotate-45">+</span>
+                      </summary>
+                      <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* BUNDLES */}
       {bundles.length > 0 && (

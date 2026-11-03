@@ -23,7 +23,22 @@ import { Badge } from "@/components/ui/badge";
 import { ProductCard, type ProductCardData } from "./product-card";
 import { formatPrice } from "@/lib/utils";
 
-export function CartPageClient({ recommended }: { recommended: ProductCardData[] }) {
+export type CartShippingInfo = {
+  fee: number;
+  freeThreshold: number;
+  deliveryLine: string;
+  codLine: string;
+  returnDays: number;
+};
+
+export function CartPageClient({
+  recommended,
+  shipping,
+}: {
+  recommended: ProductCardData[];
+  /** Display-only delivery terms from the admin settings (checkout computes the charge). */
+  shipping: CartShippingInfo;
+}) {
   const { items, remove, setQty, subtotal, clear } = useCart();
   const syncCart = useCartRevalidate();
 
@@ -33,10 +48,13 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
     syncCart();
   }, [syncCart]);
 
-  const FREE_SHIP_THRESHOLD = 5000;
+  // Was hardcoded to 5,000 after the store's threshold had moved, so the bar
+  // asked shoppers to spend more than they needed to.
+  const FREE_SHIP_THRESHOLD = shipping.freeThreshold;
+  const showFreeShipBar = shipping.fee > 0 && FREE_SHIP_THRESHOLD > 0;
   const sub = subtotal();
   const remaining = Math.max(0, FREE_SHIP_THRESHOLD - sub);
-  const progress = Math.min(100, (sub / FREE_SHIP_THRESHOLD) * 100);
+  const progress = showFreeShipBar ? Math.min(100, (sub / FREE_SHIP_THRESHOLD) * 100) : 100;
 
   if (items.length === 0) {
     return <EmptyCart recommended={recommended} />;
@@ -63,6 +81,7 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
 
       <div className="container py-8 md:py-12">
         {/* Free shipping bar */}
+        {showFreeShipBar && (
         <div className="bg-accent/5 border border-accent/30 rounded-xl p-4 mb-8 max-w-3xl">
           {remaining > 0 ? (
             <p className="text-sm flex items-center gap-2">
@@ -84,8 +103,9 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
             />
           </div>
         </div>
+        )}
 
-        <div className="grid lg:grid-cols-[1fr_400px] gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-8 lg:gap-12">
           {/* ITEMS */}
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-2">
@@ -226,17 +246,15 @@ export function CartPageClient({ recommended }: { recommended: ProductCardData[]
               <h3 className="font-semibold">Why shop with us</h3>
               <div className="flex items-start gap-3">
                 <Truck className="h-4 w-4 text-accent shrink-0 mt-0.5" />
-                <p className="text-muted-foreground">
-                  Free shipping on orders above Rs. 5,000
-                </p>
+                <p className="text-muted-foreground">{shipping.deliveryLine}</p>
               </div>
               <div className="flex items-start gap-3">
                 <RefreshCcw className="h-4 w-4 text-accent shrink-0 mt-0.5" />
-                <p className="text-muted-foreground">7-day returns, no questions asked</p>
+                <p className="text-muted-foreground">{shipping.returnDays}-day returns on unworn pieces</p>
               </div>
               <div className="flex items-start gap-3">
                 <Lock className="h-4 w-4 text-accent shrink-0 mt-0.5" />
-                <p className="text-muted-foreground">Secure payments — COD or bank transfer</p>
+                <p className="text-muted-foreground">{shipping.codLine}</p>
               </div>
             </div>
           </aside>
@@ -286,8 +304,8 @@ function EmptyCart({ recommended }: { recommended: ProductCardData[] }) {
               Browse All Products
             </Button>
           </Link>
-          <Link href="/category/bridal-sets">
-            <Button variant="outline" size="lg">View Bridal</Button>
+          <Link href="/category/bestsellers">
+            <Button variant="outline" size="lg">View Bestsellers</Button>
           </Link>
         </div>
       </div>

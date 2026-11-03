@@ -281,7 +281,7 @@ export function ProductDetail({
                   <>
                     <Image
                       src={currentMedia.url}
-                      alt={currentMedia.alt ?? product.name}
+                      alt={currentMedia.alt || product.name}
                       fill
                       sizes="(max-width: 1024px) 100vw, 50vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
@@ -543,7 +543,7 @@ export function ProductDetail({
                   : `Free over ${formatPrice(freeShippingThreshold)}`
               }
             />
-            <Promise icon={RefreshCcw} title="7-day returns" sub="No questions asked" />
+            <Promise icon={RefreshCcw} title="7-day returns" sub="On unworn pieces" />
             <Promise
               icon={Package}
               title="COD or Bank"
@@ -635,8 +635,10 @@ export function ProductDetail({
                     Standard delivery 3–5 business days across Pakistan.
                   </p>
                   <p>
-                    <strong className="text-foreground">Cash on Delivery:</strong> Rs. 250 advance
-                    via bank transfer; balance on delivery.
+                    <strong className="text-foreground">Cash on Delivery:</strong>{" "}
+                    {codAdvance > 0
+                      ? `${formatPrice(codAdvance)} advance via bank transfer; balance on delivery.`
+                      : "Pay the full amount to the courier on delivery."}
                   </p>
                   <p>
                     <strong className="text-foreground">Bank Transfer:</strong> Pay full amount up
@@ -723,7 +725,7 @@ export function ProductDetail({
           <div className="relative w-full h-full max-w-5xl max-h-[90vh]">
             <Image
               src={currentMedia.url}
-              alt={currentMedia.alt ?? product.name}
+              alt={currentMedia.alt || product.name}
               fill
               sizes="100vw"
               className="object-contain"

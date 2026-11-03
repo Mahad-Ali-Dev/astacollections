@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice, formatDateTime } from "@/lib/utils";
 import { PurchaseTracker } from "@/components/analytics/purchase-tracker";
+import { privatePageMeta } from "@/lib/seo";
 
-export const metadata = { title: "Order Confirmed" };
+// Transactional page: kept out of search results.
+export const metadata = privatePageMeta("Order Confirmed");
 
 export default async function OrderSuccessPage({
   params,

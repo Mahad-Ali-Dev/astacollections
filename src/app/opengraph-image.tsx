@@ -124,7 +124,7 @@ export default async function OpenGraphImage() {
                 letterSpacing: "0.02em",
               }}
             >
-              Rings · Necklaces · Earrings · Bridal
+              Rings · Pendants · Earrings · Bracelets
             </div>
           </div>
         </div>

@@ -9,7 +9,10 @@ import { Reveal } from "@/components/motion/reveal";
 import { parseTags } from "@/lib/tags";
 import { getCustomerFromCookie } from "@/lib/auth";
 import { getSettings, settingsToNumbers } from "@/lib/settings";
-import { productJsonLd, breadcrumbJsonLd, SITE } from "@/lib/seo";
+import { getStorePolicy } from "@/lib/store-policy";
+import { productJsonLd, breadcrumbJsonLd, pageMeta, clip, jsonLdString } from "@/lib/seo";
+import { COLLECTION_COPY } from "@/lib/collection-copy";
+import { formatPrice } from "@/lib/utils";
 import { SectionSlot } from "@/components/shop/section-slot";
 
 export const dynamic = "force-dynamic";
@@ -24,25 +27,22 @@ export async function generateMetadata({
     where: { slug },
     include: { images: { take: 1, orderBy: { sortOrder: "asc" } } },
   });
-  if (!product) return {};
-  const description = product.metaDesc ?? product.shortDesc ?? product.description.slice(0, 160);
-  const image = product.images[0]?.url;
-  return {
-    title: product.metaTitle ?? product.name,
+  // notFound() in metadata so crawlers get a real 404 (the page body streams
+  // after a 200 has already been sent).
+  if (!product || !product.isActive) notFound();
+  const base = (product.metaTitle ?? product.name).trim();
+  // "<name> Price in Pakistan" matches how shoppers search here; only add it
+  // when the admin's title doesn't already say so and there's room.
+  const title =
+    /pakistan/i.test(base) || base.length > 42 ? base : `${base}: Price in Pakistan`;
+  const source = product.metaDesc ?? product.shortDesc ?? product.description;
+  const description = `${clip(source, 115)} ${formatPrice(product.price)}, cash on delivery across Pakistan.`;
+  return pageMeta({
+    title,
     description,
-    openGraph: {
-      title: product.name,
-      description,
-      images: image ? [{ url: image, width: 1200, height: 1200 }] : undefined,
-      type: "website",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: product.name,
-      description,
-      images: image ? [image] : undefined,
-    },
-  };
+    path: `/products/${product.slug}`,
+    image: product.images[0]?.url,
+  });
 }
 
 export default async function ProductDetailPage({
@@ -129,7 +129,7 @@ export default async function ProductDetailPage({
   // The visible list is capped, but the rating summary must describe every
   // approved review — deriving it from the capped list understated both the
   // count and the average once a product passed the cap.
-  const [reviews, ratingGroups, ownRatingGroups] = await Promise.all([
+  const [reviews, ratingGroups, ownRatingGroups, ownReviews, policy] = await Promise.all([
     prisma.review.findMany({
       where: reviewWhere,
       orderBy: { createdAt: "desc" },
@@ -145,15 +145,23 @@ export default async function ProductDetailPage({
       _count: { _all: true },
     }),
     // Structured data must describe THIS product, whatever the display scope
-    // is. Publishing store-wide totals as a product's AggregateRating
-    // misrepresents it to search engines.
-    reviewScope === "all"
-      ? prisma.review.groupBy({
-          by: ["rating"],
-          where: { productId: product.id, status: "APPROVED" as const },
-          _count: { _all: true },
-        })
-      : Promise.resolve(null),
+    // is, and only reviews shoppers submitted through the site. Those always
+    // carry an email (the public form requires one); rows added with the
+    // admin bulk importer have none and can't be shown to be genuine buyer
+    // reviews, which Google's review-snippet policy requires — marking them up
+    // risks a structured-data manual action. They still display on the page.
+    prisma.review.groupBy({
+      by: ["rating"],
+      where: { productId: product.id, status: "APPROVED" as const, customerEmail: { not: "" } },
+      _count: { _all: true },
+    }),
+    prisma.review.findMany({
+      where: { productId: product.id, status: "APPROVED" as const, customerEmail: { not: "" } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { customerName: true, rating: true, body: true, createdAt: true },
+    }),
+    getStorePolicy(),
   ]);
 
   const reviewCount = ratingGroups.reduce((n, g) => n + g._count._all, 0);
@@ -169,9 +177,8 @@ export default async function ProductDetailPage({
       ? ratingGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / reviewCount
       : 0;
 
-  // Product-only figures for JSON-LD — identical to the display figures
-  // unless the section is showing the whole store.
-  const ownGroups = ownRatingGroups ?? ratingGroups;
+  // Product-only, site-submitted figures for JSON-LD (see the query above).
+  const ownGroups = ownRatingGroups;
   const ownCount = ownGroups.reduce((n, g) => n + g._count._all, 0);
   const ownAvg =
     ownCount > 0
@@ -179,17 +186,19 @@ export default async function ProductDetailPage({
       : 0;
 
   const jsonLd = productJsonLd({
-    name: product.name,
-    description: product.shortDesc ?? product.description.slice(0, 200),
+    name: product.name.trim(),
+    description: clip(product.shortDesc ?? product.description, 500),
     sku: product.sku,
     images: product.images.map((i) => i.url),
-    category: product.category.name,
+    category: product.category.name.trim(),
+    material: product.material,
     price: product.price,
     inStock: product.stock > 0,
     url: `/products/${product.slug}`,
+    policy,
     reviewCount: ownCount,
     ratingValue: ownAvg,
-    reviews: (reviewScope === "all" ? [] : reviews.slice(0, 5)).map((r) => ({
+    reviews: ownReviews.map((r) => ({
       author: r.customerName,
       rating: r.rating,
       body: r.body,
@@ -197,10 +206,11 @@ export default async function ProductDetailPage({
     })),
   });
 
+  const categoryLabel = COLLECTION_COPY[product.category.slug]?.h1 ?? product.category.name.trim();
   const breadcrumbs = breadcrumbJsonLd([
     { name: "Home", url: "/" },
     { name: "Shop", url: "/products" },
-    { name: product.category.name, url: `/category/${product.category.slug}` },
+    { name: categoryLabel, url: `/category/${product.category.slug}` },
     { name: product.name, url: `/products/${product.slug}` },
   ]);
 
@@ -208,7 +218,7 @@ export default async function ProductDetailPage({
     <div className="container py-6 md:py-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify([jsonLd, breadcrumbs]) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString([jsonLd, breadcrumbs]) }}
       />
 
       <nav className="flex items-center text-xs text-muted-foreground mb-6 flex-wrap" aria-label="Breadcrumb">
@@ -217,7 +227,7 @@ export default async function ProductDetailPage({
         <Link href="/products" className="hover:text-foreground">Shop</Link>
         <ChevronRight className="h-3 w-3 mx-1" />
         <Link href={`/category/${product.category.slug}`} className="hover:text-foreground">
-          {product.category.name}
+          {categoryLabel}
         </Link>
         <ChevronRight className="h-3 w-3 mx-1" />
         <span className="text-foreground">{product.name}</span>
@@ -261,6 +271,12 @@ export default async function ProductDetailPage({
               You may also like
             </p>
             <h2 className="text-3xl md:text-4xl font-serif">More from this style</h2>
+            <Link
+              href={`/category/${product.category.slug}`}
+              className="inline-block mt-4 text-sm font-medium underline underline-offset-4 hover:text-accent"
+            >
+              Shop all {categoryLabel.toLowerCase()}
+            </Link>
           </Reveal>
           <Reveal className="product-grid" stagger={0.06}>
             {related.map((p) => (

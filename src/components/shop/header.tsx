@@ -20,10 +20,10 @@ type NavNode = {
 const FALLBACK_NAV: NavNode[] = [
   { id: "fallback-1", label: "Shop All", href: "/products", openInNewTab: false, children: [] },
   { id: "fallback-2", label: "Rings", href: "/category/rings", openInNewTab: false, children: [] },
-  { id: "fallback-3", label: "Necklaces", href: "/category/necklaces", openInNewTab: false, children: [] },
+  { id: "fallback-3", label: "Pendants", href: "/category/pendant", openInNewTab: false, children: [] },
   { id: "fallback-4", label: "Earrings", href: "/category/earrings", openInNewTab: false, children: [] },
   { id: "fallback-5", label: "Bracelets", href: "/category/bracelets", openInNewTab: false, children: [] },
-  { id: "fallback-6", label: "Bridal", href: "/category/bridal-sets", openInNewTab: false, children: [] },
+  { id: "fallback-6", label: "Couple Rings", href: "/category/couple-rings", openInNewTab: false, children: [] },
 ];
 
 type HeaderProps = {
@@ -102,23 +102,28 @@ export function Header({
           <button
             className="lg:hidden -ml-2 p-2 transition-transform active:scale-95"
             onClick={() => setMobile(!mobile)}
-            aria-label="Toggle menu"
+            aria-label={mobile ? "Close menu" : "Open menu"}
+            aria-expanded={mobile}
+            aria-controls="mobile-nav"
           >
             {mobile ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
           {/* LOGO LEFT — mark only on small phones, mark + wordmark from sm up */}
-          <div className="flex-1 lg:flex-initial flex justify-center lg:justify-start min-w-0">
+          {/* lg:shrink-0 — with min-w-0 alone the box shrank below the wordmark at
+              1024–1279px and the text ran under the first nav links. */}
+          <div className="flex-1 lg:flex-initial lg:shrink-0 flex justify-center lg:justify-start min-w-0">
             {/* Phones < 640px: just the mark (saves space, prevents overlap with cart) */}
             <Logo variant="mark" size="md" className="sm:hidden" />
             {/* sm – md: mark + wordmark, smaller */}
             <Logo variant="inline" size="md" className="hidden sm:inline-flex md:hidden" />
-            {/* md+: full big version */}
-            <Logo variant="inline" size="lg" className="hidden md:inline-flex" />
+            {/* md – lg: full big version; narrow desktops step down a size to leave room for the nav */}
+            <Logo variant="inline" size="lg" className="hidden md:inline-flex lg:hidden xl:inline-flex" />
+            <Logo variant="inline" size="md" className="hidden lg:inline-flex xl:hidden" />
           </div>
 
           {/* Desktop nav — center, with dropdowns for items that have children */}
-          <nav className="hidden lg:flex items-center gap-9 flex-1 justify-center">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-9 flex-1 justify-center min-w-0">
             {NAV_LINKS.map((l) =>
               l.children && l.children.length > 0 ? (
                 <div key={l.id} className="relative group">
@@ -195,7 +200,7 @@ export function Header({
 
         {/* Mobile nav drawer */}
         {mobile && (
-          <nav className="lg:hidden border-t border-border/60 bg-white animate-in slide-in-from-top-2 duration-300">
+          <nav id="mobile-nav" aria-label="Main menu" className="lg:hidden border-t border-border/60 bg-white animate-in slide-in-from-top-2 duration-300">
             <div className="container py-6 flex flex-col gap-1">
               {NAV_LINKS.map((l) => (
                 <div key={l.id} className="border-b border-border/40 last:border-0">

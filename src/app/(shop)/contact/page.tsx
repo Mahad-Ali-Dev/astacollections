@@ -1,12 +1,14 @@
 import { Mail, Phone, MapPin, Instagram, Facebook } from "lucide-react";
 import { Reveal } from "@/components/motion/reveal";
 import { SOCIAL } from "@/components/shop/footer";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata = {
-  title: "Contact Us — Phone, Email, WhatsApp",
+export const metadata = pageMeta({
+  title: "Contact Us: WhatsApp, Phone and Email",
   description:
     "Get in touch with Asta Collections. WhatsApp +92 326 4348024 · astacollection14@gmail.com · Lahore, Pakistan. We reply within hours.",
-};
+  path: "/contact",
+});
 
 // TikTok inline icon
 function TikTokIcon({ className }: { className?: string }) {

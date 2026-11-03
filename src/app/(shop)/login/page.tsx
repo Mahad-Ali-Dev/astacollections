@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { getCustomerFromCookie } from "@/lib/auth";
 import { LoginForm } from "@/components/shop/auth-forms";
 import { Logo } from "@/components/shop/logo";
+import { privatePageMeta } from "@/lib/seo";
 
-export const metadata = { title: "Sign In" };
+// Transactional page: kept out of search results.
+export const metadata = privatePageMeta("Sign In");
 
 export default async function CustomerLoginPage({
   searchParams,

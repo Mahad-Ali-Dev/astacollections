@@ -6,12 +6,15 @@ import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// Buckets fit the catalogue as it is (Rs. ~600 to ~3,000, clustered at 699
+// and 999). The old ones started at Rs. 3,000+, so three of five matched nothing.
+// Bounds are inclusive on both ends (gte/lte), hence the 699/999 edges.
 const PRICE_RANGES = [
-  { label: "Under Rs. 1,500", min: 0, max: 1500 },
-  { label: "Rs. 1,500 – 3,000", min: 1500, max: 3000 },
-  { label: "Rs. 3,000 – 5,000", min: 3000, max: 5000 },
-  { label: "Rs. 5,000 – 10,000", min: 5000, max: 10000 },
-  { label: "Above Rs. 10,000", min: 10000, max: 999999 },
+  { label: "Under Rs. 700", min: 0, max: 699 },
+  { label: "Rs. 700 – 999", min: 700, max: 999 },
+  { label: "Rs. 1,000 – 1,499", min: 1000, max: 1499 },
+  { label: "Rs. 1,500 – 1,999", min: 1500, max: 1999 },
+  { label: "Rs. 2,000 and above", min: 2000, max: 999999 },
 ];
 
 type Category = { name: string; slug: string };

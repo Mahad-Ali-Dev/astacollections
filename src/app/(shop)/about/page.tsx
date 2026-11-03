@@ -5,14 +5,16 @@ import { Reveal } from "@/components/motion/reveal";
 import { ArrowRight, Award, Heart, Sparkles } from "lucide-react";
 import { getSettings } from "@/lib/settings";
 import { SectionSlot } from "@/components/shop/section-slot";
+import { pageMeta } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "About Us",
+export const metadata = pageMeta({
+  title: "About Asta Collections: Stainless Steel Jewellery from Lahore",
   description:
-    "Asta Collections — handpicked jewellery for every occasion, crafted with love in Pakistan.",
-};
+    "Asta Collections is an online jewellery store in Lahore selling stainless steel rings, pendant sets, studs and bracelets across Pakistan with cash on delivery.",
+  path: "/about",
+});
 
 export default async function AboutPage() {
   const settings = await getSettings();

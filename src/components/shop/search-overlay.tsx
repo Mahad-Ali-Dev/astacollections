@@ -5,24 +5,25 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { X, Search, ArrowRight, TrendingUp } from "lucide-react";
 
+// Terms that return results in the current catalogue (all stainless steel).
 const POPULAR_TAGS = [
+  "zircon",
+  "couple",
   "pearl",
-  "bridal",
+  "enamel",
+  "clover",
+  "heart",
   "gold",
-  "kundan",
-  "minimal",
-  "emerald",
-  "vintage",
-  "statement",
-  "everyday",
-  "wedding",
+  "silver",
+  "adjustable",
+  "set",
 ];
 
 const QUICK_LINKS = [
-  { label: "Bridal Sets", href: "/category/bridal-sets" },
   { label: "Rings", href: "/category/rings" },
-  { label: "Necklaces", href: "/category/necklaces" },
-  { label: "Earrings", href: "/category/earrings" },
+  { label: "Couple Rings", href: "/category/couple-rings" },
+  { label: "Pendant Sets", href: "/category/pendant" },
+  { label: "Stud Earrings", href: "/category/studs" },
 ];
 
 export function SearchOverlay({

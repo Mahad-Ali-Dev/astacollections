@@ -9,6 +9,9 @@ import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import type { Prisma } from "@prisma/client";
 import { SectionSlot } from "@/components/shop/section-slot";
+import { TrustLine } from "@/components/shop/trust-strip";
+import { getStorePolicy } from "@/lib/store-policy";
+import { pageMeta } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +25,21 @@ type SearchParams = Promise<{
   onSale?: string;
 }>;
 
-export const metadata = {
-  title: "Shop All Jewellery",
-  description:
-    "Browse our complete collection of handpicked jewellery — rings, necklaces, earrings, bracelets, bridal sets and more.",
-};
+export async function generateMetadata({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  // Search results and filter combinations are thin near-duplicates of this
+  // page: keep them out of the index but let crawlers follow product links.
+  const filtered = Boolean(
+    params.q || params.category || params.price || params.material || params.inStock || params.onSale || params.sort
+  );
+  return pageMeta({
+    title: "Stainless Steel Jewellery Online in Pakistan: Shop All",
+    description:
+      "Shop all Asta Collections jewellery with prices in Pakistan: stainless steel rings, pendant sets, stud earrings, bracelets and handcuffs. Cash on delivery nationwide.",
+    path: "/products",
+    noindex: filtered,
+  });
+}
 
 export default async function ProductsPage({
   searchParams,
@@ -48,10 +61,11 @@ export default async function ProductsPage({
   if (q) {
     ANDs.push({
       OR: [
-        { name: { contains: q } },
-        { description: { contains: q } },
-        { material: { contains: q } },
-        { tags: { contains: q.toLowerCase() } },
+        // Postgres `contains` is case-sensitive; "ring" must find "Ring".
+        { name: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { material: { contains: q, mode: "insensitive" } },
+        { tags: { contains: q, mode: "insensitive" } },
       ],
     });
   }
@@ -62,7 +76,7 @@ export default async function ProductsPage({
       ANDs.push({ price: { gte: min, lte: max } });
     }
   }
-  if (material) ANDs.push({ material: { contains: material } });
+  if (material) ANDs.push({ material: { contains: material, mode: "insensitive" } });
   if (inStock) ANDs.push({ stock: { gt: 0 } });
   if (onSale) ANDs.push({ comparePrice: { not: null } });
 
@@ -77,7 +91,7 @@ export default async function ProductsPage({
           ? { name: "asc" }
           : { createdAt: "desc" };
 
-  const [products, categories, allMaterials, bundles, newArrivals] = await Promise.all([
+  const [products, categories, allMaterials, bundles, newArrivals, policy] = await Promise.all([
     prisma.product.findMany({
       where,
       include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, category: true },
@@ -108,6 +122,7 @@ export default async function ProductsPage({
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
+    getStorePolicy(),
   ]);
 
   const materials = allMaterials
@@ -133,13 +148,22 @@ export default async function ProductsPage({
             ) : selectedCategoryName ? (
               selectedCategoryName
             ) : (
-              "All Jewellery"
+              "Stainless Steel Jewellery"
             )}
           </h1>
-          <p className="text-muted-foreground mt-3 max-w-md">
+          {!q && !selectedCategoryName && (
+            <p className="text-muted-foreground mt-3 max-w-xl text-sm md:text-base text-pretty">
+              Rings, pendant sets, stud earrings, bracelets and handcuffs in gold-tone and
+              silver-tone stainless steel, made for everyday wear.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground mt-3">
             {products.length} {products.length === 1 ? "piece" : "pieces"}
-            {selectedCategoryName ? ` in ${selectedCategoryName}` : ""} • Free shipping above Rs. 5,000
+            {selectedCategoryName ? ` in ${selectedCategoryName}` : ""}
           </p>
+          <div className="mt-3">
+            <TrustLine policy={policy} />
+          </div>
         </div>
       </section>
 

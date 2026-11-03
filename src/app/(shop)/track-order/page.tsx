@@ -1,10 +1,12 @@
 import { Package, Truck, MapPin, Clock } from "lucide-react";
 import { TrackOrderClient } from "@/components/shop/track-order-client";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMeta({
   title: "Track Your Order",
   description: "Track your Asta Collections order. Enter your order number and email to see status and courier tracking.",
-};
+  path: "/track-order",
+});
 
 export default function TrackOrderPage() {
   return (

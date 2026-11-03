@@ -102,7 +102,7 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
           >
             <Image
               src={s.image}
-              alt={s.title}
+              alt=""
               fill
               priority={i === 0}
               sizes="100vw"
@@ -121,7 +121,9 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
             {slide.eyebrow}
           </p>
 
-          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[7.5rem] leading-[0.98] text-balance">
+          {/* h2, not h1: slide titles rotate and are campaign copy. The home
+              page carries one stable, descriptive H1 below the hero. */}
+          <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[7.5rem] leading-[0.98] text-balance">
             <span className="block overflow-hidden">
               <span className="hero-slide-title-line inline-block">{slide.title}</span>
             </span>
@@ -130,7 +132,7 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
                 {slide.titleAccent}
               </span>
             </span>
-          </h1>
+          </h2>
 
           <p className="hero-slide-sub text-base md:text-lg text-background/85 max-w-md leading-relaxed">
             {slide.description}
@@ -163,10 +165,17 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
                   key={i}
                   onClick={() => goTo(i)}
                   aria-label={`Go to slide ${i + 1}`}
-                  className={`h-px transition-all duration-500 ${
-                    i === active ? "w-12 md:w-16 bg-rose-300" : "w-6 md:w-9 bg-background/40 hover:bg-background/70"
-                  }`}
-                />
+                  aria-current={i === active ? "true" : undefined}
+                  // The visible bar is 1px; the button itself is a 24px-tall
+                  // target so it can actually be tapped.
+                  className="group/dot h-6 flex items-center"
+                >
+                  <span
+                    className={`block h-px transition-all duration-500 ${
+                      i === active ? "w-12 md:w-16 bg-rose-300" : "w-6 md:w-9 bg-background/40 group-hover/dot:bg-background/70"
+                    }`}
+                  />
+                </button>
               ))}
               <span className="ml-3 text-[11px] uppercase tracking-[0.3em] text-background/70 font-mono">
                 {String(active + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}

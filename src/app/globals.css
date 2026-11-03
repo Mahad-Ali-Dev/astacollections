@@ -22,8 +22,10 @@
     --muted: 24 24% 97%;
     --muted-foreground: 24 6% 42%;
 
-    /* Rose-gold accent (matches the splatter ring in the logo) */
-    --accent: 13 36% 60%;
+    /* Rose-gold accent (matches the splatter ring in the logo). Deepened from
+       13 36% 60% (about 3.1:1 on white, below WCAG AA for the small eyebrow
+       text and white-on-accent badges that use it) to about 5.4:1. */
+    --accent: 13 40% 44%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 65% 48%;
@@ -31,7 +33,7 @@
 
     --border: 18 16% 90%;
     --input: 18 16% 90%;
-    --ring: 13 36% 60%;
+    --ring: 13 40% 44%;
     --radius: 0.625rem;
   }
 }
@@ -74,6 +76,12 @@
   }
   ::selection {
     @apply bg-accent/30 text-foreground;
+  }
+  /* Visible keyboard focus everywhere (mouse clicks don't trigger it). Many
+     links and icon buttons had no focus style at all. */
+  :where(a, button, summary, [role="button"], input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
   /* Refined link / button transitions globally */
   a, button {

@@ -1,78 +1,112 @@
+import Link from "next/link";
 import { Reveal } from "@/components/motion/reveal";
-import { faqJsonLd } from "@/lib/seo";
+import { faqJsonLd, jsonLdString, pageMeta } from "@/lib/seo";
+import { getStorePolicy, type StorePolicy } from "@/lib/store-policy";
+import { formatPrice } from "@/lib/utils";
 
-export const metadata = {
-  title: "FAQ — Shipping, Returns, Care, COD & Bank Transfer",
-  description: "Answers to common questions about ordering, COD, bank transfer, shipping, returns, and jewellery care from Asta Collections Pakistan.",
-};
+export const dynamic = "force-dynamic";
 
-const FAQS = [
-  {
-    q: "How does Cash on Delivery work?",
-    a: "When you choose COD, an advance of Rs. 250 (the delivery charges) must be paid via bank transfer to confirm your order. The remaining balance is collected by the courier when the order is delivered. You'll see our bank details and upload the screenshot at checkout.",
-  },
-  {
-    q: "How does bank transfer work?",
-    a: "Choose 'Bank Transfer' at checkout, transfer the full order amount to the account shown, and upload a screenshot of the transfer. Once we verify the payment, your order is confirmed and shipped.",
-  },
-  {
-    q: "How long does delivery take?",
-    a: "Orders are dispatched within 1–2 business days of confirmation. Standard delivery across Pakistan takes 3–5 business days. You'll receive a tracking number once your order ships.",
-  },
-  {
-    q: "Do you offer free shipping?",
-    a: "Yes — orders above Rs. 5,000 ship free anywhere in Pakistan. Below that, our standard shipping fee applies (shown at checkout).",
-  },
-  {
-    q: "What's your return policy?",
-    a: "We offer a 7-day return window from the date of delivery. The item must be unworn, in original packaging, and in resaleable condition. Custom or sale pieces may have specific conditions — see the product page.",
-  },
-  {
-    q: "Are your pieces genuine?",
-    a: "Every piece description lists the exact material — gold-plated brass, sterling silver, kundan, freshwater pearls, etc. We don't claim solid gold unless the piece is solid gold. Honesty above all.",
-  },
-  {
-    q: "How do I care for my jewellery?",
-    a: "Keep pieces dry — remove before showering, swimming or applying perfume. Store separately to avoid scratches. Clean with a soft cloth. Properly cared-for plated jewellery lasts years.",
-  },
-  {
-    q: "Can I exchange or modify my order after placing it?",
-    a: "Yes, as long as the order hasn't shipped yet. Contact us via WhatsApp or email as soon as possible — we'll do our best to accommodate.",
-  },
-  {
-    q: "Do you make custom pieces?",
-    a: "We take custom requests on a limited basis, particularly for bridal sets. Reach out via WhatsApp or email with your idea — we'll see what's possible.",
-  },
-  {
-    q: "Is my payment information safe?",
-    a: "We never store card or bank details. Bank transfer screenshots are stored only to verify payment and are accessible only to authorised staff.",
-  },
-];
+export const metadata = pageMeta({
+  title: "FAQ: Cash on Delivery, Delivery Charges, Returns and Ring Sizes",
+  description:
+    "How cash on delivery works, delivery charges and times across Pakistan, returns, ring sizes, and how to care for stainless steel jewellery from Asta Collections.",
+  path: "/faq",
+});
 
-export default function FaqPage() {
+/**
+ * Answers that quote a fee or a payment rule are built from the admin
+ * settings, so this page can't drift from what checkout actually does (it
+ * used to promise a Rs. 250 COD advance and Rs. 5,000 free-shipping line
+ * after both had changed).
+ */
+function buildFaqs(p: StorePolicy) {
+  const faqs: { q: string; a: string }[] = [];
+
+  if (p.codEnabled) {
+    faqs.push({
+      q: "Do you offer cash on delivery?",
+      a:
+        p.codAdvance > 0
+          ? `Yes, across Pakistan. To confirm a cash on delivery order, an advance of ${formatPrice(p.codAdvance)} is paid by bank transfer at checkout, and the rest is paid to the courier when your parcel arrives.`
+          : "Yes, across Pakistan. Nothing is paid upfront: you pay the full amount to the courier when your parcel arrives.",
+    });
+  }
+  if (p.bankEnabled) {
+    faqs.push({
+      q: "How does bank transfer work?",
+      a: "Choose Bank Transfer at checkout, send the order amount to the account shown, and upload a screenshot of the transfer. Your order is confirmed once we've verified the payment.",
+    });
+  }
+  faqs.push(
+    {
+      q: "How much is delivery, and how long does it take?",
+      a: `${
+        p.shippingFee > 0
+          ? `Delivery is ${formatPrice(p.shippingFee)}${
+              p.freeShippingThreshold > 0
+                ? `, and free on orders of ${formatPrice(p.freeShippingThreshold)} or more`
+                : ""
+            }.`
+          : "Delivery is free."
+      } Orders are dispatched within 1–2 business days and usually arrive in 3–5 business days anywhere in Pakistan. You'll get a tracking number once your parcel ships.`,
+    },
+    {
+      q: "What is your jewellery made of?",
+      a: "Our pieces are stainless steel with a gold-tone or silver-tone finish, some set with stones, enamel or mother of pearl. Each product page lists the exact materials. We don't sell solid gold or sterling silver.",
+    },
+    {
+      q: "Does stainless steel jewellery tarnish?",
+      a: "Stainless steel doesn't tarnish the way silver or brass fashion jewellery can, which makes it good for everyday wear. To keep the finish looking new, put on perfume and lotion before your jewellery, take it off for swimming and cleaning, and wipe it with a soft dry cloth.",
+    },
+    {
+      q: "How do I find my ring size?",
+      a: "Most of our rings are adjustable, so one ring fits a range of fingers: gently widen or close the open back. For fixed-size rings, measure the inside diameter of a ring that fits you (in millimetres) and send it to us on WhatsApp, and we'll tell you which size to pick.",
+    },
+    {
+      q: "What's your return policy?",
+      a: `You can return a piece within ${p.returnDays} days of delivery if it's unworn and in its original packaging. For hygiene reasons earrings can only be returned if they arrive faulty. Full details are on our Shipping & Returns page.`,
+    },
+    {
+      q: "Can I change my order after placing it?",
+      a: "Yes, as long as it hasn't shipped. Message us on WhatsApp or email as soon as possible and we'll do our best to help.",
+    },
+    {
+      q: "Is my payment information safe?",
+      a: "We never ask for card details. Bank transfer screenshots are stored only to verify payment and only authorised staff can see them.",
+    }
+  );
+  return faqs;
+}
+
+export default async function FaqPage() {
+  const faqs = buildFaqs(await getStorePolicy());
   return (
     <section className="container py-16 md:py-24 max-w-3xl">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })))) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdString(faqJsonLd(faqs)) }}
       />
       <Reveal className="text-center space-y-4 mb-14">
         <p className="text-xs uppercase tracking-[0.3em] text-accent font-medium">Help</p>
         <h1 className="text-4xl md:text-6xl font-serif">Frequently asked questions</h1>
         <p className="text-muted-foreground">
-          Can&apos;t find what you&apos;re looking for? Reach out — we&apos;re happy to help.
+          Can&apos;t find what you&apos;re looking for?{" "}
+          <Link href="/contact" className="underline underline-offset-4 hover:text-foreground">
+            Get in touch
+          </Link>
+          .
         </p>
       </Reveal>
 
       <Reveal className="space-y-3" stagger={0.05}>
-        {FAQS.map((f) => (
+        {faqs.map((f) => (
           <details
             key={f.q}
-            className="group bg-card border rounded-xl p-5 cursor-pointer hover:border-accent/50 transition-colors"
+            className="group bg-card border rounded-xl p-5 hover:border-accent/50 transition-colors"
           >
-            <summary className="font-medium text-base flex items-center justify-between gap-4 list-none">
+            <summary className="font-medium text-base flex items-center justify-between gap-4 list-none cursor-pointer">
               {f.q}
-              <span className="text-accent transition-transform group-open:rotate-45 text-xl shrink-0">
+              <span aria-hidden="true" className="text-accent transition-transform group-open:rotate-45 text-xl shrink-0">
                 +
               </span>
             </summary>

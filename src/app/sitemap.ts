@@ -2,11 +2,18 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { SITE } from "@/lib/seo";
 
+// Built per request from the database so new products appear without a deploy.
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, categories] = await Promise.all([
     prisma.product.findMany({
       where: { isActive: true },
-      select: { slug: true, updatedAt: true },
+      select: {
+        slug: true,
+        updatedAt: true,
+        images: { orderBy: { sortOrder: "asc" }, take: 4, select: { url: true } },
+      },
     }),
     prisma.category.findMany({
       where: { isActive: true },
@@ -14,16 +21,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }),
   ]);
 
+  // Only pages worth ranking. Login, register, cart and checkout are noindex
+  // and stay out; track-order is a utility page with nothing to rank for.
   const staticPages: MetadataRoute.Sitemap = [
     { url: `${SITE.url}/`, priority: 1.0, changeFrequency: "weekly" },
-    { url: `${SITE.url}/products`, priority: 0.95, changeFrequency: "daily" },
-    { url: `${SITE.url}/about`, priority: 0.7, changeFrequency: "monthly" },
-    { url: `${SITE.url}/contact`, priority: 0.7, changeFrequency: "monthly" },
+    { url: `${SITE.url}/products`, priority: 0.9, changeFrequency: "daily" },
     { url: `${SITE.url}/faq`, priority: 0.6, changeFrequency: "monthly" },
-    { url: `${SITE.url}/shipping`, priority: 0.6, changeFrequency: "monthly" },
-    { url: `${SITE.url}/track-order`, priority: 0.7, changeFrequency: "monthly" },
-    { url: `${SITE.url}/login`, priority: 0.4, changeFrequency: "yearly" },
-    { url: `${SITE.url}/register`, priority: 0.5, changeFrequency: "yearly" },
+    { url: `${SITE.url}/shipping`, priority: 0.5, changeFrequency: "monthly" },
+    { url: `${SITE.url}/about`, priority: 0.5, changeFrequency: "monthly" },
+    { url: `${SITE.url}/contact`, priority: 0.5, changeFrequency: "monthly" },
   ];
 
   return [
@@ -37,8 +43,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...products.map((p) => ({
       url: `${SITE.url}/products/${p.slug}`,
       lastModified: p.updatedAt,
-      priority: 0.85,
+      priority: 0.7,
       changeFrequency: "weekly" as const,
+      // Image sitemap entries help product photos show in Google Images.
+      images: p.images.map((i) => i.url),
     })),
   ];
 }

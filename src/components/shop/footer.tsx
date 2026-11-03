@@ -31,8 +31,8 @@ export function Footer() {
       <div className="container pt-16 md:pt-20 pb-10 text-center border-b border-border/60">
         <Logo variant="footer" size="2xl" className="mx-auto" />
         <p className="mt-5 text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-          Timeless jewellery handcrafted with care — pieces designed to be worn for a lifetime,
-          treasured for generations.
+          Stainless steel rings, pendant sets, studs and bracelets for everyday wear, delivered
+          across Pakistan with cash on delivery.
         </p>
       </div>
 
@@ -113,9 +113,11 @@ export function Footer() {
           <ul className="space-y-2.5 text-sm">
             <FootLink href="/products">All Products</FootLink>
             <FootLink href="/category/rings">Rings</FootLink>
-            <FootLink href="/category/necklaces">Necklaces</FootLink>
-            <FootLink href="/category/earrings">Earrings</FootLink>
-            <FootLink href="/category/bridal-sets">Bridal Sets</FootLink>
+            <FootLink href="/category/couple-rings">Couple Rings</FootLink>
+            <FootLink href="/category/pendant">Pendants &amp; Sets</FootLink>
+            <FootLink href="/category/studs">Stud Earrings</FootLink>
+            <FootLink href="/category/bracelets">Bracelets</FootLink>
+            <FootLink href="/category/hand-cuff">Handcuffs</FootLink>
           </ul>
         </div>
 

@@ -1,12 +1,21 @@
 import { Truck, RefreshCcw, Banknote, Building2, ShieldCheck } from "lucide-react";
 import { Reveal } from "@/components/motion/reveal";
+import { pageMeta } from "@/lib/seo";
+import { getStorePolicy } from "@/lib/store-policy";
+import { formatPrice } from "@/lib/utils";
 
-export const metadata = {
-  title: "Shipping & Returns",
-  description: "Shipping, payment, and return information for Asta Collections orders.",
-};
+export const dynamic = "force-dynamic";
 
-export default function ShippingPage() {
+export const metadata = pageMeta({
+  title: "Shipping, Cash on Delivery and Returns",
+  description:
+    "Delivery charges and times across Pakistan, how cash on delivery and bank transfer work, and our 7-day return policy at Asta Collections.",
+  path: "/shipping",
+});
+
+export default async function ShippingPage() {
+  // Fees and the COD rule come from the admin settings (display only).
+  const policy = await getStorePolicy();
   return (
     <section className="container py-16 md:py-24 max-w-3xl">
       <Reveal className="space-y-4 mb-12">
@@ -20,30 +29,56 @@ export default function ShippingPage() {
           <ul className="space-y-1.5 list-disc pl-5 text-muted-foreground">
             <li>Orders dispatched within 1–2 business days of confirmation.</li>
             <li>Standard delivery: 3–5 business days nationwide.</li>
-            <li><strong className="text-foreground">Free shipping</strong> on orders above Rs. 5,000.</li>
+            {policy.shippingFee > 0 ? (
+              <li>
+                Delivery charge: <strong className="text-foreground">{formatPrice(policy.shippingFee)}</strong>
+                {policy.freeShippingThreshold > 0 && (
+                  <>
+                    , <strong className="text-foreground">free</strong> on orders of{" "}
+                    {formatPrice(policy.freeShippingThreshold)} or more
+                  </>
+                )}
+                .
+              </li>
+            ) : (
+              <li><strong className="text-foreground">Free delivery</strong> on every order.</li>
+            )}
             <li>Tracking number sent once dispatched.</li>
           </ul>
         </Block>
 
-        <Block icon={Banknote} title="Cash on Delivery">
-          <p>
-            COD is available across Pakistan. To confirm a COD order, an advance of{" "}
-            <strong className="text-foreground">Rs. 250</strong> (delivery charges) must be paid by
-            bank transfer at checkout. The remaining balance is collected by the courier when your
-            order is delivered.
-          </p>
-          <p className="text-muted-foreground">
-            Why? It keeps cancellation rates low and lets us ship every confirmed order with care.
-          </p>
-        </Block>
+        {policy.codEnabled && (
+          <Block icon={Banknote} title="Cash on Delivery">
+            {policy.codAdvance > 0 ? (
+              <>
+                <p>
+                  COD is available across Pakistan. To confirm a COD order, an advance of{" "}
+                  <strong className="text-foreground">{formatPrice(policy.codAdvance)}</strong> must
+                  be paid by bank transfer at checkout. The remaining balance is collected by the
+                  courier when your order is delivered.
+                </p>
+                <p className="text-muted-foreground">
+                  Why? It keeps cancellation rates low and lets us ship every confirmed order with care.
+                </p>
+              </>
+            ) : (
+              <p>
+                COD is available across Pakistan. Nothing is paid upfront: you pay the full amount to
+                the courier when your order is delivered.
+              </p>
+            )}
+          </Block>
+        )}
 
-        <Block icon={Building2} title="Bank Transfer">
-          <p>
-            Pay the full order amount via bank transfer. The account details are displayed at
-            checkout and you&apos;ll upload a screenshot of the transfer. Your order is confirmed
-            once we verify the payment (usually within a few hours during business days).
-          </p>
-        </Block>
+        {policy.bankEnabled && (
+          <Block icon={Building2} title="Bank Transfer">
+            <p>
+              Pay the full order amount via bank transfer. The account details are displayed at
+              checkout and you&apos;ll upload a screenshot of the transfer. Your order is confirmed
+              once we verify the payment (usually within a few hours during business days).
+            </p>
+          </Block>
+        )}
 
         <Block icon={RefreshCcw} title="Returns">
           <p>

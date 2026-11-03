@@ -65,7 +65,7 @@ export function FullBanner({
   }
 
   return (
-    <div className="grid md:grid-cols-2 items-center gap-8 md:gap-14">
+    <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 md:gap-14">
       <div className={`relative aspect-[4/5] md:aspect-[5/6] overflow-hidden rounded-3xl ${imageOrder} card-soft`}>
         <Image
           src={image}
@@ -122,7 +122,7 @@ type DualBannerProps = {
 /** Two image-led promotional cards side by side. */
 export function DualBanner({ banners }: DualBannerProps) {
   return (
-    <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
       {banners.map((b, i) => (
         <Link
           key={i}

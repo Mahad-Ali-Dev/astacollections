@@ -7,9 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { formatPrice, formatDateTime } from "@/lib/utils";
 import { LogoutButton } from "@/components/shop/logout-button";
+import { privatePageMeta } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My Account" };
+// Transactional page: kept out of search results.
+export const metadata = privatePageMeta("My Account");
 
 export default async function AccountPage() {
   const customer = await getCustomerFromCookie();

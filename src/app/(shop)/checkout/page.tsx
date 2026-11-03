@@ -2,11 +2,15 @@ import Link from "next/link";
 import { ArrowLeft, Lock } from "lucide-react";
 import { getSettings } from "@/lib/settings";
 import { CheckoutClient } from "@/components/shop/checkout-client";
+import { privatePageMeta } from "@/lib/seo";
+import { getStorePolicy } from "@/lib/store-policy";
+import { TrustLine } from "@/components/shop/trust-strip";
 
-export const metadata = { title: "Checkout" };
+// Transactional page: kept out of search results.
+export const metadata = privatePageMeta("Checkout");
 
 export default async function CheckoutPage() {
-  const settings = await getSettings();
+  const [settings, policy] = await Promise.all([getSettings(), getStorePolicy()]);
   return (
     <>
       <section className="bg-gradient-to-br from-secondary via-background to-secondary/40 border-b">
@@ -26,6 +30,9 @@ export default async function CheckoutPage() {
               <p className="text-muted-foreground mt-1">
                 {settings.checkoutSubheading || "Almost there — just a few details."}
               </p>
+              <div className="mt-3">
+                <TrustLine policy={policy} />
+              </div>
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Lock className="h-3 w-3" />

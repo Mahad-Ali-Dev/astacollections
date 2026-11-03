@@ -1,10 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { CartPageClient } from "@/components/shop/cart-page-client";
+import { privatePageMeta } from "@/lib/seo";
+import { codLine, deliveryLine, getStorePolicy } from "@/lib/store-policy";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Your Bag" };
+// Transactional page: kept out of search results.
+export const metadata = privatePageMeta("Your Bag");
 
 export default async function CartPage() {
+  const policy = await getStorePolicy();
   const recommended = await prisma.product.findMany({
     where: { isActive: true, isFeatured: true },
     include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
@@ -26,5 +30,17 @@ export default async function CartPage() {
     isFeatured: p.isFeatured,
   }));
 
-  return <CartPageClient recommended={recList} />;
+  return (
+    <CartPageClient
+      recommended={recList}
+      // Display-only copy of the delivery terms; checkout computes the charge.
+      shipping={{
+        fee: policy.shippingFee,
+        freeThreshold: policy.freeShippingThreshold,
+        deliveryLine: deliveryLine(policy),
+        codLine: codLine(policy),
+        returnDays: policy.returnDays,
+      }}
+    />
+  );
 }

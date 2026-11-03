@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { getCustomerFromCookie } from "@/lib/auth";
 import { RegisterForm } from "@/components/shop/auth-forms";
 import { Logo } from "@/components/shop/logo";
+import { privatePageMeta } from "@/lib/seo";
 
-export const metadata = { title: "Create Account" };
+// Transactional page: kept out of search results.
+export const metadata = privatePageMeta("Create Account");
 
 export default async function CustomerRegisterPage() {
   const customer = await getCustomerFromCookie();

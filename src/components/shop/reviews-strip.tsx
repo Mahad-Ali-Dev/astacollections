@@ -46,11 +46,11 @@ export async function ReviewsStrip({
           </Reveal>
         )}
 
-        <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.05}>
+        <Reveal className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.05}>
           {reviews.map((r) => (
             <article
               key={r.id}
-              className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3"
+              className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3 min-w-0 break-words"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">

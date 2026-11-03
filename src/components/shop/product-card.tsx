@@ -116,7 +116,8 @@ export function ProductCard({ product }: { product: ProductCardData }) {
               setWishlisted(!wishlisted);
               toast.success(wishlisted ? "Removed from wishlist" : "Added to wishlist");
             }}
-            aria-label="Wishlist"
+            aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Save ${product.name} to wishlist`}
+            aria-pressed={wishlisted}
             className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white transition-colors"
           >
             <Heart
@@ -151,7 +152,11 @@ export function ProductCard({ product }: { product: ProductCardData }) {
                 });
                 toast.success("Added to bag");
               }}
-              className="absolute bottom-3 left-3 right-3 bg-foreground text-background py-3 text-[11px] uppercase tracking-[0.2em] font-semibold rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-400 ease-out flex items-center justify-center gap-2 shadow-lg"
+              aria-label={`Quick add ${product.name} to bag`}
+              // Hover-only devices get the slide-up button. On touch screens it
+              // used to sit invisible over the photo and add the item when a
+              // shopper tapped the image to open the product.
+              className="absolute bottom-3 left-3 right-3 bg-foreground text-background py-3 text-[11px] uppercase tracking-[0.2em] font-semibold rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 focus-visible:opacity-100 focus-visible:translate-y-0 transition-all duration-400 ease-out hidden [@media(hover:hover)]:flex items-center justify-center gap-2 shadow-lg"
             >
               <ShoppingBag className="h-3.5 w-3.5" />
               Quick Add
@@ -162,7 +167,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
       <div className="mt-4 px-1 space-y-1.5">
         <Link href={`/products/${product.slug}`}>
-          <h3 className="text-sm md:text-[15px] font-medium line-clamp-1 hover:text-accent transition-colors">
+          <h3 className="text-sm md:text-[15px] font-medium leading-snug line-clamp-2 hover:text-accent transition-colors">
             {product.name}
           </h3>
         </Link>

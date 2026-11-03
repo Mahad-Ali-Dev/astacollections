@@ -7,24 +7,13 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: [
-          "/admin",
-          "/admin/*",
-          "/api",
-          "/api/*",
-          "/order-success/*",
-          "/account",
-          "/account/*",
-          "/uploads/*",
-        ],
-      },
-      {
-        userAgent: "Googlebot",
-        allow: "/",
-        disallow: ["/admin", "/admin/*", "/api", "/api/*", "/account", "/account/*"],
+        // Cart, checkout, account and order pages are deliberately NOT
+        // disallowed: they carry a noindex tag, and Google can only see that
+        // tag (and drop any already-indexed copies) if it may crawl them.
+        // A separate Googlebot group used to override these rules entirely.
+        disallow: ["/admin", "/api/"],
       },
     ],
     sitemap: `${SITE.url}/sitemap.xml`,
-    host: SITE.url,
   };
 }
