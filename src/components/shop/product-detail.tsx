@@ -22,11 +22,11 @@ import {
   Sparkles,
   Package,
   Play,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BundleSection, type BundleData } from "./bundle-section";
-import { OfferTimer } from "./offer-timer";
 import {
   ProductAttributePicker,
   computeAttributesPriceModifier,
@@ -36,10 +36,12 @@ import {
 } from "./product-attribute-picker";
 import { useCart } from "@/lib/cart-store";
 import { track } from "@/lib/fbpixel";
-import { formatPrice, getDiscountPercent, defaultOfferEndsAt } from "@/lib/utils";
+import { formatPrice, getDiscountPercent } from "@/lib/utils";
+import { SITE } from "@/lib/seo";
 import { prettyTag } from "@/lib/tags";
 import { toast } from "sonner";
 import { OPEN_WHATSAPP_EVENT } from "./whatsapp-widget";
+import { Stars } from "./reviews-section";
 
 type Product = {
   id: string;
@@ -70,6 +72,7 @@ export function ProductDetail({
   avgRating = 0,
   reviewCount = 0,
   codAdvance = 0,
+  categoryLabel,
 }: {
   product: Product;
   bundle?: BundleData | null;
@@ -83,6 +86,8 @@ export function ProductDetail({
   reviewCount?: number;
   /** Advance collected before dispatch. 0 means pure cash on delivery. */
   codAdvance?: number;
+  /** Display name for the collection (DB names can be slugs like "couple-rings"). */
+  categoryLabel?: string;
 }) {
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
@@ -210,13 +215,13 @@ export function ProductDetail({
     setActiveImg((i) => (i + dir + media.length) % media.length);
   };
 
-  const deliveryDate = new Date();
-  deliveryDate.setDate(deliveryDate.getDate() + 5);
-  const deliveryStr = deliveryDate.toLocaleDateString("en-PK", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-  });
+  // Delivery window: dispatch in 1-2 business days + 3-5 days in transit
+  // (the terms on /shipping), shown as calendar dates. Approximate on purpose.
+  const fmtDay = (d: Date) => d.toLocaleDateString("en-PK", { weekday: "short", day: "numeric", month: "short" });
+  const arriveFrom = new Date();
+  arriveFrom.setDate(arriveFrom.getDate() + 4);
+  const arriveTo = new Date();
+  arriveTo.setDate(arriveTo.getDate() + 7);
 
   // Delivery is free either when no fee is configured, or when this line's
   // value already clears the threshold. Recomputed as qty changes so the
@@ -224,50 +229,102 @@ export function ProductDetail({
   const lineTotal = product.price * qty;
   const qualifiesForFreeShipping =
     shippingFee <= 0 || (freeShippingThreshold > 0 && lineTotal >= freeShippingThreshold);
+  const saving = product.comparePrice && product.comparePrice > product.price ? product.comparePrice - product.price : 0;
+
+  // Gallery: swipe track on phones keeps `activeImg` in sync with the dots.
+  const trackRef = useRef<HTMLDivElement>(null);
+  const onTrackScroll = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    if (i !== activeImg) setActiveImg(i);
+  };
+  const showMedia = (i: number) => {
+    if (currentMedia?.type === "video") videoRef.current?.pause();
+    setActiveImg(i);
+    const el = trackRef.current;
+    if (el && el.offsetParent !== null) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+  };
+  // Desktop hover zoom follows the cursor.
+  const [zoomOrigin, setZoomOrigin] = useState<string | null>(null);
+
+  const whatsappHref = `${SITE.social.whatsapp}?text=${encodeURIComponent(
+    `Hi! I'd like to order: ${product.name} (${formatPrice(effectivePrice)}) ${SITE.url}/products/${product.slug}`
+  )}`;
+  const shownTags = product.tagsList.slice(0, 4);
 
   return (
     <>
-      <div className="grid lg:grid-cols-12 gap-8 lg:gap-12">
-        {/* GALLERY — left, sticky */}
-        <div className="lg:col-span-7 lg:sticky lg:top-28 lg:self-start space-y-4 min-w-0">
-          <div className="grid grid-cols-1 md:grid-cols-[88px_1fr] gap-3">
-            {/* Vertical thumbnails on desktop */}
-            {hasMultiple && (
-              <div className="hidden md:flex flex-col gap-2 max-h-[640px] overflow-y-auto no-scrollbar">
+      <div className="grid gap-8 lg:grid-cols-12 lg:gap-14">
+        {/* GALLERY: sticky on desktop */}
+        <div className="min-w-0 lg:col-span-7 lg:sticky lg:top-28 lg:self-start">
+          {/* Phones: swipeable track with dots */}
+          <div className="md:hidden">
+            <div className="relative -mx-4">
+              <div
+                ref={trackRef}
+                onScroll={onTrackScroll}
+                className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto"
+                aria-label={`${product.name} photos`}
+              >
                 {media.map((m, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImg(i)}
-                    className={`relative aspect-square rounded-lg overflow-hidden bg-secondary/60 transition ${
-                      activeImg === i
-                        ? "ring-2 ring-accent ring-offset-2"
-                        : "opacity-70 hover:opacity-100"
-                    }`}
-                    aria-label={m.type === "video" ? "View product video" : `View image ${i + 1}`}
-                  >
+                  <div key={i} className="relative aspect-square w-full shrink-0 snap-center bg-secondary/60">
+                    <div className="absolute inset-0 shimmer" aria-hidden="true" />
                     {m.type === "video" ? (
-                      <>
-                        {m.poster ? (
-                          <Image src={m.poster} alt="Video" fill sizes="88px" className="object-cover" />
-                        ) : (
-                          <div className="absolute inset-0 bg-black" />
-                        )}
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <Play className="h-5 w-5 text-white fill-white" strokeWidth={1.5} />
-                        </span>
-                      </>
+                      <video
+                        ref={i === activeImg ? videoRef : undefined}
+                        src={m.url}
+                        poster={m.poster ?? undefined}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="absolute inset-0 h-full w-full object-cover bg-black"
+                      />
                     ) : (
-                      <Image src={m.url} alt={m.alt ?? ""} fill sizes="88px" className="object-cover" />
+                      <button type="button" onClick={() => { setActiveImg(i); setZoomOpen(true); }} className="absolute inset-0" aria-label="Open full-screen photo">
+                        <Image
+                          src={m.url}
+                          alt={m.alt || product.name}
+                          fill
+                          sizes="100vw"
+                          priority={i === 0}
+                          className="object-cover"
+                        />
+                      </button>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
+              <GalleryBadges discount={discount} featured={product.isFeatured} />
+            </div>
+            {hasMultiple && (
+              <>
+                <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
+                  {media.map((_, i) => (
+                    <span key={i} className={`h-1.5 rounded-full transition-all ${i === activeImg ? "w-5 bg-foreground" : "w-1.5 bg-border"}`} />
+                  ))}
+                </div>
+                <Thumbs media={media} active={activeImg} onPick={showMedia} className="mt-3 grid grid-cols-5 gap-2" />
+              </>
             )}
+          </div>
 
-            {/* Main image or video */}
-            <div className="relative aspect-square md:aspect-[4/5] rounded-2xl overflow-hidden bg-secondary/60 group card-soft">
-              {/* Shimmer underneath while the photo downloads; the image paints
-                  over it and is never hidden itself, so it can't get stuck invisible. */}
+          {/* Tablets / desktop: thumbnails + large main image with hover zoom */}
+          <div className="hidden gap-4 md:grid md:grid-cols-[76px_1fr]">
+            {hasMultiple ? (
+              <Thumbs media={media} active={activeImg} onPick={showMedia} className="no-scrollbar flex max-h-[680px] flex-col gap-2.5 overflow-y-auto" />
+            ) : (
+              <span />
+            )}
+            <div
+              className={`group relative aspect-[4/5] overflow-hidden rounded-[1.75rem] bg-secondary/60 ${!hasMultiple ? "col-start-1 col-span-2" : ""}`}
+              onMouseMove={(e) => {
+                if (currentMedia?.type !== "image") return;
+                const r = e.currentTarget.getBoundingClientRect();
+                setZoomOrigin(`${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`);
+              }}
+              onMouseLeave={() => setZoomOrigin(null)}
+            >
               <div className="absolute inset-0 shimmer" aria-hidden="true" />
               {currentMedia ? (
                 currentMedia.type === "video" ? (
@@ -279,395 +336,284 @@ export function ProductDetail({
                     controls
                     playsInline
                     preload="metadata"
-                    className="absolute inset-0 w-full h-full object-cover bg-black"
+                    className="absolute inset-0 h-full w-full object-cover bg-black"
                   />
                 ) : (
-                  <>
+                  <button type="button" onClick={() => setZoomOpen(true)} className="absolute inset-0 cursor-zoom-in" aria-label="Open full-screen photo">
                     <Image
                       src={currentMedia.url}
                       alt={currentMedia.alt || product.name}
                       fill
-                      sizes="(max-width: 1024px) 100vw, 50vw"
-                      className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                      sizes="(max-width: 1024px) 90vw, 55vw"
                       priority
+                      className="object-cover transition-transform duration-300 ease-out motion-reduce:transition-none"
+                      style={zoomOrigin ? { transform: "scale(1.8)", transformOrigin: zoomOrigin } : undefined}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setZoomOpen(true)}
-                      className="absolute top-4 right-4 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow"
-                      aria-label="Zoom"
-                    >
-                      <ZoomIn className="h-4 w-4" />
-                    </button>
-                  </>
+                  </button>
                 )
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  No image
-                </div>
+                <div className="flex h-full items-center justify-center text-muted-foreground">No image</div>
               )}
-
-              {/* Prev / next arrows work across video + images */}
+              <GalleryBadges discount={discount} featured={product.isFeatured} />
               {hasMultiple && (
                 <>
                   <button
+                    type="button"
                     onClick={() => goImg(-1)}
-                    aria-label="Previous"
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow z-10"
+                    aria-label="Previous photo"
+                    className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/95 p-2.5 opacity-0 shadow transition group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => goImg(1)}
-                    aria-label="Next"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow z-10"
+                    aria-label="Next photo"
+                    className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white/95 p-2.5 opacity-0 shadow transition group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </>
               )}
-
-              {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10">
-                {discount > 0 && (
-                  <span className="bg-accent text-accent-foreground text-[10px] uppercase tracking-[0.18em] font-bold px-3 py-1.5 rounded-full">
-                    −{discount}% OFF
-                  </span>
-                )}
-                {product.isFeatured && (
-                  <span className="bg-foreground text-background text-[10px] uppercase tracking-[0.18em] font-semibold px-3 py-1.5 rounded-full">
-                    Bestseller
-                  </span>
-                )}
-              </div>
-
-              {hasMultiple && (
-                <div className="absolute bottom-4 right-4 bg-foreground/85 text-background text-xs px-3 py-1.5 rounded-full backdrop-blur z-10">
-                  {activeImg + 1} / {media.length}
-                </div>
+              {currentMedia?.type === "image" && (
+                <span className="pointer-events-none absolute bottom-4 right-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-medium shadow-sm transition-opacity group-hover:opacity-0">
+                  <ZoomIn className="h-3.5 w-3.5" aria-hidden="true" /> Hover to zoom
+                </span>
               )}
             </div>
           </div>
-
-          {/* Mobile thumbnail strip */}
-          {hasMultiple && (
-            <div className="md:hidden grid grid-cols-5 gap-2">
-              {media.map((m, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveImg(i)}
-                  className={`relative aspect-square rounded-lg overflow-hidden bg-secondary/60 transition ${
-                    activeImg === i ? "ring-2 ring-accent ring-offset-1" : "opacity-70"
-                  }`}
-                  aria-label={m.type === "video" ? "View product video" : `View image ${i + 1}`}
-                >
-                  {m.type === "video" ? (
-                    <>
-                      {m.poster ? (
-                        <Image src={m.poster} alt="Video" fill sizes="100px" className="object-cover" />
-                      ) : (
-                        <div className="absolute inset-0 bg-black" />
-                      )}
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <Play className="h-4 w-4 text-white fill-white" strokeWidth={1.5} />
-                      </span>
-                    </>
-                  ) : (
-                    <Image src={m.url} alt={m.alt ?? ""} fill sizes="100px" className="object-cover" />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* INFO — right column */}
-        <div className="lg:col-span-5 space-y-7 pb-32 md:pb-0 min-w-0">
-          <div className="space-y-3">
-            <Link
-              href={`/category/${product.category.slug}`}
-              className="eyebrow-accent hover:underline inline-flex items-center gap-2"
-            >
-              <span className="h-px w-6 bg-accent" />
-              {product.category.name}
-            </Link>
-            <h1 className="display-2">{product.name}</h1>
-            {product.shortDesc && (
-              <p className="text-muted-foreground text-pretty leading-relaxed">
-                {product.shortDesc}
-              </p>
-            )}
-          </div>
+        {/* INFO */}
+        <div className="min-w-0 pb-28 md:pb-0 lg:col-span-5">
+          <Link
+            href={`/category/${product.category.slug}`}
+            className="eyebrow-accent inline-flex items-center gap-2 hover:underline"
+          >
+            <span className="h-px w-6 bg-accent" aria-hidden="true" />
+            {categoryLabel ?? product.category.name}
+          </Link>
+          <h1 className="mt-3 font-serif text-[2rem] leading-[1.08] tracking-tight text-balance md:text-[2.6rem]">
+            {product.name}
+          </h1>
 
-          {/* Rating */}
-          {/* Real ratings only — hidden entirely until this product has
-              approved reviews, so the badge can never contradict the
-              reviews section further down the page. */}
+          {/* This product's own rating only (never the store total) */}
           {reviewCount > 0 && (
-            <div className="flex items-center gap-3 text-sm">
-              <div className="flex">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className={
-                      i < Math.round(avgRating)
-                        ? "h-4 w-4 fill-accent text-accent"
-                        : "h-4 w-4 text-muted-foreground/40"
-                    }
-                  />
-                ))}
-              </div>
-              <span className="text-muted-foreground">
-                {avgRating.toFixed(1)} · {reviewCount}{" "}
-                {reviewCount === 1 ? "review" : "reviews"}
+            <a href="#reviews" className="mt-3 inline-flex items-center gap-2 text-sm hover:text-accent">
+              <Stars rating={avgRating} className="h-4 w-4" />
+              <span className="underline-offset-4 hover:underline">
+                {avgRating.toFixed(1)} · {reviewCount} {reviewCount === 1 ? "review" : "reviews"}
               </span>
-            </div>
+            </a>
           )}
 
           {/* PRICE */}
-          <div className="space-y-2 pb-6 border-b border-border/70">
-            <div className="flex items-baseline gap-x-3 gap-y-2 flex-wrap">
-              <span className="text-2xl sm:text-3xl md:text-4xl font-semibold tabular-nums">
-                {formatPrice(effectivePrice)}
-              </span>
-              {product.comparePrice && product.comparePrice > product.price && (
-                <>
-                  <span className="text-base sm:text-lg text-muted-foreground line-through tabular-nums">
-                    {formatPrice(product.comparePrice)}
-                  </span>
-                  <Badge variant="success" className="rounded-full px-3 py-1 whitespace-nowrap">
-                    Save {formatPrice(product.comparePrice - product.price)}
-                  </Badge>
-                </>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">Inclusive of all taxes</p>
-            {discount > 0 && <OfferTimer endsAt={defaultOfferEndsAt()} variant="compact" />}
-          </div>
-
-          {/* Stock */}
-          <div className="flex items-center gap-2 text-sm">
-            {outOfStock ? (
+          <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+            <span className="text-3xl font-semibold tabular-nums md:text-4xl">{formatPrice(effectivePrice)}</span>
+            {saving > 0 && (
               <>
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                <span className="text-destructive font-medium">
-                  {variantSoldOut ? "Selected variant out of stock" : "Out of stock"}
+                <span className="text-lg tabular-nums text-muted-foreground line-through">{formatPrice(product.comparePrice)}</span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                  You save {formatPrice(saving)} ({discount}%)
                 </span>
-              </>
-            ) : effectiveStock < 5 ? (
-              <>
-                <span className="h-2 w-2 rounded-full bg-amber-600 animate-pulse" />
-                <span className="text-amber-700 font-medium">
-                  Only {effectiveStock} left — order soon
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="h-2 w-2 rounded-full bg-green-600" />
-                <span className="text-green-700 font-medium">In stock — ready to ship</span>
               </>
             )}
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">Inclusive of all taxes</p>
 
-          {/* VARIANT PICKER (size / color / etc) */}
-          {attrs.length > 0 && (
-            <div className="space-y-4">
-              <ProductAttributePicker
-                attributes={attrs}
-                selected={selectedAttrs}
-                onChange={setSelectedAttrs}
-              />
-            </div>
+          {/* Stock: from the real stock count */}
+          <p className="mt-4 flex items-center gap-2 text-sm">
+            {outOfStock ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-destructive" aria-hidden="true" />
+                <span className="font-medium text-destructive">{variantSoldOut ? "Selected option is sold out" : "Sold out"}</span>
+              </>
+            ) : effectiveStock < 5 ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-amber-600" aria-hidden="true" />
+                <span className="font-medium text-amber-800">Only {effectiveStock} left in stock</span>
+              </>
+            ) : (
+              <>
+                <span className="h-2 w-2 rounded-full bg-emerald-600" aria-hidden="true" />
+                <span className="font-medium text-emerald-800">In stock, ready to ship</span>
+              </>
+            )}
+          </p>
+
+          {product.shortDesc && (
+            <p className="mt-5 leading-relaxed text-muted-foreground text-pretty">{product.shortDesc}</p>
           )}
 
-          {/* QUANTITY + ADD */}
-          {!outOfStock && (
-            <div className="flex flex-row flex-wrap items-center gap-3">
-              <div className="flex items-center border border-border rounded-full h-14 bg-card shrink-0">
-                <button
-                  onClick={() => setQty(Math.max(1, qty - 1))}
-                  className="px-5 h-full hover:text-accent disabled:opacity-30 transition-colors"
-                  disabled={qty <= 1}
-                  aria-label="Decrease"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="px-4 tabular-nums font-semibold min-w-[3rem] text-center">{qty}</span>
-                <button
-                  onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
-                  className="px-5 h-full hover:text-accent disabled:opacity-30 transition-colors"
-                  disabled={qty >= effectiveStock}
-                  aria-label="Increase"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              {/* Inline ADD TO BAG — hidden on mobile (sticky bottom bar handles it) */}
-              <button
-                onClick={handleAdd}
-                className="group hidden sm:flex flex-1 h-14 bg-foreground text-background rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-all gold-button-glow items-center justify-center gap-2 min-w-[200px]"
-              >
-                <ShoppingBag className="h-4 w-4" />
-                Add to Bag · {formatPrice(effectivePrice * qty)}
-              </button>
-              <button
-                onClick={() => setWishlisted(!wishlisted)}
-                aria-label="Wishlist"
-                className="border border-border rounded-full w-14 h-14 flex items-center justify-center hover:border-accent transition shrink-0 ml-auto sm:ml-0"
-              >
-                <Heart
-                  className={`h-5 w-5 transition-colors ${
-                    wishlisted ? "fill-accent text-accent" : ""
-                  }`}
-                  strokeWidth={1.6}
-                />
-              </button>
-            </div>
-          )}
+          <div className="mt-7 space-y-5 border-t border-border/70 pt-7">
+            {attrs.length > 0 && (
+              <ProductAttributePicker attributes={attrs} selected={selectedAttrs} onChange={setSelectedAttrs} />
+            )}
 
-          {outOfStock && (
-            <Button size="xl" disabled className="w-full h-14 rounded-full">
-              Sold Out
-            </Button>
-          )}
-
-          {/* BUNDLE */}
-          {bundle && bundle.items.length >= 2 && (
-            <BundleSection bundle={bundle} currentProductId={product.id} />
-          )}
-
-          {/* DELIVERY/PROMISES */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <Promise
-              icon={Truck}
-              title={qualifiesForFreeShipping ? "Free delivery" : `${formatPrice(shippingFee)} delivery`}
-              sub={
-                qualifiesForFreeShipping
-                  ? `Arrives ~${deliveryStr}`
-                  : `Free over ${formatPrice(freeShippingThreshold)}`
-              }
-            />
-            <Promise icon={RefreshCcw} title="7-day returns" sub="On unworn pieces" />
-            <Promise
-              icon={Package}
-              title="COD or Bank"
-              sub={
-                codAdvance > 0
-                  ? `${formatPrice(codAdvance)} advance for COD`
-                  : "Pay in full on delivery"
-              }
-            />
-            <Promise icon={Award} title="Quality first" sub="Hand-inspected" />
-          </div>
-
-          {/* TAGS */}
-          {product.tagsList.length > 0 && (
-            <div>
-              <p className="eyebrow mb-2.5">Tags</p>
-              <div className="flex flex-wrap gap-2">
-                {product.tagsList.map((tag) => (
-                  <Link
-                    key={tag}
-                    href={`/products?q=${encodeURIComponent(tag)}`}
-                    className="text-xs px-3 py-1.5 bg-secondary hover:bg-accent hover:text-accent-foreground rounded-full transition-colors border border-border/60"
+            {!outOfStock ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 shrink-0 items-center rounded-full border border-border bg-card">
+                    <button
+                      type="button"
+                      onClick={() => setQty(Math.max(1, qty - 1))}
+                      className="h-full px-4 transition-colors hover:text-accent disabled:opacity-30"
+                      disabled={qty <= 1}
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+                    <span className="min-w-[2.5rem] text-center font-semibold tabular-nums" aria-live="polite">{qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQty(Math.min(effectiveStock, qty + 1))}
+                      className="h-full px-4 transition-colors hover:text-accent disabled:opacity-30"
+                      disabled={qty >= effectiveStock}
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setWishlisted(!wishlisted)}
+                    aria-label={wishlisted ? "Remove from wishlist" : "Save to wishlist"}
+                    aria-pressed={wishlisted}
+                    className="ml-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border transition hover:border-accent"
                   >
-                    {prettyTag(tag)}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* SHARE */}
-          <div className="flex items-center gap-3 pt-2 border-t border-border/70 text-sm">
-            <button
-              onClick={handleShare}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-2"
-            >
-              <Share2 className="h-4 w-4" />
-              Share
-            </button>
-            <span className="text-border">·</span>
-            <span className="text-xs text-muted-foreground font-mono">SKU: {product.sku}</span>
-          </div>
-
-          {/* TABS */}
-          <div className="rounded-2xl border border-border/70 overflow-hidden">
-            <div className="flex border-b border-border/70 bg-secondary/40 overflow-x-auto no-scrollbar">
-              {(["description", "details", "shipping", "care"] as const).map((t) => (
+                    <Heart className={`h-5 w-5 transition-colors ${wishlisted ? "fill-accent text-accent" : ""}`} strokeWidth={1.6} />
+                  </button>
+                </div>
                 <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`px-5 py-4 text-xs uppercase tracking-[0.2em] font-semibold capitalize whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                    activeTab === t
-                      ? "border-accent text-foreground bg-white"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
+                  type="button"
+                  onClick={handleAdd}
+                  className="group flex h-14 w-full items-center justify-center gap-2 rounded-full bg-foreground text-xs font-semibold uppercase tracking-[0.2em] text-background transition-all hover:bg-accent gold-button-glow"
                 >
-                  {t}
+                  <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+                  Add to bag · {formatPrice(effectivePrice * qty)}
                 </button>
-              ))}
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-emerald-700/30 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800 transition-colors hover:bg-emerald-50"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  Order on WhatsApp
+                </a>
+              </>
+            ) : (
+              <Button size="xl" disabled className="h-14 w-full rounded-full">
+                Sold out
+              </Button>
+            )}
+
+            {/* Delivery estimate + compact trust row */}
+            <div className="rounded-2xl bg-secondary/60 p-4 text-sm">
+              <p className="flex items-start gap-2.5">
+                <Truck className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                <span>
+                  Order today, usually arrives <strong className="font-semibold">{fmtDay(arriveFrom)} – {fmtDay(arriveTo)}</strong>.{" "}
+                  <span className="text-muted-foreground">
+                    {qualifiesForFreeShipping
+                      ? "Free delivery."
+                      : `${formatPrice(shippingFee)} delivery, free over ${formatPrice(freeShippingThreshold)}.`}
+                  </span>
+                </span>
+              </p>
+              <ul className="mt-3 grid grid-cols-3 divide-x divide-border/80 border-t border-border/70 pt-3 text-center text-[11px] leading-tight">
+                <li className="px-1">
+                  <Package className="mx-auto mb-1 h-4 w-4 text-accent" aria-hidden="true" />
+                  {codAdvance > 0 ? `COD (${formatPrice(codAdvance)} advance)` : "Cash on delivery"}
+                </li>
+                <li className="px-1">
+                  <RefreshCcw className="mx-auto mb-1 h-4 w-4 text-accent" aria-hidden="true" />
+                  7-day returns
+                </li>
+                <li className="px-1">
+                  <MessageCircle className="mx-auto mb-1 h-4 w-4 text-accent" aria-hidden="true" />
+                  WhatsApp help
+                </li>
+              </ul>
             </div>
-            <div className="p-6 text-sm text-muted-foreground leading-relaxed bg-white">
-              {activeTab === "description" && (
+
+            {bundle && bundle.items.length >= 2 && <BundleSection bundle={bundle} currentProductId={product.id} />}
+
+            {/* ACCORDIONS */}
+            <div className="divide-y divide-border/70 border-y border-border/70">
+              <Accordion title="Description" defaultOpen>
                 <p className="whitespace-pre-line text-pretty">{product.description}</p>
-              )}
-              {activeTab === "details" && (
+              </Accordion>
+              <Accordion title="Details">
                 <ul className="space-y-2.5">
-                  <DetailLine label="SKU" value={product.sku} mono />
-                  <DetailLine label="Category" value={product.category.name} />
                   {product.material && <DetailLine label="Material" value={product.material} />}
-                  {product.weight && <DetailLine label="Weight" value={`${product.weight}g`} />}
-                  <DetailLine
-                    label="In stock"
-                    value={`${product.stock} ${product.stock === 1 ? "piece" : "pieces"}`}
-                  />
+                  {product.weight ? <DetailLine label="Weight" value={`${product.weight} g`} /> : null}
+                  <DetailLine label="Collection" value={categoryLabel ?? product.category.name} />
+                  <DetailLine label="SKU" value={product.sku} mono />
                 </ul>
-              )}
-              {activeTab === "shipping" && (
+                {shownTags.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {shownTags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/products?q=${encodeURIComponent(tag)}`}
+                        className="rounded-full border border-border/70 px-3 py-1 text-xs transition-colors hover:border-accent hover:text-accent"
+                      >
+                        {prettyTag(tag)}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </Accordion>
+              <Accordion title="Shipping & payment">
                 <div className="space-y-3">
                   <p>
                     <strong className="text-foreground">Delivery:</strong>{" "}
                     {shippingFee > 0 ? (
                       <>
-                        {formatPrice(shippingFee)} per order — free on orders above{" "}
-                        {formatPrice(freeShippingThreshold)}.
+                        {formatPrice(shippingFee)} per order, free on orders of {formatPrice(freeShippingThreshold)} or more.
                       </>
                     ) : (
                       <>Free on every order.</>
                     )}{" "}
-                    Standard delivery 3–5 business days across Pakistan.
+                    Dispatched in 1–2 business days, delivered in 3–5 business days across Pakistan.
                   </p>
                   <p>
-                    <strong className="text-foreground">Cash on Delivery:</strong>{" "}
+                    <strong className="text-foreground">Cash on delivery:</strong>{" "}
                     {codAdvance > 0
                       ? `${formatPrice(codAdvance)} advance via bank transfer; balance on delivery.`
                       : "Pay the full amount to the courier on delivery."}
                   </p>
                   <p>
-                    <strong className="text-foreground">Bank Transfer:</strong> Pay full amount up
-                    front. Order ships once verified.
+                    <strong className="text-foreground">Returns:</strong> 7 days from delivery for unworn pieces in their
+                    original packaging. <Link href="/shipping" className="underline underline-offset-2">Full policy</Link>
                   </p>
                 </div>
-              )}
-              {activeTab === "care" && (
-                <div className="space-y-3">
-                  <p>To keep your piece looking new for years:</p>
-                  <ul className="space-y-2 list-none">
-                    {[
-                      "Remove before showering, swimming or applying perfume.",
-                      "Store in a soft pouch, away from other pieces.",
-                      "Clean gently with a soft, dry cloth after wear.",
-                      "Avoid contact with chemicals, lotions and chlorine.",
-                    ].map((line) => (
-                      <li key={line} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-accent shrink-0 mt-0.5" />
-                        <span>{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              </Accordion>
+              <Accordion title="Care">
+                <ul className="space-y-2">
+                  {[
+                    "Put perfume and lotion on before your jewellery, and take it off for showering and swimming.",
+                    "Store pieces separately in a soft pouch so they don't scratch.",
+                    "Wipe with a soft, dry cloth after wearing.",
+                  ].map((line) => (
+                    <li key={line} className="flex items-start gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/guides/how-to-clean-stainless-steel-jewellery" className="mt-3 inline-block underline underline-offset-2">
+                  How to clean stainless steel jewellery
+                </Link>
+              </Accordion>
+            </div>
+
+            <div className="flex items-center gap-3 text-sm">
+              <button type="button" onClick={handleShare} className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+                <Share2 className="h-4 w-4" aria-hidden="true" />
+                Share
+              </button>
             </div>
           </div>
         </div>
@@ -780,5 +726,84 @@ function DetailLine({ label, value, mono }: { label: string; value: React.ReactN
       <span className="text-foreground font-medium">{label}</span>
       <span className={`col-span-2 ${mono ? "font-mono" : ""}`}>{value}</span>
     </li>
+  );
+}
+
+type GalleryMedia =
+  | { type: "video"; url: string; poster?: string | null }
+  | { type: "image"; url: string; alt?: string | null };
+
+function GalleryBadges({ discount, featured }: { discount: number; featured: boolean }) {
+  if (discount <= 0 && !featured) return null;
+  return (
+    <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-1.5">
+      {discount > 0 && (
+        <span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-accent shadow-sm">
+          −{discount}%
+        </span>
+      )}
+      {featured && (
+        <span className="rounded-full bg-foreground px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-background">
+          Bestseller
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Thumbs({
+  media,
+  active,
+  onPick,
+  className,
+}: {
+  media: GalleryMedia[];
+  active: number;
+  onPick: (i: number) => void;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      {media.map((m, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onPick(i)}
+          aria-label={m.type === "video" ? "Show product video" : `Show photo ${i + 1}`}
+          aria-current={active === i ? "true" : undefined}
+          className={`relative aspect-square shrink-0 overflow-hidden rounded-xl bg-secondary/60 transition ${
+            active === i ? "ring-2 ring-foreground ring-offset-2" : "opacity-70 hover:opacity-100"
+          }`}
+        >
+          {m.type === "video" ? (
+            <>
+              {m.poster ? (
+                <Image src={m.poster} alt="" fill sizes="80px" className="object-cover" />
+              ) : (
+                <span className="absolute inset-0 bg-black" />
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <Play className="h-4 w-4 fill-white text-white" strokeWidth={1.5} aria-hidden="true" />
+              </span>
+            </>
+          ) : (
+            <Image src={m.url} alt="" fill sizes="80px" className="object-cover" />
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Native <details> accordion: works without JS and is keyboard accessible. */
+function Accordion({ title, children, defaultOpen }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details className="group py-1" open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold uppercase tracking-[0.16em]">
+        {title}
+        <Plus className="h-4 w-4 shrink-0 transition-transform group-open:rotate-45" aria-hidden="true" />
+      </summary>
+      <div className="pb-5 text-sm leading-relaxed text-muted-foreground">{children}</div>
+    </details>
   );
 }

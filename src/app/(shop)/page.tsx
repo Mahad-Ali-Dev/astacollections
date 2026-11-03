@@ -6,18 +6,18 @@ import { ProductCarousel } from "@/components/shop/product-carousel";
 import { Hero, type HeroSlide } from "@/components/shop/hero";
 import { Marquee } from "@/components/shop/marquee";
 import { CollectionGrid } from "@/components/shop/collection-grid";
-import { FullBanner, DualBanner } from "@/components/shop/banners";
-import { ReviewsMarquee } from "@/components/shop/reviews-marquee";
+import { FullBanner } from "@/components/shop/banners";
+import { HomeIntro } from "@/components/shop/home-intro";
+import { OfferBand } from "@/components/shop/offer-band";
+import { EditTiles } from "@/components/shop/edit-tiles";
+import { HomeReviews, type HomeReview } from "@/components/shop/home-reviews";
 import { guideProducts } from "@/lib/guide-data";
 import type { ProductCardData } from "@/components/shop/product-card";
-import { OfferTimer } from "@/components/shop/offer-timer";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
-import { defaultOfferEndsAt } from "@/lib/utils";
-import { getSettings } from "@/lib/settings";
+import { getSettings, parseVideoCarouselItems } from "@/lib/settings";
 import { SectionSlot } from "@/components/shop/section-slot";
-import { TrustStrip } from "@/components/shop/trust-strip";
-import { getStorePolicy } from "@/lib/store-policy";
+import { getStorePolicy, syncDeliveryAmount } from "@/lib/store-policy";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { pageMeta, SITE } from "@/lib/seo";
 import { formatPrice } from "@/lib/utils";
@@ -42,7 +42,7 @@ const INTRO_LINKS = [
 ];
 
 export default async function HomePage() {
-  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest, giftPicks, forHer] = await Promise.all([
+  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest, giftPicks, forHer, introCats] = await Promise.all([
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
@@ -52,7 +52,6 @@ export default async function HomePage() {
     prisma.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: "asc" },
-      take: 6,
       include: { _count: { select: { products: true, extraProducts: true } } },
     }),
     prisma.product.findMany({
@@ -80,10 +79,7 @@ export default async function HomePage() {
       },
     }),
     getSettings(),
-    // Strongest recent reviews for the homepage testimonial carousel. Longer
-    // bodies read better at that size, so short ones are filtered out.
-    // Strongest recent reviews for the review wall. Mid-length bodies read
-    // best on a card, so very short and very long ones are filtered below.
+    // Approved 4-5 star reviews for the home review block (de-duplicated below).
     prisma.review.findMany({
       where: { status: "APPROVED", rating: { gte: 4 } },
       orderBy: { createdAt: "desc" },
@@ -93,7 +89,15 @@ export default async function HomePage() {
         customerName: true,
         rating: true,
         body: true,
-        product: { select: { name: true, slug: true, isActive: true } },
+        verified: true,
+        product: {
+          select: {
+            name: true,
+            slug: true,
+            isActive: true,
+            images: { orderBy: { sortOrder: "asc" }, take: 1, select: { url: true } },
+          },
+        },
       },
     }),
     getStorePolicy(),
@@ -104,29 +108,62 @@ export default async function HomePage() {
     }),
     guideProducts(["zircon-rings", "studs", "pendant", "enamel-rings", "hand-cuff", "couple-rings"], 2000, 12),
     guideProducts(["pendant", "studs", "bracelets", "mother-pearl-rings"], undefined, 12),
+    prisma.category.findMany({
+      where: { slug: { in: INTRO_LINKS.map((l) => l.slug) }, isActive: true },
+      select: { slug: true, image: true },
+    }),
   ]);
 
+  // The welcome offer comes from the real coupon record, so its terms (and
+  // a countdown, only when the admin set an expiry) can't drift.
+  const now = new Date();
+  // The announcement-code setting is often left blank; WELCOME10 is the code
+  // the home page has always promoted. Either way it must match a live coupon.
+  const offerCode = (settings.announcementCode || "WELCOME10").trim().toUpperCase();
+  const offerCoupon = offerCode
+    ? await prisma.coupon.findFirst({
+        where: {
+          code: offerCode,
+          isActive: true,
+          OR: [{ startsAt: null }, { startsAt: { lte: now } }],
+          AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }],
+        },
+        select: { code: true, discountType: true, discountValue: true, minOrder: true, maxDiscount: true, expiresAt: true },
+      })
+    : null;
+
   // Most imported reviews share the same template wording (Nov 2026: 951
-  // reviews, 72 distinct texts, 718 opening with the same sentence). A wall of
-  // repeats reads as fake, so keep one review per opening phrase.
-  const seenOpenings = new Set<string>();
-  const marqueeReviews = reviewPool
-    .filter((r) => {
-      const body = r.body.trim();
-      if (body.length < 40 || body.length > 260) return false;
-      const key = body.toLowerCase().replace(/[^a-z ]/g, "").slice(0, 40);
-      if (seenOpenings.has(key)) return false;
-      seenOpenings.add(key);
-      return true;
-    })
-    .slice(0, 24)
-    .map((r) => ({
+  // reviews, 72 distinct texts, 718 opening with the same sentence). Show one
+  // card per opening phrase and say how many others said the same, rather
+  // than repeating the text.
+  const byOpening = new Map<string, { review: (typeof reviewPool)[number]; similar: number }>();
+  for (const r of reviewPool) {
+    const body = r.body.trim();
+    if (body.length < 30 || body.length > 320) continue;
+    const key = body.toLowerCase().replace(/[^a-z ]/g, "").slice(0, 40);
+    const hit = byOpening.get(key);
+    if (hit) hit.similar += 1;
+    else byOpening.set(key, { review: r, similar: 0 });
+  }
+  const homeReviews: HomeReview[] = [...byOpening.values()]
+    // Feature a review that has a product photo first, then the rest.
+    .sort((a, b) => Number(!!b.review.product?.images[0]) - Number(!!a.review.product?.images[0]))
+    .slice(0, 4)
+    .map(({ review: r, similar }) => ({
       id: r.id,
       name: r.customerName,
       rating: r.rating,
       body: r.body.trim(),
-      product: r.product && r.product.isActive ? { name: r.product.name, slug: r.product.slug } : null,
+      verified: r.verified,
+      similar,
+      product:
+        r.product && r.product.isActive
+          ? { name: r.product.name, slug: r.product.slug, image: r.product.images[0]?.url ?? null }
+          : null,
     }));
+  const clips = parseVideoCarouselItems(settings.videoCarouselItems)
+    .filter((c) => c.poster)
+    .map((c) => ({ poster: c.poster!, href: c.href ?? null, caption: c.caption ?? null }));
 
   const toCard = (p: (typeof giftPicks)[number]): ProductCardData => ({
     id: p.id,
@@ -172,55 +209,76 @@ export default async function HomePage() {
     },
   ].filter((s) => s.image && s.title);
 
-  const collections = categoriesWithCount.map((c) => ({
-    // Some category names in the database are slugs ("couple-rings").
-    name: COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
-    slug: c.slug,
-    description: c.description,
-    image: c.image ?? "",
-    // Collections can hold products whose primary category is elsewhere,
-    // so both relations count towards what a shopper will actually see.
-    productCount: c._count.products + c._count.extraProducts,
+  const countOf = (id: string): number => {
+    const c = categoriesWithCount.find((x) => x.id === id);
+    if (!c) return 0;
+    const own = c._count.products + c._count.extraProducts;
+    return own + categoriesWithCount.filter((x) => x.parentId === id).reduce((n, x) => n + countOf(x.id), 0);
+  };
+  const gridCollections = categoriesWithCount
+    .filter((c) => c.slug !== "bestsellers" && c.image)
+    .map((c) => ({
+      // Some category names in the database are slugs ("couple-rings").
+      name: COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
+      slug: c.slug,
+      image: c.image ?? "",
+      productCount: countOf(c.id),
+    }))
+    .filter((c) => c.productCount > 0)
+    .sort((a, b) => b.productCount - a.productCount);
+  // Keep the grid even at 4 / 3 / 2 columns (12 divides by all three).
+  const collections = gridCollections.slice(0, gridCollections.length >= 12 ? 12 : gridCollections.length >= 8 ? 8 : gridCollections.length);
+
+  const introPhotos = bestsellers
+    .filter((p) => p.images[0])
+    .slice(0, 3)
+    .map((p) => ({ src: p.images[0].url, alt: p.name.trim(), href: `/products/${p.slug}` }));
+  const introCollections = INTRO_LINKS.map((l) => ({
+    href: `/category/${l.slug}`,
+    label: l.label,
+    image: introCats.find((c) => c.slug === l.slug)?.image ?? null,
   }));
+
+  const offer = offerCoupon
+    ? {
+        code: offerCoupon.code,
+        headline:
+          offerCoupon.discountType === "PERCENTAGE"
+            ? `${offerCoupon.discountValue}% off your first order`
+            : `${formatPrice(offerCoupon.discountValue)} off your first order`,
+        terms: [
+          offerCoupon.minOrder ? `On orders of ${formatPrice(offerCoupon.minOrder)} or more` : null,
+          offerCoupon.maxDiscount && offerCoupon.discountType === "PERCENTAGE"
+            ? `up to ${formatPrice(offerCoupon.maxDiscount)} off`
+            : null,
+          "apply the code at checkout.",
+        ]
+          .filter(Boolean)
+          .join(", ")
+          .replace(/^./, (c) => c.toUpperCase()),
+        expiresAt: offerCoupon.expiresAt ? offerCoupon.expiresAt.toISOString() : null,
+      }
+    : null;
 
   return (
     <>
       <Hero slides={heroSlides} />
-      <Marquee phrases={settings.marqueePhrases.split("|").map((p) => p.trim()).filter(Boolean)} />
+      <Marquee
+        phrases={settings.marqueePhrases
+          .split("|")
+          .map((p) => syncDeliveryAmount(p.trim(), policy.freeShippingThreshold))
+          .filter(Boolean)}
+      />
 
       <SectionSlot page="home" slot="hero" />
 
-      {/* INTRO — the page's one H1, plus links into the main collections */}
-      <section className="container pt-12 md:pt-16 pb-8 text-center">
-        <h1 className="display-2 max-w-3xl mx-auto">
-          Stainless steel jewellery, delivered across Pakistan
-        </h1>
-        <p className="mt-4 text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
-          Rings, pendant sets, stud earrings, bracelets and handcuffs in gold-tone and
-          silver-tone stainless steel
-          {cheapest ? <>, from {formatPrice(cheapest.price)}</> : null}. Made for everyday
-          wear, with cash on delivery to your door.
-        </p>
-        <ul className="mt-6 flex flex-wrap justify-center gap-2">
-          {INTRO_LINKS.map((l) => (
-            <li key={l.slug}>
-              <Link
-                href={`/category/${l.slug}`}
-                className="px-4 h-10 inline-flex items-center rounded-full border border-border text-sm font-medium hover:border-accent hover:text-accent transition-colors"
-              >
-                {l.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* TRUST — every figure from the admin settings */}
-      <section className="container pb-4">
-        <Reveal stagger={0.08}>
-          <TrustStrip policy={policy} cards />
-        </Reveal>
-      </section>
+      {/* INTRO: editorial split + collection photo tiles + slim trust line */}
+      <HomeIntro
+        fromPrice={cheapest ? formatPrice(cheapest.price) : null}
+        photos={introPhotos}
+        collections={introCollections}
+        policy={policy}
+      />
 
       <SectionSlot page="home" slot="pillars" />
 
@@ -230,7 +288,7 @@ export default async function HomePage() {
           <SectionHeader
             eyebrow="Shop by Collection"
             title={<>Discover <span className="italic font-light rose-gold-text">your style</span></>}
-            description="Find the perfect piece from our handpicked categories."
+            description="Rings, pendant sets, studs and handcuffs, each collection in gold-tone and silver-tone stainless steel."
           />
           <Link
             href="/products"
@@ -240,23 +298,13 @@ export default async function HomePage() {
           </Link>
         </Reveal>
 
-        <Reveal y={36}>
-          <CollectionGrid collections={collections} />
-        </Reveal>
+        <CollectionGrid collections={collections} />
       </section>
 
       <SectionSlot page="home" slot="collections" />
 
-      {/* OFFER TIMER */}
-      <section className="container">
-        <Reveal>
-          <OfferTimer
-            endsAt={defaultOfferEndsAt()}
-            title="Use code WELCOME10 for 10% off your first order"
-            cta={{ label: "Shop Now", href: "/products" }}
-          />
-        </Reveal>
-      </section>
+      {/* OFFER: only while the coupon in settings is active */}
+      {offer && <OfferBand {...offer} />}
 
       <SectionSlot page="home" slot="offer" />
 
@@ -344,47 +392,37 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* DUAL BANNER */}
-      <section className="container pb-12">
-        <Reveal>
-          <DualBanner
-            banners={[
-              {
-                eyebrow: "Gift sets",
-                title: "Sets that are ready to gift",
-                description: "3-piece and 6-piece necklace and earring sets in gold and silver tones.",
-                cta: { label: "Shop Sets", href: "/category/pendant" },
-                image: settings.bannerDualLeftImage,
-              },
-              {
-                eyebrow: "Everyday",
-                title: "Pieces you'll never take off",
-                description: "Adjustable rings, stud sets and handcuffs made for daily wear.",
-                cta: { label: "Shop Rings", href: "/category/rings" },
-                image: settings.bannerDualRightImage,
-              },
-            ]}
-          />
-        </Reveal>
-      </section>
+      {/* THE EDIT: one tall + two stacked tiles (images from Admin -> Site content) */}
+      <EditTiles
+        tiles={[
+          {
+            eyebrow: "Gift sets",
+            title: "Sets that are ready to gift",
+            line: "3-piece and 6-piece necklace and earring sets in gold and silver tones.",
+            cta: "Shop gift sets",
+            href: "/category/pendant",
+            image: settings.bannerDualLeftImage,
+          },
+          {
+            eyebrow: "Everyday",
+            title: "Pieces you'll never take off",
+            line: "Adjustable rings, stud sets and handcuffs made for daily wear.",
+            cta: "Shop rings",
+            href: "/category/rings",
+            image: settings.bannerDualRightImage,
+          },
+          {
+            eyebrow: "For two",
+            title: "Couple rings, made to match",
+            line: "Matching sets for promises, nikkahs and anniversaries.",
+            cta: "Shop couple rings",
+            href: "/category/couple-rings",
+            image: settings.bannerBridalImage,
+          },
+        ].filter((t) => t.image)}
+      />
 
       <SectionSlot page="home" slot="dual-banner" />
-
-      {/* FULL BANNER */}
-      <section className="blush-bg py-20 md:py-28">
-        <div className="container">
-          <Reveal>
-            <FullBanner
-              eyebrow="Couple Rings"
-              title={<>Made <span className="italic font-light rose-gold-text">to match</span>.</>}
-              description="Matching stainless steel ring sets for promises, nikkahs and anniversaries. Most are adjustable, so you don't need to know both ring sizes to surprise someone."
-              cta={{ label: "Shop Couple Rings", href: "/category/couple-rings" }}
-              image={settings.bannerBridalImage}
-              imagePosition="left"
-            />
-          </Reveal>
-        </div>
-      </section>
 
       <SectionSlot page="home" slot="full-banner" />
 
@@ -464,11 +502,8 @@ export default async function HomePage() {
 
       <SectionSlot page="home" slot="promise" />
 
-      {/* TESTIMONIALS */}
-      {/* No "4.7 from N reviews" headline: with most reviews sharing template
-          wording, a big count claim is the part most likely to mislead. The
-          component shows it again if total > 0 is passed. */}
-      <ReviewsMarquee reviews={marqueeReviews} total={0} average={0} />
+      {/* REVIEWS: featured + de-duplicated others + "Seen on you" clips */}
+      <HomeReviews reviews={homeReviews} clips={clips} />
 
       <SectionSlot page="home" slot="testimonials" />
 

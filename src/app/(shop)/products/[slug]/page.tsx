@@ -118,71 +118,53 @@ export default async function ProductDetailPage({
     take: 4,
   });
 
-  // Admin can switch the product page's review list between this product's
-  // own reviews and every approved review in the store.
-  const reviewScope = settings.productReviewsScope === "all" ? "all" : "product";
-  const reviewWhere =
-    reviewScope === "all"
-      ? { status: "APPROVED" as const }
-      : { productId: product.id, status: "APPROVED" as const };
-
-  // The visible list is capped, but the rating summary must describe every
-  // approved review — deriving it from the capped list understated both the
-  // count and the average once a product passed the cap.
-  const [reviews, ratingGroups, ownRatingGroups, ownReviews, policy] = await Promise.all([
-    prisma.review.findMany({
-      where: reviewWhere,
-      orderBy: { createdAt: "desc" },
-      take: 50,
-      include:
-        reviewScope === "all"
-          ? { product: { select: { name: true, slug: true } } }
-          : undefined,
-    }),
-    prisma.review.groupBy({
-      by: ["rating"],
-      where: reviewWhere,
-      _count: { _all: true },
-    }),
-    // Structured data must describe THIS product, whatever the display scope
-    // is. Publishing store-wide totals as a product's AggregateRating
-    // misrepresents it to search engines. Imported reviews are included: the
-    // owner confirmed (Nov 2026) they are genuine buyer reviews collected
-    // off-site, which Google's review-snippet policy requires.
-    prisma.review.groupBy({
-      by: ["rating"],
-      where: { productId: product.id, status: "APPROVED" as const },
-      _count: { _all: true },
-    }),
-    prisma.review.findMany({
-      where: { productId: product.id, status: "APPROVED" as const },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: { customerName: true, rating: true, body: true, createdAt: true },
-    }),
+  // Reviews. A product page shows THIS product's reviews and count. The admin
+  // "show all store reviews" option used to replace them with the store-wide
+  // list and totals (every product read "4.7 · 951 reviews"); now it only
+  // fills in, clearly labelled as store reviews, when a product has none.
+  const ownWhere = { productId: product.id, status: "APPROVED" as const };
+  const [ownGroups, ownList, policy] = await Promise.all([
+    prisma.review.groupBy({ by: ["rating"], where: ownWhere, _count: { _all: true } }),
+    prisma.review.findMany({ where: ownWhere, orderBy: { createdAt: "desc" }, take: 50 }),
     getStorePolicy(),
   ]);
+  const ownCount = ownGroups.reduce((n, g) => n + g._count._all, 0);
+  const ownAvg =
+    ownCount > 0 ? ownGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / ownCount : 0;
 
-  const reviewCount = ratingGroups.reduce((n, g) => n + g._count._all, 0);
+  const useStoreReviews = settings.productReviewsScope === "all" && ownCount === 0;
+  const [storeGroups, storeList] = useStoreReviews
+    ? await Promise.all([
+        prisma.review.groupBy({ by: ["rating"], where: { status: "APPROVED" as const }, _count: { _all: true } }),
+        prisma.review.findMany({
+          where: { status: "APPROVED" as const },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          include: { product: { select: { name: true, slug: true } } },
+        }),
+      ])
+    : [null, null];
+
+  const shownGroups = storeGroups ?? ownGroups;
+  const shownCount = shownGroups.reduce((n, g) => n + g._count._all, 0);
+  const shownAvg =
+    shownCount > 0 ? shownGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / shownCount : 0;
   const ratingDistribution = [5, 4, 3, 2, 1].map((star) => ({
     star,
-    count: ratingGroups.find((g) => g.rating === star)?._count._all ?? 0,
+    count: shownGroups.find((g) => g.rating === star)?._count._all ?? 0,
+  }));
+  const shownReviews = (storeList ?? ownList).map((r) => ({
+    id: r.id,
+    customerName: r.customerName,
+    rating: r.rating,
+    title: r.title,
+    body: r.body,
+    verified: r.verified,
+    createdAt: r.createdAt.toISOString(),
+    product: "product" in r ? (r as { product: { name: string; slug: string } | null }).product : null,
   }));
 
   const customer = await getCustomerFromCookie();
-
-  const avgRating =
-    reviewCount > 0
-      ? ratingGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / reviewCount
-      : 0;
-
-  // Product-only figures for JSON-LD (see the query above).
-  const ownGroups = ownRatingGroups;
-  const ownCount = ownGroups.reduce((n, g) => n + g._count._all, 0);
-  const ownAvg =
-    ownCount > 0
-      ? ownGroups.reduce((sum, g) => sum + g.rating * g._count._all, 0) / ownCount
-      : 0;
 
   const jsonLd = productJsonLd({
     name: product.name.trim(),
@@ -197,7 +179,7 @@ export default async function ProductDetailPage({
     policy,
     reviewCount: ownCount,
     ratingValue: ownAvg,
-    reviews: ownReviews.map((r) => ({
+    reviews: ownList.slice(0, 5).map((r) => ({
       author: r.customerName,
       rating: r.rating,
       body: r.body,
@@ -237,28 +219,22 @@ export default async function ProductDetailPage({
         bundle={bundle as any}
         shippingFee={money.shippingFee}
         freeShippingThreshold={money.freeShippingThreshold}
-        avgRating={avgRating}
-        reviewCount={reviewCount}
+        avgRating={ownAvg}
+        reviewCount={ownCount}
         codAdvance={money.codAdvance}
+        categoryLabel={categoryLabel}
       />
 
       <SectionSlot page="product" slot="detail" />
 
       <ReviewsSection
         productId={product.id}
-        initialReviews={reviews.map((r) => ({
-          id: r.id,
-          customerName: r.customerName,
-          rating: r.rating,
-          title: r.title,
-          body: r.body,
-          createdAt: r.createdAt.toISOString(),
-        }))}
+        initialReviews={shownReviews}
         customer={customer ? { id: customer.id, name: customer.name, email: customer.email } : null}
-        totalCount={reviewCount}
-        averageRating={avgRating}
+        totalCount={shownCount}
+        averageRating={shownAvg}
         distribution={ratingDistribution}
-        scope={reviewScope}
+        scope={useStoreReviews ? "all" : "product"}
       />
 
       <SectionSlot page="product" slot="reviews" />

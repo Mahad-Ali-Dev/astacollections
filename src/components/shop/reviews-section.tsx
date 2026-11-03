@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Star, Loader2, MessageSquare, X, Check } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Star, Loader2, MessageSquare, X, Check, BadgeCheck, PenLine } from "lucide-react";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 type Review = {
   id: string;
@@ -12,11 +12,37 @@ type Review = {
   title?: string | null;
   body: string;
   createdAt: string | Date;
+  /** True only when the admin marked the reviewer as a confirmed buyer. */
+  verified?: boolean;
   /** Present when the section is showing reviews from across the catalogue. */
   product?: { name: string; slug: string } | null;
 };
 
 type Customer = { id: string; name: string; email: string } | null;
+
+type Filter = "all" | 5 | 4 | 3;
+
+/** Stars with fractional fill, so 4.5 reads as four and a half, not five. */
+export function Stars({ rating, className = "h-3.5 w-3.5" }: { rating: number; className?: string }) {
+  return (
+    <span className="inline-flex gap-0.5" role="img" aria-label={`${rating.toFixed(1)} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((i) => {
+        const fill = Math.max(0, Math.min(1, rating - (i - 1)));
+        return (
+          <span key={i} className={cn("relative inline-block", className)} aria-hidden="true">
+            <Star className={cn("absolute inset-0 h-full w-full fill-border text-border")} />
+            <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+              <Star className={cn("h-full w-full fill-amber-400 text-amber-400", className)} />
+            </span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/** Same wording, ignoring case and punctuation: used to collapse template repeats. */
+const textKey = (body: string) => body.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
 
 export function ReviewsSection({
   productId,
@@ -30,14 +56,14 @@ export function ReviewsSection({
   productId: string;
   initialReviews: Review[];
   customer: Customer;
-  /** Every approved review, not just the ones rendered below. */
+  /** Every approved review in scope, not just the ones rendered below. */
   totalCount?: number;
   averageRating?: number;
   distribution?: { star: number; count: number }[];
   /**
-   * "product" lists only this product's reviews; "all" lists every approved
-   * review in the store. In "all" mode each card names the product it's
-   * about, so a shopper is never shown another item's review unlabelled.
+   * "product" lists only this product's reviews. "all" is used only when
+   * this product has none yet: it lists store-wide reviews, labelled as
+   * such, and each card names the product it is about.
    */
   scope?: "product" | "all";
 }) {
@@ -45,11 +71,8 @@ export function ReviewsSection({
   const [showForm, setShowForm] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
 
-  // The list starts capped and grows via Load more, so the summary can't be
-  // derived from it — it uses the server-side totals when supplied. Newly
-  // submitted reviews land as PENDING and never join this list, so nothing
-  // needs adding optimistically.
   const count = totalCount ?? reviews.length;
   const avg =
     averageRating !== undefined && totalCount !== undefined && totalCount > 0
@@ -59,12 +82,13 @@ export function ReviewsSection({
         : 0;
   const remaining = Math.max(0, count - reviews.length);
   const canLoadMore = !exhausted && remaining > 0;
+  const isStore = scope === "all";
 
   async function loadMore() {
     setLoadingMore(true);
     try {
       const res = await fetch(
-        scope === "all"
+        isStore
           ? `/api/reviews?skip=${reviews.length}&take=50`
           : `/api/reviews?productId=${encodeURIComponent(productId)}&skip=${reviews.length}&take=50`
       );
@@ -90,162 +114,210 @@ export function ReviewsSection({
 
   const distribution =
     serverDistribution ??
-    [5, 4, 3, 2, 1].map((star) => ({
-      star,
-      count: reviews.filter((r) => r.rating === star).length,
-    }));
+    [5, 4, 3, 2, 1].map((star) => ({ star, count: reviews.filter((r) => r.rating === star).length }));
+
+  // Filter, then collapse identical texts into one card with a count.
+  const groups = useMemo(() => {
+    const filtered = reviews.filter((r) =>
+      filter === "all" ? true : filter === 3 ? r.rating <= 3 : r.rating === filter
+    );
+    const map = new Map<string, { review: Review; same: number }>();
+    for (const r of filtered) {
+      const k = textKey(r.body);
+      const hit = map.get(k);
+      if (hit) hit.same += 1;
+      else map.set(k, { review: r, same: 0 });
+    }
+    return [...map.values()];
+  }, [reviews, filter]);
+
+  const chips: { key: Filter; label: string; n: number }[] = [
+    { key: "all", label: "All", n: count },
+    { key: 5, label: "5 ★", n: distribution.find((d) => d.star === 5)?.count ?? 0 },
+    { key: 4, label: "4 ★", n: distribution.find((d) => d.star === 4)?.count ?? 0 },
+    {
+      key: 3,
+      label: "3 ★ & below",
+      n: distribution.filter((d) => d.star <= 3).reduce((n, d) => n + d.count, 0),
+    },
+  ];
 
   return (
-    <section className="mt-24" id="reviews">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <p className="eyebrow-accent mb-3 flex items-center justify-center gap-3">
-            <span className="h-px w-8 bg-accent" />
-            Customer Reviews
-            <span className="h-px w-8 bg-accent" />
-          </p>
-          <h2 className="display-2">What our customers say</h2>
+    <section className="mt-20 md:mt-28 scroll-mt-28" id="reviews">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4 md:mb-10">
+          <div>
+            <p className="eyebrow-accent flex items-center gap-3">
+              <span className="h-px w-8 bg-accent" aria-hidden="true" />
+              {isStore ? "Store reviews" : "Reviews"}
+            </p>
+            <h2 className="display-2 mt-3">
+              {isStore ? "What customers say about Asta" : "What customers say"}
+            </h2>
+            {isStore && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                This piece has no reviews yet, so these are reviews of other Asta pieces.
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-foreground px-6 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors hover:bg-accent"
+          >
+            <PenLine className="h-4 w-4" aria-hidden="true" />
+            Write a review
+          </button>
         </div>
 
-        {/* Summary card */}
-        <div className="bg-gradient-to-br from-secondary via-rose-50 to-white border border-border rounded-3xl p-7 md:p-10 card-soft grid md:grid-cols-3 gap-8 items-center">
-          <div className="text-center md:text-left md:col-span-1 md:border-r md:border-border/70 md:pr-8">
-            <p className="font-serif text-6xl md:text-7xl text-balance leading-none">
-              {avg.toFixed(1)}
-            </p>
-            <div className="flex justify-center md:justify-start mt-3 mb-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={`h-5 w-5 ${
-                    i < Math.round(avg) ? "fill-accent text-accent" : "fill-secondary text-border"
-                  }`}
-                />
-              ))}
+        {/* Summary: big rating + clickable bars (adapted from 21st.dev "Review Filter Bars", ruixen.ui) */}
+        <div className="grid gap-8 rounded-[2rem] border border-border/70 bg-white p-6 md:grid-cols-[220px_1fr] md:gap-12 md:p-10">
+          <div className="text-center md:border-r md:border-border/70 md:pr-10 md:text-left">
+            <p className="font-serif text-6xl leading-none md:text-7xl">{count > 0 ? avg.toFixed(1) : "–"}</p>
+            <div className="mt-3">
+              <Stars rating={avg} className="h-5 w-5" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Based on {count} review{count !== 1 ? "s" : ""}
+            <p className="mt-2 text-sm text-muted-foreground">
+              {count > 0 ? `${count} ${count === 1 ? "review" : "reviews"}${isStore ? " across the store" : ""}` : "No reviews yet"}
             </p>
           </div>
-
-          <div className="md:col-span-1 space-y-2">
+          <div className="space-y-2" role="radiogroup" aria-label="Filter reviews by rating">
             {distribution.map((d) => {
-              const pct = count > 0 ? (d.count / count) * 100 : 0;
+              const pct = count > 0 ? Math.round((d.count / count) * 100) : 0;
+              const active = filter === d.star || (filter === 3 && d.star <= 3);
               return (
-                <div key={d.star} className="flex items-center gap-3">
-                  <span className="text-xs font-medium w-3 tabular-nums">{d.star}</span>
-                  <Star className="h-3 w-3 fill-accent text-accent" />
-                  <div className="flex-1 h-1.5 bg-border/50 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-accent transition-all duration-700"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground w-8 text-right tabular-nums">
-                    {d.count}
+                <button
+                  key={d.star}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  disabled={d.count === 0}
+                  onClick={() => setFilter(d.star >= 4 ? (d.star as 5 | 4) : 3)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors disabled:cursor-default disabled:opacity-50",
+                    active ? "border-accent bg-accent/5" : "border-transparent hover:border-border"
+                  )}
+                >
+                  <span className="w-10 shrink-0 text-xs font-medium tabular-nums">{d.star} ★</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary">
+                    <span className="block h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
                   </span>
-                </div>
+                  <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{d.count}</span>
+                </button>
               );
             })}
           </div>
-
-          <div className="md:col-span-1 text-center md:text-right">
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 bg-foreground text-background px-7 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-colors gold-button-glow"
-            >
-              <MessageSquare className="h-4 w-4" />
-              Write a Review
-            </button>
-            <p className="text-xs text-muted-foreground mt-3">
-              {customer ? `Signed in as ${customer.name}` : "Sign-in optional"}
-            </p>
-          </div>
         </div>
 
-        {/* Reviews list */}
+        {reviews.length > 0 && (
+          <div className="mt-8 flex flex-wrap gap-2" role="radiogroup" aria-label="Show reviews">
+            {chips.filter((c) => c.key === "all" || c.n > 0).map((c) => (
+              <button
+                key={String(c.key)}
+                type="button"
+                role="radio"
+                aria-checked={filter === c.key}
+                onClick={() => setFilter(c.key)}
+                className={cn(
+                  "inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors",
+                  filter === c.key ? "border-foreground bg-foreground text-background" : "border-border hover:border-accent"
+                )}
+              >
+                {c.label}
+                <span className={cn("text-xs tabular-nums", filter === c.key ? "text-background/70" : "text-muted-foreground")}>
+                  {c.n}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {reviews.length === 0 ? (
-          <div className="text-center py-16">
-            <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-4" strokeWidth={1.4} />
-            <p className="font-serif text-xl mb-2">No reviews yet</p>
+          <div className="py-16 text-center">
+            <MessageSquare className="mx-auto mb-4 h-10 w-10 text-muted-foreground" strokeWidth={1.4} aria-hidden="true" />
+            <p className="mb-2 font-serif text-xl">No reviews yet</p>
             <p className="text-sm text-muted-foreground">Be the first to share your experience.</p>
           </div>
         ) : (
           <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-12">
-            {reviews.map((r) => (
-              <ReviewCard key={r.id} review={r} showProduct={scope === "all"} />
-            ))}
-          </div>
+            {groups.length === 0 ? (
+              <p className="mt-8 text-sm text-muted-foreground">No reviews with that rating yet.</p>
+            ) : (
+              <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                {groups.map(({ review, same }) => (
+                  <li key={review.id}>
+                    <ReviewCard review={review} same={same} showProduct={isStore} />
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          {canLoadMore && (
-            <div className="mt-8 flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="inline-flex items-center gap-2 h-11 px-7 rounded-full border border-border hover:border-accent hover:text-accent transition-colors text-xs uppercase tracking-[0.2em] font-semibold disabled:opacity-60"
-              >
-                {loadingMore ? "Loading…" : `Load ${Math.min(50, remaining)} more`}
-              </button>
-              <p className="text-xs text-muted-foreground">
-                Showing {reviews.length} of {count}
-              </p>
-            </div>
-          )}
+            {canLoadMore && (
+              <div className="mt-8 flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="inline-flex h-11 items-center gap-2 rounded-full border border-border px-7 text-xs font-semibold uppercase tracking-[0.2em] transition-colors hover:border-accent hover:text-accent disabled:opacity-60"
+                >
+                  {loadingMore ? "Loading…" : `Load ${Math.min(50, remaining)} more`}
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Loaded {reviews.length} of {count}
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Review form modal */}
       {showForm && (
-        <ReviewFormModal
-          productId={productId}
-          customer={customer}
-          onClose={() => setShowForm(false)}
-        />
+        <ReviewFormModal productId={productId} customer={customer} onClose={() => setShowForm(false)} />
       )}
     </section>
   );
 }
 
-function ReviewCard({ review, showProduct }: { review: Review; showProduct?: boolean }) {
+function ReviewCard({ review, same, showProduct }: { review: Review; same: number; showProduct?: boolean }) {
   return (
-    <article className="bg-white border border-border rounded-2xl p-6 card-soft hover:border-accent/40 transition-colors">
-      <div className="flex items-start justify-between mb-3 gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-secondary text-foreground flex items-center justify-center font-serif text-base">
-            {review.customerName.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <p className="font-medium text-sm">{review.customerName}</p>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-0.5">
-              {formatDate(new Date(review.createdAt))}
+    <article className="h-full rounded-2xl border border-border/70 bg-white p-6 transition-colors hover:border-accent/40">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-rose-200 font-serif text-base text-rose-800"
+          >
+            {review.customerName.trim().charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium">
+              {review.customerName}
+              {review.verified && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
+                  <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" /> Verified buyer
+                </span>
+              )}
             </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(new Date(review.createdAt))}</p>
           </div>
         </div>
-        <div className="flex">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              className={`h-3.5 w-3.5 ${
-                i < review.rating ? "fill-accent text-accent" : "fill-secondary text-border"
-              }`}
-            />
-          ))}
-        </div>
+        <Stars rating={review.rating} />
       </div>
       {showProduct && review.product && (
         <a
           href={`/products/${review.product.slug}`}
-          className="inline-block text-[11px] uppercase tracking-[0.16em] text-accent hover:underline mb-2"
+          className="mt-3 inline-block text-[11px] uppercase tracking-[0.16em] text-accent hover:underline"
         >
           {review.product.name}
         </a>
       )}
-      {review.title && <p className="font-serif text-lg mb-2 leading-tight">{review.title}</p>}
-      <p className="text-sm text-muted-foreground leading-relaxed text-pretty">{review.body}</p>
+      {review.title && <p className="mt-3 font-serif text-lg leading-tight">{review.title}</p>}
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty">{review.body}</p>
+      {same > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {same} other {same === 1 ? "review uses" : "reviews use"} the same wording
+        </p>
+      )}
     </article>
   );
 }

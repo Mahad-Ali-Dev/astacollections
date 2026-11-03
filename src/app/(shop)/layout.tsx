@@ -7,6 +7,7 @@ import { getNavTree } from "@/lib/nav";
 import { prisma } from "@/lib/prisma";
 import { MobileTabBar } from "@/components/shop/mobile-tab-bar";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
+import { syncDeliveryAmount } from "@/lib/store-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-screen flex flex-col">
       <Header
-        announcementText={settings.announcementText}
+        // The amount in this admin text follows the free-delivery setting.
+        announcementText={syncDeliveryAmount(settings.announcementText, Number(settings.freeShippingThreshold) || 0)}
         announcementCode={settings.announcementCode}
         navItems={navItems}
         collections={collections}

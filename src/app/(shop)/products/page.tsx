@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
 import { ProductFilters, ActiveFilterChips } from "@/components/shop/product-filters";
 import { BundleStrip } from "@/components/shop/bundle-strip";
-import { OfferTimer } from "@/components/shop/offer-timer";
-import { defaultOfferEndsAt } from "@/lib/utils";
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import type { Prisma } from "@prisma/client";
@@ -219,16 +217,9 @@ export default async function ProductsPage({
         </div>
       </div>
 
-      {/* OFFER TIMER */}
-      <section className="container py-10">
-        <Reveal>
-          <OfferTimer
-            endsAt={defaultOfferEndsAt()}
-            title="Limited time · Use code WELCOME10 for 10% off"
-            cta={{ label: "Apply at checkout", href: "/checkout" }}
-          />
-        </Reveal>
-      </section>
+      {/* (The rolling "offer ends in 2 days" timer that used to sit here reset
+          itself on every visit, so it was removed. The home page shows the
+          welcome offer from the real coupon record.) */}
 
       {/* BUNDLES */}
       {bundles.length > 0 && (

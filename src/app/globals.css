@@ -143,6 +143,12 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    /* Italic glyphs overhang their box; without this the gradient clip cut
+       off the last letter ("made to" lost half its "o"). Clone keeps the
+       padding on every wrapped line. */
+    padding-right: 0.1em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   .rose-gold-border {

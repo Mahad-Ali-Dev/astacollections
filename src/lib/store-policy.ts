@@ -49,3 +49,17 @@ export function codLine(p: StorePolicy): string {
   if (p.codAdvance > 0) return `Cash on delivery (${formatPrice(p.codAdvance)} advance)`;
   return "Cash on delivery across Pakistan";
 }
+
+/**
+ * Admin free text (announcement bar, marquee phrases) often quotes the
+ * free-delivery amount, e.g. "Free delivery over Rs. 5,000". That copy went
+ * stale whenever the setting changed, so the amount is rewritten from the
+ * one real value: `freeShippingThreshold` in Admin → Settings.
+ */
+export function syncDeliveryAmount(text: string, freeShippingThreshold: number): string {
+  if (!text || freeShippingThreshold <= 0) return text;
+  return text.replace(
+    /(free\s+(?:delivery|shipping)\s+(?:over|above|on orders over|on orders above)\s+)Rs\.?\s?[\d,]+/gi,
+    (_, lead: string) => `${lead}${formatPrice(freeShippingThreshold)}`
+  );
+}
