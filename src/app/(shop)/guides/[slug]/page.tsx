@@ -170,6 +170,8 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,

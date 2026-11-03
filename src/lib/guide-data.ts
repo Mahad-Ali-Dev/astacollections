@@ -57,7 +57,7 @@ export async function guideProducts(categorySlugs: string[], maxPrice?: number, 
       OR: wheres.flatMap((w) => w.OR),
       ...(maxPrice ? { price: { lte: maxPrice } } : {}),
     },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
     orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
     take: take * 3,
   });

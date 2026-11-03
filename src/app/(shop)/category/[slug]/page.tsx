@@ -105,7 +105,7 @@ export default async function CategoryPage({
         { extraCategories: { some: { id: { in: allCategoryIds } } } },
       ],
     },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -119,7 +119,7 @@ export default async function CategoryPage({
         categoryId: { notIn: allCategoryIds },
         NOT: { extraCategories: { some: { id: { in: allCategoryIds } } } },
       },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       take: 4,
     }),
     prisma.product.findMany({
@@ -128,7 +128,7 @@ export default async function CategoryPage({
         categoryId: { notIn: allCategoryIds },
         NOT: { extraCategories: { some: { id: { in: allCategoryIds } } } },
       },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
@@ -140,7 +140,7 @@ export default async function CategoryPage({
         items: {
           orderBy: { sortOrder: "asc" },
           include: {
-            product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } },
+            product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } } },
           },
         },
       },
@@ -283,6 +283,8 @@ export default async function CategoryPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,
@@ -397,6 +399,8 @@ export default async function CategoryPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   isFeatured: p.isFeatured,
                 }}
               />
@@ -429,6 +433,8 @@ export default async function CategoryPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   isFeatured: p.isFeatured,
                 }}
               />

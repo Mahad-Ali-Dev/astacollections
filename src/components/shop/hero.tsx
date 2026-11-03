@@ -16,14 +16,16 @@ export type HeroSlide = {
   image: string;
 };
 
+// Used only when the admin hasn't set any slides. Describes the real
+// catalogue (stainless steel, gold-tone and silver-tone).
 const FALLBACK_SLIDES: HeroSlide[] = [
   {
-    eyebrow: "Spring 2026 · The Pearl Edit",
-    title: "Pearls,",
-    titleAccent: "reimagined.",
+    eyebrow: "Everyday stainless steel",
+    title: "Made to wear,",
+    titleAccent: "every day.",
     description:
-      "Lustrous freshwater pearls hand-set on contemporary forms — from minimal studs to statement chokers.",
-    cta: { label: "Shop Pearls", href: "/products?q=pearl" },
+      "Rings, pendant sets, studs and handcuffs in gold-tone and silver-tone stainless steel. Cash on delivery across Pakistan.",
+    cta: { label: "Shop Jewellery", href: "/products" },
     image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1800&auto=format&fit=crop&q=85",
   },
 ];
@@ -56,6 +58,7 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
 
   useGSAP(
     () => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
       tl.fromTo(
         ".hero-slide-eyebrow",
@@ -64,8 +67,8 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
       )
         .fromTo(
           ".hero-slide-title-line",
-          { yPercent: 110 },
-          { yPercent: 0, duration: 0.95, stagger: 0.1 },
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.9, stagger: 0.12 },
           "-=0.3"
         )
         .fromTo(
@@ -100,13 +103,19 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
               i === active ? "opacity-100" : "opacity-0"
             }`}
           >
+            {/* Ken Burns: re-applying the animation class restarts the zoom each
+                time a slide becomes active. Inactive slides rest at the end
+                scale, so the reset happens while they're invisible (no remount,
+                no image reload, no jump during the cross-fade). */}
             <Image
               src={s.image}
               alt=""
               fill
               priority={i === 0}
               sizes="100vw"
-              className="object-cover"
+              className={`object-cover ${
+                i === active ? "animate-kenburns motion-reduce:animate-none" : "scale-[1.08] motion-reduce:scale-100"
+              }`}
             />
           </div>
         ))}
@@ -124,13 +133,11 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
           {/* h2, not h1: slide titles rotate and are campaign copy. The home
               page carries one stable, descriptive H1 below the hero. */}
           <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[7.5rem] leading-[0.98] text-balance">
-            <span className="block overflow-hidden">
-              <span className="hero-slide-title-line inline-block">{slide.title}</span>
-            </span>
-            <span className="block overflow-hidden">
-              <span className="hero-slide-title-line inline-block italic font-light text-rose-200">
-                {slide.titleAccent}
-              </span>
+            {/* No overflow masks: the lines fade and rise whole, so italics and
+                descenders are never cut off mid-animation. */}
+            <span className="hero-slide-title-line block">{slide.title}</span>
+            <span className="hero-slide-title-line block italic font-light text-rose-200 pb-1">
+              {slide.titleAccent}
             </span>
           </h2>
 

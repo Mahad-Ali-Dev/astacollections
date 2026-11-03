@@ -80,7 +80,7 @@ export default async function ProductDetailPage({
         orderBy: { sortOrder: "asc" },
         include: {
           product: {
-            include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+            include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
           },
         },
       },
@@ -94,7 +94,7 @@ export default async function ProductDetailPage({
       id: { not: product.id },
       OR: tags.length > 0 ? tags.map((t) => ({ tags: { contains: t } })) : undefined,
     },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
     take: 4,
   });
   if (related.length < 4) {
@@ -104,7 +104,7 @@ export default async function ProductDetailPage({
         categoryId: product.categoryId,
         id: { not: product.id, notIn: related.map((r) => r.id) },
       },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       take: 4 - related.length,
     });
     related = [...related, ...more];
@@ -113,7 +113,7 @@ export default async function ProductDetailPage({
   // New arrivals (excluding current)
   const newArrivals = await prisma.product.findMany({
     where: { isActive: true, id: { not: product.id } },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
     orderBy: { createdAt: "desc" },
     take: 4,
   });
@@ -290,6 +290,8 @@ export default async function ProductDetailPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,
@@ -324,6 +326,8 @@ export default async function ProductDetailPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,

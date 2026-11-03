@@ -7,7 +7,9 @@ import { Hero, type HeroSlide } from "@/components/shop/hero";
 import { Marquee } from "@/components/shop/marquee";
 import { CollectionGrid } from "@/components/shop/collection-grid";
 import { FullBanner, DualBanner } from "@/components/shop/banners";
-import { Testimonials } from "@/components/shop/testimonials";
+import { ReviewsMarquee } from "@/components/shop/reviews-marquee";
+import { guideProducts } from "@/lib/guide-data";
+import type { ProductCardData } from "@/components/shop/product-card";
 import { OfferTimer } from "@/components/shop/offer-timer";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
@@ -40,10 +42,10 @@ const INTRO_LINKS = [
 ];
 
 export default async function HomePage() {
-  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest] = await Promise.all([
+  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest, giftPicks, forHer] = await Promise.all([
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       take: 8,
       orderBy: { createdAt: "desc" },
     }),
@@ -55,13 +57,13 @@ export default async function HomePage() {
     }),
     prisma.product.findMany({
       where: { isActive: true },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       take: 4,
       orderBy: { createdAt: "desc" },
     }),
     prisma.product.findMany({
       where: { isActive: true, isFeatured: true },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       take: 8,
     }),
     prisma.bundle.findMany({
@@ -72,7 +74,7 @@ export default async function HomePage() {
         items: {
           orderBy: { sortOrder: "asc" },
           include: {
-            product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } },
+            product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } } },
           },
         },
       },
@@ -80,11 +82,19 @@ export default async function HomePage() {
     getSettings(),
     // Strongest recent reviews for the homepage testimonial carousel. Longer
     // bodies read better at that size, so short ones are filtered out.
+    // Strongest recent reviews for the review wall. Mid-length bodies read
+    // best on a card, so very short and very long ones are filtered below.
     prisma.review.findMany({
       where: { status: "APPROVED", rating: { gte: 4 } },
       orderBy: { createdAt: "desc" },
-      take: 24,
-      include: { product: { select: { name: true } } },
+      take: 1000,
+      select: {
+        id: true,
+        customerName: true,
+        rating: true,
+        body: true,
+        product: { select: { name: true, slug: true, isActive: true } },
+      },
     }),
     getStorePolicy(),
     prisma.product.findFirst({
@@ -92,17 +102,47 @@ export default async function HomePage() {
       orderBy: { price: "asc" },
       select: { price: true },
     }),
+    guideProducts(["zircon-rings", "studs", "pendant", "enamel-rings", "hand-cuff", "couple-rings"], 2000, 12),
+    guideProducts(["pendant", "studs", "bracelets", "mother-pearl-rings"], undefined, 12),
   ]);
 
-  const testimonials = reviewPool
-    .filter((r) => r.body.trim().length >= 60)
-    .slice(0, 6)
+  // Most imported reviews share the same template wording (Nov 2026: 951
+  // reviews, 72 distinct texts, 718 opening with the same sentence). A wall of
+  // repeats reads as fake, so keep one review per opening phrase.
+  const seenOpenings = new Set<string>();
+  const marqueeReviews = reviewPool
+    .filter((r) => {
+      const body = r.body.trim();
+      if (body.length < 40 || body.length > 260) return false;
+      const key = body.toLowerCase().replace(/[^a-z ]/g, "").slice(0, 40);
+      if (seenOpenings.has(key)) return false;
+      seenOpenings.add(key);
+      return true;
+    })
+    .slice(0, 24)
     .map((r) => ({
+      id: r.id,
       name: r.customerName,
-      role: r.title ?? "",
-      quote: r.body,
-      product: r.product.name,
+      rating: r.rating,
+      body: r.body.trim(),
+      product: r.product && r.product.isActive ? { name: r.product.name, slug: r.product.slug } : null,
     }));
+
+  const toCard = (p: (typeof giftPicks)[number]): ProductCardData => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    price: p.price,
+    comparePrice: p.comparePrice,
+    sku: p.sku,
+    stock: p.stock,
+    image: p.images[0]?.url,
+    hoverImage: p.images[1]?.url,
+    hasOptions: p._count.attributes > 0,
+    video: p.videoUrl,
+    videoPoster: p.videoPoster,
+    isFeatured: p.isFeatured,
+  });
 
   // Build hero slides from settings
   const heroSlides: HeroSlide[] = [
@@ -176,10 +216,10 @@ export default async function HomePage() {
       </section>
 
       {/* TRUST — every figure from the admin settings */}
-      <section className="bg-secondary/40 border-y border-border/60">
-        <div className="container py-8">
-          <TrustStrip policy={policy} />
-        </div>
+      <section className="container pb-4">
+        <Reveal stagger={0.08}>
+          <TrustStrip policy={policy} cards />
+        </Reveal>
       </section>
 
       <SectionSlot page="home" slot="pillars" />
@@ -247,6 +287,8 @@ export default async function HomePage() {
                 sku: p.sku,
                 stock: p.stock,
                 image: p.images[0]?.url,
+                hoverImage: p.images[1]?.url,
+                hasOptions: p._count.attributes > 0,
                 video: p.videoUrl,
                 videoPoster: p.videoPoster,
                 isFeatured: p.isFeatured,
@@ -257,6 +299,50 @@ export default async function HomePage() {
       )}
 
       <SectionSlot page="home" slot="bestsellers" />
+
+      {/* GIFTS: two carousels on a soft blush wash, a little playful */}
+      {(giftPicks.length > 0 || forHer.length > 0) && (
+        <section className="relative overflow-hidden py-20 md:py-24 bg-[radial-gradient(ellipse_at_top_left,rgba(233,205,193,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(218,171,151,0.35),transparent_50%)] bg-secondary/40">
+          <div className="container space-y-16 md:space-y-20">
+            {giftPicks.length > 0 && (
+              <div>
+                <Reveal className="flex items-end justify-between mb-8 flex-wrap gap-4">
+                  <SectionHeader
+                    eyebrow="Gifting made easy"
+                    title={<>Gifts under <span className="italic font-light rose-gold-text">Rs. 2,000</span></>}
+                    description="Adjustable rings, stud sets and pendant sets that are easy to give, with cash on delivery."
+                  />
+                  <Link
+                    href="/guides/jewellery-gift-ideas-for-her-under-2000"
+                    className="text-xs uppercase tracking-[0.2em] font-semibold inline-flex items-center gap-2 px-5 h-10 rounded-full bg-white border border-border hover:border-accent hover:text-accent transition-colors"
+                  >
+                    Gift guide <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Reveal>
+                <ProductCarousel products={giftPicks.map(toCard)} />
+              </div>
+            )}
+            {forHer.length > 0 && (
+              <div>
+                <Reveal className="flex items-end justify-between mb-8 flex-wrap gap-4">
+                  <SectionHeader
+                    eyebrow="For her"
+                    title={<>Sets, studs <span className="italic font-light rose-gold-text">&amp; sparkle</span></>}
+                    description="Pendant and earring sets, multi-pair studs and bracelets in gold and silver tones."
+                  />
+                  <Link
+                    href="/category/pendant"
+                    className="text-xs uppercase tracking-[0.2em] font-semibold inline-flex items-center gap-2 px-5 h-10 rounded-full bg-white border border-border hover:border-accent hover:text-accent transition-colors"
+                  >
+                    Shop sets <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Reveal>
+                <ProductCarousel products={forHer.map(toCard)} />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* DUAL BANNER */}
       <section className="container pb-12">
@@ -349,6 +435,8 @@ export default async function HomePage() {
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,
@@ -377,7 +465,10 @@ export default async function HomePage() {
       <SectionSlot page="home" slot="promise" />
 
       {/* TESTIMONIALS */}
-      <Testimonials reviews={testimonials} />
+      {/* No "4.7 from N reviews" headline: with most reviews sharing template
+          wording, a big count claim is the part most likely to mislead. The
+          component shows it again if total > 0 is passed. */}
+      <ReviewsMarquee reviews={marqueeReviews} total={0} average={0} />
 
       <SectionSlot page="home" slot="testimonials" />
 
@@ -405,6 +496,8 @@ export default async function HomePage() {
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,

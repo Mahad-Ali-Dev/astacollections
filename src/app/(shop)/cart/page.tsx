@@ -11,7 +11,7 @@ export default async function CartPage() {
   const policy = await getStorePolicy();
   const recommended = await prisma.product.findMany({
     where: { isActive: true, isFeatured: true },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
     take: 4,
     orderBy: { createdAt: "desc" },
   });
@@ -25,6 +25,8 @@ export default async function CartPage() {
     sku: p.sku,
     stock: p.stock,
     image: p.images[0]?.url,
+    hoverImage: p.images[1]?.url,
+    hasOptions: p._count.attributes > 0,
     video: p.videoUrl,
     videoPoster: p.videoPoster,
     isFeatured: p.isFeatured,

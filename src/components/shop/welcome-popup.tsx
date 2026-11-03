@@ -24,13 +24,55 @@ export function WelcomePopup({
   const [step, setStep] = useState<"intro" | "code">("intro");
   const [copied, setCopied] = useState(false);
 
+  // Timing. Opening 2.5s after load covered the page before anyone had seen
+  // it (and Google penalises intrusive interstitials on mobile). Now it opens,
+  // once per visitor, on whichever comes first:
+  //   - 20s on the site (on phones the clock only starts after the visitor
+  //     has scrolled or touched, so it never greets a first-time tap),
+  //   - scrolling past half the page,
+  //   - exit intent (cursor leaving through the top, desktop only).
   useEffect(() => {
     if (!enabled) return;
     if (typeof window === "undefined") return;
-    if (localStorage.getItem(DISMISS_KEY)) return;
-    if (localStorage.getItem(SUBSCRIBED_KEY)) return;
-    const t = setTimeout(() => setOpen(true), 2500);
-    return () => clearTimeout(t);
+    try {
+      if (localStorage.getItem(DISMISS_KEY) || localStorage.getItem(SUBSCRIBED_KEY)) return;
+    } catch {
+      return;
+    }
+    const isPhone = window.matchMedia("(max-width: 767px), (pointer: coarse)").matches;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let done = false;
+    const startTimer = () => {
+      if (!timer) timer = setTimeout(show, 20000);
+    };
+    const onScroll = () => {
+      startTimer();
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max > 0 && window.scrollY / max >= 0.5) show();
+    };
+    const onExit = (e: MouseEvent) => {
+      if (e.clientY <= 0 && !e.relatedTarget) show();
+    };
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("touchstart", startTimer);
+      document.removeEventListener("mouseout", onExit);
+    };
+    function show() {
+      if (done) return;
+      done = true;
+      setOpen(true);
+      cleanup();
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    if (isPhone) {
+      window.addEventListener("touchstart", startTimer, { passive: true, once: true });
+    } else {
+      startTimer();
+      document.addEventListener("mouseout", onExit);
+    }
+    return cleanup;
   }, [enabled]);
 
   useEffect(() => {
@@ -48,7 +90,11 @@ export function WelcomePopup({
 
   const close = () => {
     setOpen(false);
-    localStorage.setItem(DISMISS_KEY, "1");
+    try {
+      localStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // Private mode / blocked storage: it just may show again next visit.
+    }
   };
 
   const subscribe = async (e: React.FormEvent) => {
@@ -81,7 +127,7 @@ export function WelcomePopup({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
       <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={close} />
 
-      <div className="relative bg-white w-full max-w-3xl rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl grid md:grid-cols-2 animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 max-h-[92vh]">
+      <div role="dialog" aria-modal="true" aria-label="Welcome offer" className="relative bg-white w-full max-w-3xl rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl grid md:grid-cols-2 animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 max-h-[92vh]">
         {/* Image side */}
         <div className="relative aspect-[4/5] md:aspect-auto md:min-h-[480px] bg-secondary/50 hidden md:block">
           <Image

@@ -94,7 +94,7 @@ export default async function ProductsPage({
   const [products, categories, allMaterials, bundles, newArrivals, policy] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, category: true },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } }, category: true },
       orderBy,
     }),
     prisma.category.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
@@ -111,14 +111,14 @@ export default async function ProductsPage({
         items: {
           orderBy: { sortOrder: "asc" },
           include: {
-            product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } },
+            product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } } },
           },
         },
       },
     }),
     prisma.product.findMany({
       where: { isActive: true },
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
@@ -205,6 +205,8 @@ export default async function ProductsPage({
                       sku: p.sku,
                       stock: p.stock,
                       image: p.images[0]?.url,
+                      hoverImage: p.images[1]?.url,
+                      hasOptions: p._count.attributes > 0,
                       video: p.videoUrl,
                       videoPoster: p.videoPoster,
                       isFeatured: p.isFeatured,
@@ -270,6 +272,8 @@ export default async function ProductsPage({
                   sku: p.sku,
                   stock: p.stock,
                   image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
                   video: p.videoUrl,
                   videoPoster: p.videoPoster,
                   isFeatured: p.isFeatured,

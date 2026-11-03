@@ -11,11 +11,14 @@ export function TrustStrip({
   policy,
   className,
   compact = false,
+  cards = false,
 }: {
   policy: StorePolicy;
   className?: string;
   /** Two-column, smaller variant for narrow spots (cart, checkout sidebar). */
   compact?: boolean;
+  /** Raised white cards with a hover lift (home page). */
+  cards?: boolean;
 }) {
   const items = [
     { icon: Banknote, title: codLine(policy), sub: policy.bankEnabled ? "or bank transfer" : "Pay when it arrives" },
@@ -37,11 +40,19 @@ export function TrustStrip({
       aria-label="Delivery and payment"
     >
       {items.map(({ icon: Icon, title, sub }) => (
-        <li key={title} className="flex items-start gap-3 min-w-0">
+        <li
+          key={title}
+          className={cn(
+            "flex items-start gap-3 min-w-0",
+            cards &&
+              "group/trust rounded-2xl border border-border/70 bg-white p-4 md:p-5 shadow-[0_1px_2px_rgba(40,20,15,0.04),0_10px_28px_-18px_rgba(40,20,15,0.25)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-20px_rgba(150,90,70,0.45)] motion-reduce:hover:translate-y-0"
+          )}
+        >
           <span
             className={cn(
-              "shrink-0 rounded-full border border-border bg-white text-accent flex items-center justify-center",
-              compact ? "h-8 w-8" : "h-10 w-10"
+              "shrink-0 rounded-full border border-border bg-white text-accent flex items-center justify-center transition-colors duration-300",
+              compact ? "h-8 w-8" : "h-10 w-10",
+              cards && "bg-gradient-to-br from-rose-50 to-rose-100 border-rose-200 group-hover/trust:from-accent group-hover/trust:to-accent group-hover/trust:text-accent-foreground"
             )}
             aria-hidden="true"
           >

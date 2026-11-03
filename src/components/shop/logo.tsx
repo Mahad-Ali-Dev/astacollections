@@ -53,7 +53,7 @@ export function Logo({
   // Wordmark only — decorative text
   if (variant === "wordmark") {
     const inner = (
-      <span className={`font-wordmark uppercase tracking-[0.04em] ${s.text} ${textColor} ${className}`}>
+      <span className={`font-wordmark uppercase tracking-[0.16em] ${s.text} ${textColor} ${className}`}>
         ASTACOLLECTIONS
       </span>
     );
@@ -75,9 +75,9 @@ export function Logo({
       />
       {variant !== "mark" && (
         <span
-          className={`font-wordmark uppercase tracking-[0.02em] leading-none ${s.text} ${textColor} whitespace-nowrap`}
+          className={`font-wordmark uppercase tracking-[0.16em] leading-none ${s.text} ${textColor} whitespace-nowrap`}
         >
-          ASTACOLLECTIONS
+          Asta Collections
         </span>
       )}
     </span>

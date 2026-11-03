@@ -104,8 +104,11 @@
   .text-balance { text-wrap: balance; }
   .text-pretty { text-wrap: pretty; }
 
+  /* Wordmark: the brand serif, letter-spaced. It used to be a typewriter face
+     (Special Elite) that clashed with the serif headings everywhere else. */
   .font-wordmark {
-    font-family: var(--font-wordmark), "Special Elite", "Courier New", monospace;
+    font-family: var(--font-serif), "Cormorant Garamond", Georgia, serif;
+    font-weight: 600;
     font-feature-settings: "ss01" 0;
   }
 

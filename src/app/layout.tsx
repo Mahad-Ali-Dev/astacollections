@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Cormorant_Garamond, Special_Elite } from "next/font/google";
+import { Inter, Cormorant_Garamond } from "next/font/google";
 import { Toaster } from "sonner";
 import { SITE, organizationJsonLd, websiteJsonLd, jsonLdString } from "@/lib/seo";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
@@ -15,14 +15,6 @@ const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   variable: "--font-serif",
   weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-// Decorative typewriter font for the ASTACOLLECTIONS wordmark — matches your reference
-const wordmark = Special_Elite({
-  subsets: ["latin"],
-  variable: "--font-wordmark",
-  weight: "400",
   display: "swap",
 });
 
@@ -98,7 +90,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-PK" className={`${inter.variable} ${cormorant.variable} ${wordmark.variable}`}>
+    <html lang="en-PK" className={`${inter.variable} ${cormorant.variable}`}>
       <head>
         <script
           type="application/ld+json"
