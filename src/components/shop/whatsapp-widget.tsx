@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { MessageCircle, X, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/** Other components (the product page's sticky bar) open the chat with this event. */
+export const OPEN_WHATSAPP_EVENT = "asta:open-whatsapp";
 
 const WHATSAPP_NUMBER = "923264348024";
 const WHATSAPP_DISPLAY = "+92 326 4348024";
@@ -10,6 +15,17 @@ export function WhatsAppWidget() {
   const [open, setOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [message, setMessage] = useState("Hi! I have a question about a piece on your store.");
+  const pathname = usePathname() ?? "/";
+  // Phones: product pages put the WhatsApp button inside the sticky Add-to-Bag
+  // bar, so the floating button (which covered the description and sat on the
+  // bar) is hidden there. Everywhere else it sits clear of the bottom tab bar.
+  const onProductPage = /^\/products\/[^/]+/.test(pathname);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_WHATSAPP_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_WHATSAPP_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     // Show a soft tooltip a moment after page load (only once per session)
@@ -32,8 +48,8 @@ export function WhatsAppWidget() {
   return (
     <>
       {/* Tooltip bubble */}
-      {showTooltip && !open && (
-        <div className="fixed bottom-40 md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
+      {showTooltip && !open && !onProductPage && (
+        <div className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
           <button
             onClick={() => setShowTooltip(false)}
             aria-label="Dismiss"
@@ -51,7 +67,7 @@ export function WhatsAppWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-40 md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-3xl shadow-2xl w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden animate-in slide-in-from-bottom-3 fade-in duration-300">
+        <div className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-3xl shadow-2xl w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden animate-in slide-in-from-bottom-3 fade-in duration-300">
           {/* Header */}
           <div className="bg-green-600 text-white p-5 relative">
             <button
@@ -111,19 +127,25 @@ export function WhatsAppWidget() {
         </div>
       )}
 
-      {/* Floating button — bottom-24 on mobile to clear sticky add-to-bag bar (~70px tall) */}
+      {/* Floating button. Phones: smaller, 16px above the 64px tab bar (plus
+          the safe area), no pulsing ring; hidden on product pages unless the
+          chat is open (the sticky bar has its own WhatsApp button). */}
       <button
         onClick={() => setOpen(!open)}
-        aria-label="Open WhatsApp support"
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-12 h-12 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
+        aria-label={open ? "Close WhatsApp chat" : "Open WhatsApp support"}
+        className={cn(
+          "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 right-4 md:right-6 z-40 w-11 h-11 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-lg md:shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all items-center justify-center group",
+          onProductPage && !open ? "hidden md:flex" : "flex",
+          onProductPage && open && "bottom-[calc(6rem+env(safe-area-inset-bottom))]"
+        )}
       >
         {!open && (
-          <span className="absolute inset-0 rounded-full bg-green-500 opacity-60 animate-ping" />
+          <span className="hidden md:block absolute inset-0 rounded-full bg-green-500 opacity-60 animate-ping motion-reduce:animate-none" />
         )}
         {open ? (
           <X className="h-6 w-6 relative z-10" />
         ) : (
-          <svg viewBox="0 0 24 24" className="h-7 w-7 md:h-8 md:w-8 fill-current relative z-10" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 24 24" className="h-6 w-6 md:h-8 md:w-8 fill-current relative z-10" xmlns="http://www.w3.org/2000/svg">
             <path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7 0-.3-.2-1.2-.4-2.3-1.4-.9-.8-1.4-1.8-1.6-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5l.3-.5c.1-.2 0-.4-.1-.5-.1-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5 4.5 2.5 1 2.9.7 3.4.7.5 0 1.7-.7 1.9-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.4Zm-5.5 7.5c-1.7 0-3.4-.5-4.9-1.4l-.3-.2-3.6.9.9-3.5-.2-.4c-1-1.5-1.5-3.3-1.5-5.1 0-5.4 4.4-9.7 9.7-9.7 2.6 0 5 1 6.9 2.8 1.8 1.8 2.9 4.3 2.9 6.9-.1 5.3-4.5 9.7-9.9 9.7Zm8.2-17.9C18 1.9 15 .8 12 .8 5.5.8.2 6 .2 12.5c0 2.1.5 4.1 1.6 5.9L.1 24l5.7-1.5c1.7.9 3.6 1.4 5.5 1.4 6.5 0 11.8-5.3 11.8-11.8.1-3.1-1.1-6.1-3.4-8.3Z" />
           </svg>
         )}

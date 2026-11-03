@@ -39,6 +39,7 @@ import { track } from "@/lib/fbpixel";
 import { formatPrice, getDiscountPercent, defaultOfferEndsAt } from "@/lib/utils";
 import { prettyTag } from "@/lib/tags";
 import { toast } from "sonner";
+import { OPEN_WHATSAPP_EVENT } from "./whatsapp-widget";
 
 type Product = {
   id: string;
@@ -265,6 +266,9 @@ export function ProductDetail({
 
             {/* Main image or video */}
             <div className="relative aspect-square md:aspect-[4/5] rounded-2xl overflow-hidden bg-secondary/60 group card-soft">
+              {/* Shimmer underneath while the photo downloads; the image paints
+                  over it and is never hidden itself, so it can't get stuck invisible. */}
+              <div className="absolute inset-0 shimmer" aria-hidden="true" />
               {currentMedia ? (
                 currentMedia.type === "video" ? (
                   <video
@@ -671,11 +675,22 @@ export function ProductDetail({
 
       {/* Sticky mobile CTA */}
       {!outOfStock && (
-        <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-border/70 p-3 flex items-center gap-3 shadow-lg">
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-border/70 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 shadow-lg">
           <div className="flex-1 min-w-0">
             <p className="font-semibold tabular-nums">{formatPrice(effectivePrice * qty)}</p>
             <p className="text-xs text-muted-foreground line-clamp-1">{product.name}</p>
           </div>
+          {/* WhatsApp lives here on phones instead of floating over the page */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event(OPEN_WHATSAPP_EVENT))}
+            aria-label="Ask about this piece on WhatsApp"
+            className="h-12 w-12 shrink-0 rounded-full border border-green-600/40 text-green-700 flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
+              <path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7 0-.3-.2-1.2-.4-2.3-1.4-.9-.8-1.4-1.8-1.6-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5l.3-.5c.1-.2 0-.4-.1-.5-.1-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5 4.5 2.5 1 2.9.7 3.4.7.5 0 1.7-.7 1.9-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.4Zm-5.5 7.5c-1.7 0-3.4-.5-4.9-1.4l-.3-.2-3.6.9.9-3.5-.2-.4c-1-1.5-1.5-3.3-1.5-5.1 0-5.4 4.4-9.7 9.7-9.7 2.6 0 5 1 6.9 2.8 1.8 1.8 2.9 4.3 2.9 6.9-.1 5.3-4.5 9.7-9.9 9.7Zm8.2-17.9C18 1.9 15 .8 12 .8 5.5.8.2 6 .2 12.5c0 2.1.5 4.1 1.6 5.9L.1 24l5.7-1.5c1.7.9 3.6 1.4 5.5 1.4 6.5 0 11.8-5.3 11.8-11.8.1-3.1-1.1-6.1-3.4-8.3Z" />
+            </svg>
+          </button>
           <button
             onClick={handleAdd}
             className="bg-foreground text-background px-6 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent transition-colors flex items-center gap-2 shrink-0"

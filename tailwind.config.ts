@@ -84,6 +84,11 @@ const config: Config = {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        // Hero text entrance: whole lines fade and rise (no clipping masks).
+        "fade-rise": {
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
         // Slow hero zoom ("Ken Burns").
         kenburns: {
           from: { transform: "scale(1)" },
@@ -101,6 +106,7 @@ const config: Config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out",
         shimmer: "shimmer 1.5s infinite",
+        "fade-rise": "fade-rise 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both",
         kenburns: "kenburns 9s ease-out forwards",
         marquee: "marquee var(--duration, 60s) linear infinite",
         "marquee-reverse": "marquee var(--duration, 60s) linear infinite reverse",

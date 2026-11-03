@@ -3,8 +3,6 @@
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
 export type HeroSlide = {
@@ -56,36 +54,10 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
     }
   };
 
-  useGSAP(
-    () => {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-      tl.fromTo(
-        ".hero-slide-eyebrow",
-        { opacity: 0, y: 18 },
-        { opacity: 1, y: 0, duration: 0.6 }
-      )
-        .fromTo(
-          ".hero-slide-title-line",
-          { opacity: 0, y: 24 },
-          { opacity: 1, y: 0, duration: 0.9, stagger: 0.12 },
-          "-=0.3"
-        )
-        .fromTo(
-          ".hero-slide-sub",
-          { opacity: 0, y: 14 },
-          { opacity: 1, y: 0, duration: 0.6 },
-          "-=0.5"
-        )
-        .fromTo(
-          ".hero-slide-cta",
-          { opacity: 0, y: 12 },
-          { opacity: 1, y: 0, duration: 0.5, stagger: 0.08 },
-          "-=0.4"
-        );
-    },
-    { scope: root, dependencies: [active] }
-  );
+  // Slide text enters with CSS keyframes (see tailwind `animate-fade-rise`),
+  // restarted per slide by keying the text block. This used to be a GSAP
+  // timeline: it hid the text until animation frames ran, so with JS slow to
+  // start (or frames throttled) the headline sat invisible.
 
   const slide = slides[active];
   // Defensive href fallback — if the admin saved a blank CTA href, Next/Link with
@@ -124,8 +96,8 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
       </div>
 
       <div className="container relative min-h-[560px] sm:min-h-[640px] md:min-h-[720px] lg:min-h-[820px] flex items-center py-16 sm:py-20 md:py-24">
-        <div className="max-w-2xl text-background space-y-5 sm:space-y-7 w-full">
-          <p className="hero-slide-eyebrow inline-flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
+        <div key={active} className="max-w-2xl text-background space-y-5 sm:space-y-7 w-full">
+          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
             <span className="h-px w-6 sm:w-8 bg-rose-300" />
             {slide.eyebrow}
           </p>
@@ -135,27 +107,27 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
           <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[7.5rem] leading-[0.98] text-balance">
             {/* No overflow masks: the lines fade and rise whole, so italics and
                 descenders are never cut off mid-animation. */}
-            <span className="hero-slide-title-line block">{slide.title}</span>
-            <span className="hero-slide-title-line block italic font-light text-rose-200 pb-1">
+            <span className="block animate-fade-rise [animation-delay:120ms] motion-reduce:animate-none">{slide.title}</span>
+            <span className="block italic font-light text-rose-200 pb-1 animate-fade-rise [animation-delay:240ms] motion-reduce:animate-none">
               {slide.titleAccent}
             </span>
           </h2>
 
-          <p className="hero-slide-sub text-base md:text-lg text-background/85 max-w-md leading-relaxed">
+          <p className="animate-fade-rise [animation-delay:380ms] motion-reduce:animate-none text-base md:text-lg text-background/85 max-w-md leading-relaxed">
             {slide.description}
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
               href={primaryHref}
-              className="hero-slide-cta group inline-flex items-center gap-2 bg-white text-foreground px-7 h-13 py-4 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent hover:text-accent-foreground transition-all"
+              className="animate-fade-rise [animation-delay:500ms] motion-reduce:animate-none group inline-flex items-center gap-2 bg-white text-foreground px-7 h-13 py-4 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent hover:text-accent-foreground transition-all"
             >
               {slide.cta.label || "Shop Now"}
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
               href="/products"
-              className="hero-slide-cta inline-flex items-center gap-2 px-6 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold border border-background/40 text-background hover:bg-background/10 transition-colors"
+              className="animate-fade-rise [animation-delay:560ms] motion-reduce:animate-none inline-flex items-center gap-2 px-6 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold border border-background/40 text-background hover:bg-background/10 transition-colors"
             >
               View All
             </Link>
