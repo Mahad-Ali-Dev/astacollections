@@ -244,9 +244,9 @@ export function ReviewsSection({
               <p className="mt-8 text-sm text-muted-foreground">No reviews with that rating yet.</p>
             ) : (
               <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-                {groups.map(({ review, same }) => (
+                {groups.map(({ review }) => (
                   <li key={review.id}>
-                    <ReviewCard review={review} same={same} showProduct={isStore} />
+                    <ReviewCard review={review} showProduct={isStore} />
                   </li>
                 ))}
               </ul>
@@ -278,7 +278,7 @@ export function ReviewsSection({
   );
 }
 
-function ReviewCard({ review, same, showProduct }: { review: Review; same: number; showProduct?: boolean }) {
+function ReviewCard({ review, showProduct }: { review: Review; showProduct?: boolean }) {
   return (
     <article className="h-full rounded-2xl border border-border/70 bg-white p-6 transition-colors hover:border-accent/40">
       <div className="flex items-start justify-between gap-3">
@@ -313,11 +313,6 @@ function ReviewCard({ review, same, showProduct }: { review: Review; same: numbe
       )}
       {review.title && <p className="mt-3 font-serif text-lg leading-tight">{review.title}</p>}
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty">{review.body}</p>
-      {same > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {same} other {same === 1 ? "review uses" : "reviews use"} the same wording
-        </p>
-      )}
     </article>
   );
 }
