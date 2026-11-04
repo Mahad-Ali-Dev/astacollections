@@ -54,7 +54,7 @@ const STATUS_FLOW = ["PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED
 
 export function TrackOrderClient() {
   const [orderNumber, setOrderNumber] = useState("");
-  const [email, setEmail] = useState("");
+  const [contact, setContact] = useState("");
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<OrderTrackData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +68,7 @@ export function TrackOrderClient() {
       const res = await fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderNumber, email }),
+        body: JSON.stringify({ orderNumber, contact }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -111,14 +111,14 @@ export function TrackOrderClient() {
           </label>
           <label className="block">
             <span className="block text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground mb-2">
-              Email
+              Email or Phone
             </span>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
               required
-              placeholder="you@example.com"
+              placeholder="you@example.com or 03XX XXXXXXX"
               className="w-full h-12 px-4 rounded-full border border-border bg-white text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-colors"
             />
           </label>
@@ -141,7 +141,7 @@ export function TrackOrderClient() {
           )}
         </button>
         <p className="text-[11px] text-center text-muted-foreground/80">
-          Order number was sent to your email when you placed the order.
+          Your order number was shown when you placed the order, and emailed if you gave an email.
         </p>
       </form>
 

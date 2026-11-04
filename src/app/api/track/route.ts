@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { orderContactMatches } from "@/lib/order-contact";
 
 const schema = z.object({
   orderNumber: z.string().min(3),
-  email: z.string().email(),
+  contact: z.string().trim().min(3), // the email or phone used at checkout
 });
 
 export async function POST(req: Request) {
@@ -15,18 +16,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    const { orderNumber, email } = parsed.data;
+    const { orderNumber, contact } = parsed.data;
     const order = await prisma.order.findFirst({
-      where: {
-        orderNumber: orderNumber.trim().toUpperCase(),
-        customerEmail: email.toLowerCase(),
-      },
+      where: { orderNumber: orderNumber.trim().toUpperCase() },
       include: { items: true },
     });
 
-    if (!order) {
+    if (!order || !orderContactMatches(order, contact)) {
       return NextResponse.json(
-        { error: "We couldn't find an order with those details. Check the order number and email." },
+        { error: "We couldn't find an order with those details. Check the order number and the email or phone." },
         { status: 404 }
       );
     }
