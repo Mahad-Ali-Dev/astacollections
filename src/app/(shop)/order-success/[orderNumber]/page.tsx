@@ -45,7 +45,11 @@ export default async function OrderSuccessPage({
         <CheckCircle2 className="h-16 w-16 text-green-600 mx-auto mb-4" />
         <h1 className="text-3xl md:text-4xl font-serif">Thank you for your order!</h1>
         <p className="text-muted-foreground mt-2">
-          A confirmation has been sent to <strong>{order.customerEmail}</strong>.
+          {order.customerEmail ? (
+            <>A confirmation has been sent to <strong>{order.customerEmail}</strong>.</>
+          ) : (
+            <>We&apos;ll call or WhatsApp you on <strong>{order.customerPhone}</strong>. Please save your order number below.</>
+          )}
         </p>
         <p className="text-sm mt-4">
           Order #{" "}
@@ -143,9 +147,11 @@ export default async function OrderSuccessPage({
               <p className="flex items-center gap-1 mt-1">
                 <Phone className="h-3 w-3" /> {order.customerPhone}
               </p>
-              <p className="flex items-center gap-1">
-                <Mail className="h-3 w-3" /> {order.customerEmail}
-              </p>
+              {order.customerEmail && (
+                <p className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" /> {order.customerEmail}
+                </p>
+              )}
             </div>
           </div>
           <div>
@@ -173,8 +179,16 @@ export default async function OrderSuccessPage({
 
       <div className="mt-10 bg-secondary/50 border border-border rounded-2xl p-6 text-center max-w-xl mx-auto">
         <p className="text-sm text-muted-foreground">
-          We&apos;ve sent a confirmation email to <strong className="text-foreground">{order.customerEmail}</strong> with your order details.
-          When your order ships you&apos;ll receive a second email with the tracking number — or you can check status anytime at <Link href="/track-order" className="text-accent hover:underline">/track-order</Link>.
+          {order.customerEmail ? (
+            <>
+              We&apos;ve sent a confirmation email to <strong className="text-foreground">{order.customerEmail}</strong> with your order details.
+              When your order ships you&apos;ll receive a second email with the tracking number — or you can check status anytime at <Link href="/track-order" className="text-accent hover:underline">/track-order</Link>.
+            </>
+          ) : (
+            <>
+              You can check status anytime at <Link href="/track-order" className="text-accent hover:underline">/track-order</Link> with your order number and phone number.
+            </>
+          )}
         </p>
       </div>
     </div>

@@ -238,9 +238,13 @@ export function OrderDetailClient({ order: initial }: { order: Order }) {
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground mb-1">Email</p>
-                <a href={`mailto:${order.customerEmail}`} className="font-medium hover:text-accent flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> {order.customerEmail}
-                </a>
+                {order.customerEmail ? (
+                  <a href={`mailto:${order.customerEmail}`} className="font-medium hover:text-accent flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> {order.customerEmail}
+                  </a>
+                ) : (
+                  <p className="text-muted-foreground">Not provided</p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-muted-foreground mb-1">Shipping Address</p>

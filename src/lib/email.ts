@@ -63,6 +63,7 @@ type ShippingEmailData = {
 export async function sendShippingUpdate(
   data: ShippingEmailData & { orderId?: string }
 ): Promise<{ ok: boolean; reason?: string }> {
+  if (!data.customerEmail) return { ok: false, reason: "No email on order" };
   const subject = `Your order ${data.orderNumber} has shipped!`;
   if (!resend) {
     console.log("[email] Skipping shipping update — no RESEND_API_KEY configured");
@@ -200,6 +201,7 @@ function shippingUpdateHtml(d: ShippingEmailData) {
 export async function sendOrderConfirmation(
   order: OrderEmailData & { orderId?: string }
 ): Promise<{ ok: boolean; reason?: string }> {
+  if (!order.customerEmail) return { ok: false, reason: "No email on order" };
   const subject = `Order ${order.orderNumber} — confirmed at Asta Collections`;
   if (!resend) {
     console.log("[email] Skipping order confirmation — no RESEND_API_KEY configured");

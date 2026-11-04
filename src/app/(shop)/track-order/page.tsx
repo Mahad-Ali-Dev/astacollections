@@ -4,7 +4,7 @@ import { pageMeta } from "@/lib/seo";
 
 export const metadata = pageMeta({
   title: "Track Your Order",
-  description: "Track your Asta Collections order. Enter your order number and email to see status and courier tracking.",
+  description: "Track your Asta Collections order. Enter your order number and email or phone to see status and courier tracking.",
   path: "/track-order",
 });
 
@@ -18,8 +18,8 @@ export default function TrackOrderPage() {
         <p className="eyebrow-accent">Order Tracking</p>
         <h1 className="display-2">Track your order</h1>
         <p className="text-muted-foreground max-w-md mx-auto">
-          Enter your order number and the email you used at checkout to view live status and
-          courier tracking.
+          Enter your order number and the email or phone you used at checkout to view live status
+          and courier tracking.
         </p>
       </div>
 

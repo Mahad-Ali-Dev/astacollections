@@ -55,7 +55,14 @@ export const couponSchema = z.object({
 
 export const checkoutSchema = z.object({
   customerName: z.string().min(2, "Please enter your name"),
-  customerEmail: z.string().email("Please enter a valid email"),
+  // Optional: buyers are contacted by phone. Blank is stored as "" (the column
+  // is required); anything typed must still be a valid address.
+  customerEmail: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || z.string().email().safeParse(v).success, "Please enter a valid email")
+    .nullish()
+    .transform((v) => v ?? ""),
   customerPhone: z.string().min(7, "Please enter a valid phone"),
   shippingAddress: z.string().min(5, "Please enter your full address"),
   shippingCity: z.string().min(2, "Please enter your city"),
