@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { GUIDES } from "@/lib/guides";
 import { breadcrumbJsonLd, jsonLdString, pageMeta, absoluteUrl, SITE } from "@/lib/seo";
+import { LifestylePhoto } from "@/components/shop/lifestyle-photo";
+import { LIFESTYLE } from "@/lib/lifestyle-images";
 
 export const metadata = pageMeta({
   title: "Jewellery Guides: Care, Ring Sizes and Gift Ideas",
@@ -28,6 +30,12 @@ export default function GuidesIndexPage() {
   return (
     <section className="container py-12 md:py-20 max-w-5xl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
+      <LifestylePhoto
+        src={LIFESTYLE.morningBed}
+        sizes="(max-width:768px) 100vw, 1024px"
+        className="mb-8 h-44 md:mb-12 md:h-72"
+        imageClassName="object-[50%_60%]"
+      />
       <div className="text-center max-w-2xl mx-auto mb-10 md:mb-14">
         <p className="eyebrow-accent mb-3">Guides</p>
         <h1 className="display-2">Jewellery guides</h1>

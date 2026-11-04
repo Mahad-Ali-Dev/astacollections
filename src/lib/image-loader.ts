@@ -41,6 +41,8 @@ const IMAGEKIT_ENDPOINT = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT?.replace
   ""
 );
 
+const LIFESTYLE_WIDTHS = [640, 1024, 1600];
+
 // Matches https://<id>.public.blob.vercel-storage.com/...
 const BLOB_HOSTNAME_RE = /\.public\.blob\.vercel-storage\.com$/i;
 
@@ -52,6 +54,12 @@ interface LoaderArgs {
 
 export default function imageLoader({ src, width, quality }: LoaderArgs): string {
   const q = quality ?? 75;
+
+  // Our own photos ship as ready-made WebP widths (see lifestyle-images.ts)
+  if (src.startsWith("/images/lifestyle/")) {
+    const fit = LIFESTYLE_WIDTHS.find((w) => w >= width) ?? LIFESTYLE_WIDTHS[LIFESTYLE_WIDTHS.length - 1];
+    return src.replace(/\.webp$/, `-${fit}.webp`);
+  }
 
   // Already on ImageKit — just append the transformation, don't double-wrap
   if (IMAGEKIT_ENDPOINT && src.startsWith(IMAGEKIT_ENDPOINT)) {

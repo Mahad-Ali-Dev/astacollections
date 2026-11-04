@@ -39,15 +39,15 @@ export function HomeReviews({ reviews }: { reviews: HomeReview[] }) {
     if (el && card) el.scrollBy({ left: dir * (card.offsetWidth + 24), behavior: "smooth" });
   };
   return (
-    <section className="bg-secondary/50 py-14 md:py-24">
+    <section className="bg-espresso py-14 md:py-24">
       <div className="container">
         <div className="mb-8 flex items-end justify-between gap-4 md:mb-12">
           <div>
-            <p className="eyebrow-accent flex items-center gap-3">
-              <span className="h-px w-8 bg-accent" aria-hidden="true" />
+            <p className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.24em] text-rose-200">
+              <span className="h-px w-8 bg-rose-200" aria-hidden="true" />
               Reviews
             </p>
-            <h2 className="display-2 mt-3">What our customers say</h2>
+            <h2 className="display-2 mt-3 text-background">What our customers say</h2>
           </div>
           {reviews.length > 3 && (
             <div className="hidden gap-2 md:flex">

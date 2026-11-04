@@ -39,8 +39,8 @@ export default async function ShopLayout({ children }: { children: React.ReactNo
         collections={collections}
         delivery={{ fee: policy.shippingFee, freeThreshold: policy.freeShippingThreshold, codLabel: codLine(policy) }}
       />
-      {/* pb on phones keeps the last content clear of the bottom tab bar */}
-      <main className="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">{children}</main>
+      {/* The footer's bottom padding keeps content clear of the floating phone menu */}
+      <main className="flex-1">{children}</main>
       <Footer />
       <WelcomePopup
         enabled={settings.popupEnabled !== "false"}

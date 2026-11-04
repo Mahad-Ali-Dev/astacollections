@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Mail, MapPin, Phone, Instagram, Facebook, Banknote, Truck, RefreshCcw, Landmark, Plus } from "lucide-react";
-import { Logo } from "./logo";
+import Image from "next/image";
+import { Instagram, Facebook, Plus } from "lucide-react";
 import { NewsletterForm } from "./newsletter-form";
-import { codLine, deliveryLine, getStorePolicy } from "@/lib/store-policy";
 
 // Real social URLs
 export const SOCIAL = {
@@ -50,75 +49,66 @@ const HELP_LINKS = [
   { href: "/guides/ring-size-guide", label: "Ring size guide" },
   { href: "/guides", label: "Jewellery guides" },
   { href: "/account", label: "My account" },
-];
-const ABOUT_LINKS = [
   { href: "/about", label: "Our story" },
-  { href: "/contact", label: "Contact us" },
 ];
+
+const SOCIALS = [
+  { href: SOCIAL.instagram, label: "Instagram", icon: <Instagram className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" /> },
+  { href: SOCIAL.tiktok, label: "TikTok", icon: <TikTokIcon className="h-[18px] w-[18px]" /> },
+  { href: SOCIAL.facebook, label: "Facebook", icon: <Facebook className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" /> },
+  { href: SOCIAL.whatsapp, label: "WhatsApp", icon: <WhatsAppIcon className="h-[18px] w-[18px]" /> },
+];
+
+const linkClass = "flex min-h-[44px] items-center text-sm text-[#f3e7da] transition-colors hover:text-white lg:min-h-[32px]";
 
 /**
- * Footer: newsletter band, trust badges (from the live settings), link
- * columns that collapse into accordions on phones, payment methods, socials.
+ * Dark footer. Below lg: centred logo and sign-up, folding sections,
+ * socials, copyright. From lg: logo and sign-up on the left, three open lists
+ * on the right, then copyright left and socials right.
+ * The logo is flattened to white until a white-and-rose file exists, and loads
+ * lazily because the file is large. Bottom padding clears the floating buttons.
  */
-export async function Footer() {
-  const policy = await getStorePolicy();
-  const socials = [
-    { href: SOCIAL.instagram, label: "Instagram", icon: <Instagram className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" /> },
-    { href: SOCIAL.tiktok, label: "TikTok", icon: <TikTokIcon className="h-[18px] w-[18px]" /> },
-    { href: SOCIAL.facebook, label: "Facebook", icon: <Facebook className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" /> },
-    { href: SOCIAL.whatsapp, label: "WhatsApp", icon: <WhatsAppIcon className="h-[18px] w-[18px]" /> },
-  ];
-  const trust = [
-    { icon: Banknote, title: codLine(policy), sub: "Pay when your parcel arrives" },
-    { icon: Truck, title: deliveryLine(policy), sub: "3–5 working days, nationwide" },
-    { icon: RefreshCcw, title: `${policy.returnDays}-day returns`, sub: "On unworn pieces" },
-  ];
+export function Footer() {
+  const contact = (
+    <ul>
+      <li><Link href="/contact" className={linkClass}>Contact us</Link></li>
+      <li><a href={`tel:${SOCIAL.phoneRaw}`} className={linkClass}>{SOCIAL.whatsappNumber}</a></li>
+      <li><a href="mailto:astacollection14@gmail.com" className={`${linkClass} break-all`}>astacollection14@gmail.com</a></li>
+      <li className={linkClass}>Lahore, Pakistan</li>
+    </ul>
+  );
 
   return (
-    <footer className="mt-20 border-t border-border/70 bg-secondary/50 md:mt-28">
-      {/* Newsletter band */}
-      <div className="container grid grid-cols-1 gap-8 py-12 md:grid-cols-[1fr_auto] md:items-center md:py-16">
-        <div className="max-w-lg">
-          <p className="eyebrow-accent">The Asta list</p>
-          <h2 className="mt-3 font-serif text-3xl leading-tight md:text-4xl">New arrivals and offers, first.</h2>
-          <p className="mt-2 text-sm text-muted-foreground">One email when something new lands. No spam, unsubscribe anytime.</p>
+    <footer className="mt-10 bg-footer pb-[calc(9rem+env(safe-area-inset-bottom))] text-[#f8f1e9] md:mt-16 md:pb-10 lg:pb-24">
+      <div className="container pt-10 lg:pt-14">
+        <div className="lg:grid lg:grid-cols-[1.25fr_3fr] lg:gap-10">
+          <div className="min-w-0">
+            <Link href="/" aria-label="Asta Collections home" className="mx-auto block w-fit lg:mx-0">
+              <Image src="/footer_logo.svg" alt="Asta Collections" width={165} height={126} className="brightness-0 invert" />
+            </Link>
+            <div className="mx-auto mt-6 flex max-w-md justify-center lg:mx-0 lg:max-w-[340px] lg:justify-start">
+              <NewsletterForm />
+            </div>
+          </div>
+
+          <div className="mt-6 divide-y divide-[#efe2d4]/30 border-y border-[#efe2d4]/30 lg:mt-0 lg:grid lg:grid-cols-3 lg:gap-10 lg:divide-y-0 lg:border-0">
+            <FooterSection title="Shop"><LinkList links={SHOP_LINKS} /></FooterSection>
+            <FooterSection title="Help"><LinkList links={HELP_LINKS} /></FooterSection>
+            <FooterSection title="Contact">{contact}</FooterSection>
+          </div>
         </div>
-        <NewsletterForm />
-      </div>
 
-      {/* Trust badges */}
-      <div className="border-y border-border/70 bg-white/60">
-        <ul className="container grid grid-cols-1 divide-y divide-border/70 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {trust.map(({ icon: Icon, title, sub }) => (
-            <li key={title} className="flex items-center gap-4 py-5 sm:justify-center sm:px-4">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-rose-50 to-rose-100 text-accent">
-                <Icon className="h-5 w-5" strokeWidth={1.6} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold">{title}</span>
-                <span className="block text-xs text-muted-foreground">{sub}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Brand + links */}
-      <div className="container grid grid-cols-1 gap-10 py-12 md:grid-cols-12 md:py-16">
-        <div className="md:col-span-4">
-          <Logo variant="inline" size="md" />
-          <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Stainless steel rings, pendant sets, studs and bracelets for everyday wear, delivered across Pakistan.
-          </p>
-          <ul className="mt-6 flex gap-2.5">
-            {socials.map((s) => (
+        <div className="mt-6 flex flex-col-reverse items-center gap-5 lg:mt-10 lg:flex-row lg:justify-between lg:border-t lg:border-[#efe2d4]/30 lg:pt-6">
+          <p className="text-xs text-[#f3e7da] lg:text-sm">© {new Date().getFullYear()} Asta Collections</p>
+          <ul className="flex gap-2.5">
+            {SOCIALS.map((s) => (
               <li key={s.label}>
                 <a
                   href={s.href}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={s.label}
-                  className="press flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-accent hover:text-accent-foreground"
+                  className="press flex h-11 w-11 items-center justify-center rounded-full border border-[#efe2d4]/80 transition-colors hover:border-white hover:text-white"
                 >
                   {s.icon}
                 </a>
@@ -126,87 +116,38 @@ export async function Footer() {
             ))}
           </ul>
         </div>
-
-        <div className="divide-y divide-border/70 border-y border-border/70 md:col-span-8 md:grid md:grid-cols-3 md:gap-8 md:divide-y-0 md:border-0">
-          <LinkGroup title="Shop" links={SHOP_LINKS} />
-          <LinkGroup title="Help" links={HELP_LINKS} />
-          <div>
-            <LinkGroup title="About" links={ABOUT_LINKS} />
-            <ul className="hidden space-y-2.5 pt-4 text-sm text-muted-foreground md:block">
-              <li className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5" aria-hidden="true" /> Lahore, Pakistan</li>
-              <li>
-                <a href={`tel:${SOCIAL.phoneRaw}`} className="link-slide flex items-center gap-2 hover:text-foreground">
-                  <Phone className="h-3.5 w-3.5" aria-hidden="true" /> {SOCIAL.whatsappNumber}
-                </a>
-              </li>
-              <li>
-                <a href="mailto:astacollection14@gmail.com" className="link-slide flex items-center gap-2 break-all hover:text-foreground">
-                  <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> astacollection14@gmail.com
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment + bottom bar */}
-      <div className="border-t border-border/70 bg-white">
-        <div className="container flex flex-col gap-4 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 font-medium uppercase tracking-[0.16em] text-foreground/70">We accept</span>
-            {policy.codEnabled && (
-              <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 font-medium text-foreground/80">
-                <Banknote className="h-3.5 w-3.5" aria-hidden="true" /> Cash on delivery
-              </span>
-            )}
-            {policy.bankEnabled && (
-              <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 font-medium text-foreground/80">
-                <Landmark className="h-3.5 w-3.5" aria-hidden="true" /> Bank transfer
-              </span>
-            )}
-          </div>
-          <p className="flex flex-wrap items-center gap-3 md:justify-end">
-            <span>© {new Date().getFullYear()} Asta Collections</span>
-            <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
-            <Link href="/admin/login" className="link-slide hover:text-foreground">Admin</Link>
-          </p>
-        </div>
       </div>
     </footer>
   );
 }
 
-/** A link column; on phones it is a native accordion so the footer stays short. */
-function LinkGroup({ title, links }: { title: string; links: { href: string; label: string }[] }) {
+function LinkList({ links }: { links: { href: string; label: string }[] }) {
   return (
-    <>
-      <details className="group md:hidden">
-        <summary className="flex h-14 cursor-pointer list-none items-center justify-between text-sm font-semibold uppercase tracking-[0.16em]">
+    <ul>
+      {links.map((l) => (
+        <li key={l.href}>
+          <Link href={l.href} className={linkClass}>{l.label}</Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A native accordion below lg, so keyboard and screen readers work unaided. An open column from lg. */
+function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <details className="group lg:hidden">
+        <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between text-sm [&::-webkit-details-marker]:hidden">
           {title}
-          <Plus className="h-4 w-4 transition-transform group-open:rotate-45" aria-hidden="true" />
+          <Plus className="h-4 w-4 transition-transform group-open:rotate-45 motion-reduce:transition-none" aria-hidden="true" />
         </summary>
-        <ul className="pb-4">
-          {links.map((l) => (
-            <li key={l.href}>
-              <Link href={l.href} className="flex min-h-[44px] items-center text-sm text-muted-foreground hover:text-foreground">
-                {l.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="pb-3">{children}</div>
       </details>
-      <div className="hidden md:block">
-        <p className="eyebrow-accent mb-4">{title}</p>
-        <ul className="space-y-2.5 text-sm">
-          {links.map((l) => (
-            <li key={l.href}>
-              <Link href={l.href} className="link-slide text-muted-foreground transition-colors hover:text-foreground">
-                {l.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+      <div className="hidden lg:block">
+        <p className="mb-2 text-sm font-semibold text-white">{title}</p>
+        {children}
       </div>
-    </>
+    </div>
   );
 }

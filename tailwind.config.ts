@@ -26,6 +26,12 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        // The owner-approved section colours (home grid, cream sections, reviews, phone menu).
+        cream: "#f5f0e8",
+        espresso: "#46291f",
+        // The footer's own background. Its small text is #eadccd or lighter, so
+        // this can't go much lighter than #626262 and keep 4.5:1.
+        footer: "#1a1a1a",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

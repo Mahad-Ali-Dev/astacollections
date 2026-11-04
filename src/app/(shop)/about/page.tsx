@@ -6,6 +6,8 @@ import { ArrowRight, Award, Heart, Sparkles } from "lucide-react";
 import { getSettings } from "@/lib/settings";
 import { SectionSlot } from "@/components/shop/section-slot";
 import { pageMeta } from "@/lib/seo";
+import { LifestylePhoto } from "@/components/shop/lifestyle-photo";
+import { LIFESTYLE } from "@/lib/lifestyle-images";
 
 export const dynamic = "force-dynamic";
 
@@ -83,18 +85,34 @@ export default async function AboutPage() {
 
       <SectionSlot page="about" slot="values" />
 
+      <section className="container pb-16 max-w-5xl">
+        <div className="grid grid-cols-2 gap-3 md:gap-6">
+          <LifestylePhoto
+            src={LIFESTYLE.womanCream}
+            sizes="(max-width:768px) 50vw, 480px"
+            className="aspect-[4/5]"
+            imageClassName="object-top"
+          />
+          <LifestylePhoto src={LIFESTYLE.chai} sizes="(max-width:768px) 50vw, 480px" className="aspect-[4/5]" />
+        </div>
+      </section>
+
       <section className="container pb-24">
-        <Reveal className="bg-secondary rounded-3xl p-10 md:p-16 text-center max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-serif mb-3">Browse the collection</h2>
-          <p className="text-muted-foreground mb-6">
-            Find a piece you&apos;ll wear for years.
-          </p>
-          <Link href="/products">
-            <Button variant="gold" size="lg" className="group">
-              Shop All Pieces
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </Link>
+        <Reveal className="relative overflow-hidden rounded-3xl max-w-3xl mx-auto">
+          <LifestylePhoto src={LIFESTYLE.silkBeige} bleed className="absolute inset-0" sizes="(max-width:768px) 100vw, 768px" />
+          <div className="absolute inset-0 bg-white/45" aria-hidden="true" />
+          <div className="relative p-10 md:p-16 text-center">
+            <h2 className="text-3xl md:text-4xl font-serif mb-3">Browse the collection</h2>
+            <p className="text-foreground/80 mb-6">
+              Find a piece you&apos;ll wear for years.
+            </p>
+            <Link href="/products">
+              <Button variant="gold" size="lg" className="group">
+                Shop All Pieces
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </Link>
+          </div>
         </Reveal>
       </section>
 

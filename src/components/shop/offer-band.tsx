@@ -35,7 +35,7 @@ export function OfferBand({
 
   return (
     <section className="container">
-      <div className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(120deg,#3a2420_0%,#5f3b34_45%,#8a5a48_100%)] px-6 py-10 text-background md:px-14 md:py-14">
+      <div className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(120deg,#3a2420_0%,#5f3b34_45%,#8a5a48_100%)] px-5 py-10 text-background sm:px-6 md:px-14 md:py-14">
         {/* gold-tone glow + hairline ring for depth */}
         <div
           aria-hidden="true"
@@ -43,24 +43,24 @@ export function OfferBand({
         />
         <div aria-hidden="true" className="pointer-events-none absolute inset-3 rounded-[1.6rem] border border-white/10" />
 
-        <div className="relative grid items-center gap-8 md:grid-cols-[1.2fr_auto] md:gap-12">
-          <div>
+        <div className="relative grid grid-cols-1 items-center gap-8 md:grid-cols-[1.2fr_auto] md:gap-12">
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-rose-200">Welcome offer</p>
             <h2 className="mt-3 font-serif text-4xl leading-[1.05] text-balance md:text-6xl">{headline}</h2>
             <p className="mt-3 max-w-md text-sm text-background/75 md:text-base">{terms}</p>
             {expiresAt && <Countdown to={expiresAt} />}
           </div>
 
-          <div className="flex flex-col items-stretch gap-3 sm:flex-row md:flex-col md:items-end">
+          <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row md:flex-col md:items-end">
             <button
               type="button"
               onClick={copy}
               aria-label={copied ? `Code ${code} copied` : `Copy code ${code}`}
-              className="group flex min-h-[64px] items-center justify-between gap-4 rounded-2xl border-2 border-dashed border-rose-200/60 bg-white/10 px-5 py-3 backdrop-blur transition-colors hover:bg-white/15 md:min-w-[280px]"
+              className="group flex min-h-[64px] flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-dashed border-rose-200/60 bg-white/10 px-4 py-3 backdrop-blur transition-colors hover:bg-white/15 sm:gap-4 sm:px-5 md:min-w-[280px]"
             >
               <span className="text-left">
                 <span className="block text-[11px] uppercase tracking-[0.28em] text-background/60">Your code</span>
-                <span className="block font-mono text-2xl font-semibold tracking-[0.14em]">{code}</span>
+                <span className="block font-mono text-xl font-semibold tracking-[0.08em] min-[360px]:text-2xl sm:tracking-[0.14em]">{code}</span>
               </span>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${

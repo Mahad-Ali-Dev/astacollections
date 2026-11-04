@@ -131,7 +131,7 @@ export function Header({
         </div>
 
         {/* Main header — logo LEFT + nav center + utility right */}
-        <div className="container flex items-center justify-between gap-4 py-4 md:py-5">
+        <div className="container relative flex items-center justify-between gap-4 py-4 md:py-5">
           <button
             className="lg:hidden -ml-2 p-2 transition-transform active:scale-95"
             onClick={() => setMobile(!mobile)}
@@ -144,8 +144,10 @@ export function Header({
 
           {/* LOGO LEFT — mark only on small phones, mark + wordmark from sm up */}
           {/* lg:shrink-0 — with min-w-0 alone the box shrank below the wordmark at
-              1024–1279px and the text ran under the first nav links. */}
-          <div className="flex-1 lg:flex-initial lg:shrink-0 flex justify-center lg:justify-start min-w-0">
+              1024–1279px and the text ran under the first nav links.
+              Below lg it's centred on the screen itself: the icons either side
+              differ in width, so centring between them sits left of true centre. */}
+          <div className="max-lg:absolute max-lg:left-1/2 max-lg:-translate-x-1/2 lg:shrink-0 flex justify-start min-w-0">
             {/* Phones < 640px: just the mark (saves space, prevents overlap with cart) */}
             <Logo variant="mark" size="md" className="sm:hidden" />
             {/* sm – md: mark + wordmark, smaller */}

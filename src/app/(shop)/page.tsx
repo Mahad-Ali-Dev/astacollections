@@ -8,6 +8,8 @@ import { CollectionGrid } from "@/components/shop/collection-grid";
 import { FullBanner } from "@/components/shop/banners";
 import { Hero, type HeroSlide } from "@/components/shop/hero";
 import { CollectionRail } from "@/components/shop/collection-rail";
+import { LifestylePhoto } from "@/components/shop/lifestyle-photo";
+import { LIFESTYLE } from "@/lib/lifestyle-images";
 import { selectDistinctReviews } from "@/lib/review-selection";
 import { OfferBand } from "@/components/shop/offer-band";
 import { EditTiles } from "@/components/shop/edit-tiles";
@@ -38,6 +40,10 @@ const PHOTO_PICKS = {
   rings: { slug: "midnight-sapphire-radiance-stone-ring", image: 0 },
   couple: { slug: "asta-enchanted-antler-stainless-steel-couples-ring-set", image: 4 },
 };
+
+const GRID_TILES = ["rings", "pendant", "earrings", "bracelets", "couple-rings"];
+// Shorter than the collection page headings, to fit a half-width panel or chip.
+const GRID_LABELS: Record<string, string> = { pendant: "Pendants & Sets", "hand-cuff": "Handcuffs" };
 
 // Collections linked from the home intro, in the order shoppers search for them.
 const INTRO_LINKS = [
@@ -189,18 +195,20 @@ export default async function HomePage() {
     return own + categoriesWithCount.filter((x) => x.parentId === id).reduce((n, x) => n + countOf(x.id), 0);
   };
   const gridCollections = categoriesWithCount
-    .filter((c) => c.slug !== "bestsellers" && c.image)
+    .filter((c) => c.slug !== "bestsellers")
     .map((c) => ({
       // Some category names in the database are slugs ("couple-rings").
-      name: COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
+      name: GRID_LABELS[c.slug] ?? COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
       slug: c.slug,
       image: c.image ?? "",
       productCount: countOf(c.id),
     }))
-    .filter((c) => c.productCount > 0)
+    .filter((c) => c.productCount > 0);
+  // The five large tiles, in order; a tile needs a photo. Everything else is a link below them.
+  const collectionTiles = GRID_TILES.flatMap((slug) => gridCollections.filter((c) => c.slug === slug && c.image));
+  const moreCollections = gridCollections
+    .filter((c) => !collectionTiles.includes(c))
     .sort((a, b) => b.productCount - a.productCount);
-  // Keep the grid even at 4 / 3 / 2 columns (12 divides by all three).
-  const collections = gridCollections.slice(0, gridCollections.length >= 12 ? 12 : gridCollections.length >= 8 ? 8 : gridCollections.length);
 
   const catImage = (slug: string) => introCats.find((c) => c.slug === slug)?.image ?? null;
   const pick = (k: keyof typeof PHOTO_PICKS) => {
@@ -282,21 +290,14 @@ export default async function HomePage() {
 
       {/* COLLECTION GRID */}
       <section className="container py-14 md:py-24">
-        <Reveal className="flex items-end justify-between flex-wrap gap-4 mb-12 md:mb-16">
+        <Reveal className="mb-5 md:mb-10">
           <SectionHeader
-            eyebrow="Shop by Collection"
+            eyebrow="Shop by category"
             title={<>Discover <span className="italic font-light rose-gold-text">your style</span></>}
-            description="Rings, pendant sets, studs and handcuffs, each collection in gold-tone and silver-tone stainless steel."
           />
-          <Link
-            href="/products"
-            className="text-xs uppercase tracking-[0.2em] font-semibold hidden md:inline-flex items-center gap-2 px-5 h-10 rounded-full border border-border hover:border-accent hover:text-accent transition-colors"
-          >
-            View All <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
         </Reveal>
 
-        <CollectionGrid collections={collections} />
+        <CollectionGrid tiles={collectionTiles} more={moreCollections} />
       </section>
 
       <SectionSlot page="home" slot="collections" />
@@ -346,13 +347,13 @@ export default async function HomePage() {
 
       <SectionSlot page="home" slot="bestsellers" />
 
-      {/* GIFTS: two carousels on a soft blush wash, a little playful */}
+      {/* GIFTS: two carousels on the cream used for editorial sections */}
       {(giftPicks.length > 0 || forHer.length > 0) && (
-        <section className="relative overflow-hidden py-20 md:py-24 bg-[radial-gradient(ellipse_at_top_left,rgba(233,205,193,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(218,171,151,0.35),transparent_50%)] bg-secondary/40">
+        <section className="bg-cream py-14 md:py-24">
           <div className="container space-y-16 md:space-y-20">
             {giftPicks.length > 0 && (
               <div>
-                <Reveal className="flex items-end justify-between mb-8 flex-wrap gap-4">
+                <PhotoHeader photo={LIFESTYLE.giftBoxes}>
                   <SectionHeader
                     eyebrow="Gifting made easy"
                     title={<>Gifts under <span className="italic font-light rose-gold-text">Rs. 2,000</span></>}
@@ -364,13 +365,13 @@ export default async function HomePage() {
                   >
                     Gift guide <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
-                </Reveal>
+                </PhotoHeader>
                 <ProductCarousel products={giftPicks.map(toCard)} />
               </div>
             )}
             {forHer.length > 0 && (
               <div>
-                <Reveal className="flex items-end justify-between mb-8 flex-wrap gap-4">
+                <PhotoHeader photo={LIFESTYLE.bouquetHeld} photoClassName="object-[50%_45%]" flip>
                   <SectionHeader
                     eyebrow="For her"
                     title={<>Sets, studs <span className="italic font-light rose-gold-text">&amp; sparkle</span></>}
@@ -382,7 +383,7 @@ export default async function HomePage() {
                   >
                     Shop sets <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
-                </Reveal>
+                </PhotoHeader>
                 <ProductCarousel products={forHer.map(toCard)} />
               </div>
             )}
@@ -426,21 +427,29 @@ export default async function HomePage() {
 
       {/* BUNDLES */}
       {bundles.length > 0 && (
-        <section className="container py-14 md:py-24">
-          <Reveal className="flex items-end justify-between flex-wrap gap-4 mb-12 md:mb-16">
-            <SectionHeader
-              eyebrow="Bundle & Save"
-              title={<>Curated <span className="italic font-light rose-gold-text">bundles</span></>}
-              description="Hand-picked sets at a special price — wear together, save together."
-            />
-          </Reveal>
-          <Reveal y={36}>
-            <BundleStrip bundles={bundles} />
-          </Reveal>
+        <section className="bg-cream">
+          <div className="container py-14 md:py-24">
+            <PhotoHeader photo={LIFESTYLE.giftWrapping} photoClassName="object-[50%_40%]">
+              <SectionHeader
+                eyebrow="Bundle & Save"
+                title={<>Curated <span className="italic font-light rose-gold-text">bundles</span></>}
+                description="Hand-picked sets at a special price — wear together, save together."
+              />
+            </PhotoHeader>
+            <Reveal y={36}>
+              <BundleStrip bundles={bundles} />
+            </Reveal>
+          </div>
         </section>
       )}
 
       <SectionSlot page="home" slot="bundles" />
+
+      {/* REVIEWS: equal cards, no two with the same text. The deep brown section
+          sits here, away from the dark promise card and the dark footer. */}
+      <HomeReviews reviews={homeReviews} />
+
+      <SectionSlot page="home" slot="testimonials" />
 
       {/* FEATURED */}
       {featured.length > 0 && (
@@ -479,11 +488,6 @@ export default async function HomePage() {
 
       <SectionSlot page="home" slot="promise" />
 
-      {/* REVIEWS: equal cards, no two with the same text */}
-      <HomeReviews reviews={homeReviews} />
-
-      <SectionSlot page="home" slot="testimonials" />
-
       {/* NEW ARRIVALS */}
       {latestProducts.length > 0 && (
         <section className="container py-14 md:py-24">
@@ -501,6 +505,31 @@ export default async function HomePage() {
 
       <SectionSlot page="home" slot="end" />
     </>
+  );
+}
+
+/** A section's heading beside a mood photo. Above the heading on phones. The photo links nowhere. */
+function PhotoHeader({
+  photo,
+  photoClassName,
+  flip,
+  children,
+}: {
+  photo: string;
+  photoClassName?: string;
+  flip?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`mb-8 grid grid-cols-1 items-center gap-6 md:gap-10 ${flip ? "md:grid-cols-[2fr_3fr]" : "md:grid-cols-[3fr_2fr]"}`}>
+      <LifestylePhoto
+        src={photo}
+        sizes="(max-width:768px) 100vw, 40vw"
+        className={`h-44 md:h-72 ${flip ? "" : "md:order-2"}`}
+        imageClassName={photoClassName}
+      />
+      <Reveal className="flex flex-col items-start gap-5">{children}</Reveal>
+    </div>
   );
 }
 

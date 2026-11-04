@@ -54,7 +54,7 @@ export function WhatsAppWidget() {
     <>
       {/* Tooltip bubble */}
       {showTooltip && !open && !hideFloating && (
-        <div className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
+        <div className="fixed bottom-[calc(9rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-2xl shadow-xl px-4 py-3 max-w-[260px] animate-in slide-in-from-bottom-3 fade-in duration-500">
           <button
             onClick={() => setShowTooltip(false)}
             aria-label="Dismiss"
@@ -72,7 +72,7 @@ export function WhatsAppWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-3xl shadow-2xl w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden animate-in slide-in-from-bottom-3 fade-in duration-300">
+        <div className="fixed bottom-[calc(9rem+env(safe-area-inset-bottom))] md:bottom-24 right-4 md:right-6 z-40 bg-white border border-border rounded-3xl shadow-2xl w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden animate-in slide-in-from-bottom-3 fade-in duration-300">
           {/* Header */}
           <div className="bg-green-600 text-white p-5 relative">
             <button
@@ -139,7 +139,7 @@ export function WhatsAppWidget() {
         onClick={() => setOpen(!open)}
         aria-label={open ? "Close WhatsApp chat" : "Open WhatsApp support"}
         className={cn(
-          "fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 right-4 md:right-6 z-40 w-11 h-11 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-lg md:shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all items-center justify-center group",
+          "fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 right-4 md:right-6 z-40 w-11 h-11 md:w-16 md:h-16 bg-green-500 text-white rounded-full shadow-lg md:shadow-2xl hover:bg-green-600 hover:scale-110 active:scale-95 transition-all items-center justify-center group",
           hideFloating && !open ? "hidden" : "flex",
           onProductPage && open && "bottom-[calc(6rem+env(safe-area-inset-bottom))]"
         )}

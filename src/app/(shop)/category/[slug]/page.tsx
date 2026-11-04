@@ -7,6 +7,8 @@ import { Reveal } from "@/components/motion/reveal";
 import { SectionSlot } from "@/components/shop/section-slot";
 import { TrustLine } from "@/components/shop/trust-strip";
 import { CatalogToolbar } from "@/components/shop/catalog-toolbar";
+import { HeaderPhoto } from "@/components/shop/lifestyle-photo";
+import { LIFESTYLE } from "@/lib/lifestyle-images";
 import { applyCatalog, facetCounts } from "@/lib/product-facets";
 import { COLLECTION_COPY, fillRange } from "@/lib/collection-copy";
 import { guidesForCollections } from "@/lib/guides";
@@ -200,8 +202,9 @@ export default async function CategoryPage({
 
       {/* Short header, so products start high on the page. The intro copy lives
           in "About this collection" below the grid. */}
-      <section className="border-b border-border/70 bg-secondary/40">
-        <div className="container py-5 md:py-7">
+      <section className="relative overflow-hidden border-b border-border/70 bg-secondary/40">
+        <HeaderPhoto src={LIFESTYLE.driedVase} />
+        <div className="container relative py-5 md:py-7">
           <nav aria-label="Breadcrumb">
             <ol className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
               {crumbs.map((c, i) => (

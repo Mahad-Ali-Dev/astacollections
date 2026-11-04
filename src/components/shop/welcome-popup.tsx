@@ -127,21 +127,22 @@ export function WelcomePopup({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
       <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={close} />
 
-      <div role="dialog" aria-modal="true" aria-label="Welcome offer" className="relative bg-white w-full max-w-3xl rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl grid md:grid-cols-2 animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 max-h-[92vh]">
-        {/* Image side */}
-        <div className="relative aspect-[4/5] md:aspect-auto md:min-h-[480px] bg-secondary/50 hidden md:block">
+      <div role="dialog" aria-modal="true" aria-label="Welcome offer" className="relative bg-white w-full max-w-sm md:max-w-3xl rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:grid md:grid-cols-2 animate-in zoom-in-95 slide-in-from-bottom-4 duration-500 max-h-[92svh]">
+        {/* Image: beside the copy on desktop. A strip on top on phones, taller on
+            tall screens, gone when a short screen or the keyboard leaves no room. */}
+        <div className="relative h-24 shrink-0 bg-secondary/50 max-md:[@media(max-height:560px)]:hidden max-md:[@media(min-height:720px)]:h-40 md:h-auto md:min-h-[480px]">
           <Image
             src={image}
             alt="Welcome to Asta Collections"
             fill
-            sizes="(max-width: 768px) 0vw, 50vw"
+            sizes="(max-width: 768px) 384px, 50vw"
             className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground/30 to-transparent" />
         </div>
 
         {/* Copy side */}
-        <div className="relative p-6 sm:p-8 md:p-10 flex flex-col justify-center overflow-y-auto">
+        <div className="relative min-h-0 p-5 sm:p-8 md:p-10 flex flex-col justify-center overflow-y-auto">
           <button
             onClick={close}
             aria-label="Close"
@@ -151,7 +152,7 @@ export function WelcomePopup({
           </button>
 
           {step === "intro" && (
-            <div className="space-y-5 animate-in fade-in slide-in-from-right-2 duration-500">
+            <div className="space-y-4 md:space-y-5 animate-in fade-in slide-in-from-right-2 duration-500">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent rounded-full text-[11px] uppercase tracking-[0.3em] font-semibold w-fit">
                 <Sparkles className="h-3.5 w-3.5" />
                 Welcome

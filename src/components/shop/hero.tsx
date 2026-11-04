@@ -95,13 +95,13 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
         ))}
         {/* Shade only behind the text (below it on phones, left of it on desktop)
             so the jewellery keeps its true colour. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/90 from-20% via-foreground/65 via-55% to-transparent to-85% md:bg-gradient-to-r md:from-foreground/75 md:from-0% md:via-foreground/30 md:via-40% md:to-transparent md:to-70%" />
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 from-10% via-foreground/50 via-55% to-transparent to-80% md:bg-gradient-to-r md:from-foreground/75 md:from-0% md:via-foreground/30 md:via-40% md:to-transparent md:to-70%" />
         <div className="absolute inset-x-0 bottom-0 hidden h-32 bg-gradient-to-t from-foreground/40 to-transparent md:block" />
       </div>
 
       <div className="container relative flex min-h-[560px] items-end pb-20 pt-16 md:min-h-[600px] md:items-center md:py-24 lg:min-h-[calc(100svh-11rem)]">
-        <div key={active} className="w-full max-w-xl space-y-4 text-background md:space-y-6">
-          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
+        <div key={active} className="w-full max-w-xl space-y-4 text-background [text-shadow:0_1px_12px_rgba(20,12,8,0.5)] md:space-y-6 md:[text-shadow:none]">
+          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-white md:text-rose-200 font-medium">
             <span className="h-px w-6 sm:w-8 bg-rose-300" />
             {slide.eyebrow}
           </p>
@@ -124,7 +124,7 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Link
               href={primaryHref}
-              className="press animate-fade-rise [animation-delay:500ms] motion-reduce:animate-none group inline-flex h-12 items-center gap-2 rounded-full bg-white px-7 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="press animate-fade-rise [animation-delay:500ms] motion-reduce:animate-none group inline-flex h-12 items-center gap-2 rounded-full bg-white px-7 [text-shadow:none] text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               {slide.cta.label || "Shop Now"}
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />

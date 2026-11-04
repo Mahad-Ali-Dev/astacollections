@@ -5,6 +5,8 @@ import { GUIDES, getGuide, type GuideBlock } from "@/lib/guides";
 import { guidePlaceholders, fillPlaceholders, guideProducts } from "@/lib/guide-data";
 import { GuideText } from "@/components/shop/guide-text";
 import { ProductCard } from "@/components/shop/product-card";
+import { LifestylePhoto } from "@/components/shop/lifestyle-photo";
+import { LIFESTYLE } from "@/lib/lifestyle-images";
 import {
   absoluteUrl,
   breadcrumbJsonLd,
@@ -103,6 +105,15 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             By {SITE.name} · Updated <time dateTime={guide.updated}>{formatDate(guide.updated)}</time> · {guide.readMins} min read
           </p>
         </header>
+
+        {guide.slug === "jewellery-gift-ideas-for-her-under-2000" && (
+          <LifestylePhoto
+            src={LIFESTYLE.bouquetHand}
+            sizes="(max-width:768px) 100vw, 672px"
+            className="mt-8 h-52 md:h-72"
+            imageClassName="object-[50%_35%]"
+          />
+        )}
 
         {/* The short answer first */}
         <div className="mt-8 rounded-2xl border border-accent/30 bg-accent/5 p-5 md:p-6">

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
 import { CatalogToolbar } from "@/components/shop/catalog-toolbar";
+import { HeaderPhoto } from "@/components/shop/lifestyle-photo";
+import { LIFESTYLE } from "@/lib/lifestyle-images";
 import { applyCatalog, facetCounts } from "@/lib/product-facets";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { BundleStrip } from "@/components/shop/bundle-strip";
@@ -144,8 +146,9 @@ export default async function ProductsPage({
   return (
     <div>
       {/* Short header, so products start high on the page */}
-      <section className="border-b border-border/70 bg-secondary/40">
-        <div className="container py-6 md:py-8">
+      <section className="relative overflow-hidden border-b border-border/70 bg-secondary/40">
+        <HeaderPhoto src={LIFESTYLE.driedStems} />
+        <div className="container relative py-6 md:py-8">
           <h1 className="font-serif text-3xl leading-tight text-balance md:text-5xl">
             {q ? (
               <>
