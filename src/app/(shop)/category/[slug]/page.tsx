@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
@@ -7,7 +6,8 @@ import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
 import { SectionSlot } from "@/components/shop/section-slot";
 import { TrustLine } from "@/components/shop/trust-strip";
-import { CollectionToolbar } from "@/components/shop/collection-toolbar";
+import { CatalogToolbar } from "@/components/shop/catalog-toolbar";
+import { applyCatalog, facetCounts } from "@/lib/product-facets";
 import { COLLECTION_COPY, fillRange } from "@/lib/collection-copy";
 import { guidesForCollections } from "@/lib/guides";
 import { getStorePolicy } from "@/lib/store-policy";
@@ -45,15 +45,6 @@ async function collectDescendantCategoryIds(rootId: string): Promise<string[]> {
   return result;
 }
 
-const CATEGORY_HEADER_IMAGES: Record<string, string> = {
-  rings: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=1600&auto=format&fit=crop&q=80",
-  necklaces: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=1600&auto=format&fit=crop&q=80",
-  earrings: "https://images.unsplash.com/photo-1635767582909-345788c69757?w=1600&auto=format&fit=crop&q=80",
-  bracelets: "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=1600&auto=format&fit=crop&q=80",
-  "bridal-sets": "https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?w=1600&auto=format&fit=crop&q=80",
-  anklets: "https://images.unsplash.com/photo-1620656798579-1984d9e87df7?w=1600&auto=format&fit=crop&q=80",
-};
-
 export async function generateMetadata({
   params,
 }: {
@@ -85,10 +76,10 @@ export default async function CategoryPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ sort?: string; price?: string }>;
+  searchParams: Promise<{ sort?: string; price?: string; tone?: string; stone?: string; inStock?: string }>;
 }) {
   const { slug } = await params;
-  const { sort = "newest", price = "" } = await searchParams;
+  const filters = await searchParams;
   const category = await prisma.category.findUnique({ where: { slug } });
   if (!category || !category.isActive) notFound();
   const copy = COLLECTION_COPY[category.slug];
@@ -109,15 +100,18 @@ export default async function CategoryPage({
         { extraCategories: { some: { id: { in: allCategoryIds } } } },
       ],
     },
-    include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
+    include: {
+      images: { orderBy: { sortOrder: "asc" }, take: 2 },
+      _count: { select: { attributes: true } },
+      category: { select: { slug: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
-  // Sort / price filter for display only (hero range + JSON-LD use the full set).
-  const [pMin, pMax] = price.split("-").map(Number);
-  const shown = products
-    .filter((p) => !price || !Number.isFinite(pMin) || !Number.isFinite(pMax) || (p.price >= pMin && p.price <= pMax))
-    .sort((a, b) => (sort === "price-low" ? a.price - b.price : sort === "price-high" ? b.price - a.price : 0));
+  // Filters and sort are for display only (range + JSON-LD use the full set).
+  const facetable = products.map((p) => ({ ...p, categorySlug: p.category.slug }));
+  const shown = applyCatalog(facetable, filters);
+  const facets = facetCounts(facetable, filters);
 
   // Featured + New Arrivals (across other categories) for the discovery sections at the bottom.
   // "Other" = anything outside this category's subtree.
@@ -193,9 +187,6 @@ export default async function CategoryPage({
     ...(faqs.length > 0 ? [faqJsonLd(faqs)] : []),
   ];
 
-  // Prefer admin-set category.image, fall back to hardcoded default per slug
-  const headerImage = category.image || CATEGORY_HEADER_IMAGES[category.slug];
-
   // Fetch subcategories (children of this category)
   const subcategories = await prisma.category.findMany({
     where: { parentId: category.id, isActive: true },
@@ -207,30 +198,17 @@ export default async function CategoryPage({
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(jsonLd) }} />
 
-      {/* Category hero banner — compact on phones so products start above the fold */}
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-0">
-          {headerImage && (
-            <Image
-              src={headerImage}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/85 to-background/60" />
-        </div>
-        <div className="container relative py-10 md:py-24 text-center">
-          <nav aria-label="Breadcrumb" className="mb-4 md:mb-6">
-            {/* Light pill so the crumbs stay readable over busy header photos */}
-            <ol className="inline-flex flex-wrap items-center justify-center gap-x-2 rounded-full bg-white/85 px-3 py-1 text-xs text-foreground/75">
+      {/* Short header, so products start high on the page. The intro copy lives
+          in "About this collection" below the grid. */}
+      <section className="border-b border-border/70 bg-secondary/40">
+        <div className="container py-5 md:py-7">
+          <nav aria-label="Breadcrumb">
+            <ol className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
               {crumbs.map((c, i) => (
-                <li key={c.url} className="flex items-center gap-2">
+                <li key={c.url} className="flex items-center gap-1.5">
                   {i > 0 && <span aria-hidden="true">/</span>}
                   {i < crumbs.length - 1 ? (
-                    <Link href={c.url} className="hover:text-foreground underline-offset-2 hover:underline">
+                    <Link href={c.url} className="underline-offset-2 hover:text-foreground hover:underline">
                       {c.name}
                     </Link>
                   ) : (
@@ -240,25 +218,19 @@ export default async function CategoryPage({
               ))}
             </ol>
           </nav>
-          <h1 className="text-4xl md:text-7xl font-serif text-balance">{heading}</h1>
-          {intro[0] && (
-            <p className="text-muted-foreground mt-3 md:mt-4 max-w-xl mx-auto text-pretty text-sm md:text-base">
-              {intro[0]}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground mt-3">
-            {products.length} {products.length === 1 ? "piece" : "pieces"}
-            {range && <> · {range}</>}
-          </p>
+          <h1 className="mt-2 font-serif text-3xl leading-tight text-balance md:text-5xl">{heading}</h1>
+          <div className="mt-2">
+            <TrustLine policy={policy} />
+          </div>
 
-          {/* Subcategory pills: one swipeable row on phones (they stacked 7 deep); wrapped from md. */}
+          {/* Subcategory pills: one swipeable row on phones; wrapped from md. */}
           {subcategories.length > 0 && (
-            <div className="no-scrollbar -mx-4 mt-5 flex snap-x gap-2 overflow-x-auto px-4 md:mx-0 md:mt-6 md:flex-wrap md:justify-center md:overflow-visible md:px-0">
+            <div className="no-scrollbar -mx-4 mt-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
               {subcategories.map((sc) => (
                 <Link
                   key={sc.id}
                   href={`/category/${sc.slug}`}
-                  className="press inline-flex h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full border border-border bg-white px-4 text-xs font-medium uppercase tracking-[0.14em] transition-colors hover:border-accent hover:text-accent"
+                  className="press inline-flex h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full border border-border bg-white px-4 text-sm transition-colors hover:border-accent hover:text-accent"
                 >
                   {COLLECTION_COPY[sc.slug]?.h1 ?? sc.name.trim()}
                 </Link>
@@ -268,29 +240,23 @@ export default async function CategoryPage({
         </div>
       </section>
 
-      <div className="container pt-5 flex justify-center">
-        <TrustLine policy={policy} className="justify-center text-center" />
-      </div>
-
-      <SectionSlot page="category" slot="top" />
-
-      <div className="container py-8 md:py-12">
+      <div className="container py-5 md:py-8">
         {products.length > 0 && (
-          <div className="mb-6 md:mb-8">
-            <CollectionToolbar count={shown.length} />
+          <div className="mb-6 border-b border-border/70 pb-4 md:mb-8">
+            <CatalogToolbar count={shown.length} facets={facets} />
           </div>
         )}
         {products.length === 0 || shown.length === 0 ? (
           <div className="rounded-[1.75rem] border border-dashed border-border bg-secondary/30 px-6 py-16 text-center">
-            <p className="font-serif text-2xl">{products.length === 0 ? "New pieces are on the way" : "Nothing in that price range"}</p>
+            <p className="font-serif text-2xl">{products.length === 0 ? "New pieces are on the way" : "Nothing matches those filters"}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {products.length === 0 ? "This collection is being restocked." : "Try another range or clear the filter."}
+              {products.length === 0 ? "This collection is being restocked." : "Try removing a filter to see more pieces."}
             </p>
             <Link
               href={products.length === 0 ? "/products" : `/category/${category.slug}`}
               className="press mt-6 inline-flex h-12 items-center rounded-full bg-foreground px-6 text-xs font-semibold uppercase tracking-[0.18em] text-background"
             >
-              {products.length === 0 ? "Shop all jewellery" : "Clear filter"}
+              {products.length === 0 ? "Shop all jewellery" : "Clear filters"}
             </Link>
           </div>
         ) : (
@@ -319,13 +285,16 @@ export default async function CategoryPage({
         )}
       </div>
 
+      {/* The admin's "top" slot renders under the grid so products stay on the first screen. */}
+      <SectionSlot page="category" slot="top" />
+
       {/* ABOUT THIS COLLECTION — helpful copy + FAQs + related collections */}
-      {(intro.length > 1 || faqs.length > 0 || siblings.length > 0 || guides.length > 0) && (
+      {(intro.length > 0 || faqs.length > 0 || siblings.length > 0 || guides.length > 0) && (
         <section className="container pb-6">
           <div className="grid gap-10 md:grid-cols-2 md:gap-16 border-t pt-12">
             <div className="space-y-4 max-w-prose">
               <h2 className="text-2xl md:text-3xl font-serif">About our {heading.toLowerCase()}</h2>
-              {intro.slice(1).map((t) => (
+              {intro.map((t) => (
                 <p key={t} className="text-sm md:text-base text-muted-foreground leading-relaxed">{t}</p>
               ))}
               {siblings.length > 0 && (

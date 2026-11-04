@@ -3,11 +3,12 @@ import { ArrowUpRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
 import { ProductCarousel } from "@/components/shop/product-carousel";
-import { Hero, type HeroSlide } from "@/components/shop/hero";
 import { Marquee } from "@/components/shop/marquee";
 import { CollectionGrid } from "@/components/shop/collection-grid";
 import { FullBanner } from "@/components/shop/banners";
-import { HomeIntro } from "@/components/shop/home-intro";
+import { Hero, type HeroSlide } from "@/components/shop/hero";
+import { CollectionRail } from "@/components/shop/collection-rail";
+import { selectDistinctReviews } from "@/lib/review-selection";
 import { OfferBand } from "@/components/shop/offer-band";
 import { EditTiles } from "@/components/shop/edit-tiles";
 import { HomeReviews, type HomeReview } from "@/components/shop/home-reviews";
@@ -15,7 +16,7 @@ import { guideProducts } from "@/lib/guide-data";
 import type { ProductCardData } from "@/components/shop/product-card";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
-import { getSettings, parseVideoCarouselItems } from "@/lib/settings";
+import { getSettings } from "@/lib/settings";
 import { SectionSlot } from "@/components/shop/section-slot";
 import { getStorePolicy, syncDeliveryAmount } from "@/lib/store-policy";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
@@ -31,6 +32,13 @@ export const metadata = pageMeta({
   absoluteTitle: true,
 });
 
+// Photos chosen from the catalogue so each one shows what its label sells. If a
+// product is removed, the matching collection's own image is used instead.
+const PHOTO_PICKS = {
+  rings: { slug: "midnight-sapphire-radiance-stone-ring", image: 0 },
+  couple: { slug: "asta-enchanted-antler-stainless-steel-couples-ring-set", image: 4 },
+};
+
 // Collections linked from the home intro, in the order shoppers search for them.
 const INTRO_LINKS = [
   { slug: "rings", label: "Rings" },
@@ -42,7 +50,7 @@ const INTRO_LINKS = [
 ];
 
 export default async function HomePage() {
-  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest, giftPicks, forHer, introCats] = await Promise.all([
+  const [featured, categoriesWithCount, latestProducts, bestsellers, bundles, settings, reviewPool, policy, cheapest, giftPicks, forHer, introCats, pickProducts] = await Promise.all([
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
       include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } } },
@@ -112,6 +120,15 @@ export default async function HomePage() {
       where: { slug: { in: INTRO_LINKS.map((l) => l.slug) }, isActive: true },
       select: { slug: true, image: true },
     }),
+    prisma.product.findMany({
+      where: { slug: { in: Object.values(PHOTO_PICKS).map((x) => x.slug) }, isActive: true },
+      select: {
+        slug: true,
+        name: true,
+        price: true,
+        images: { orderBy: { sortOrder: "asc" }, select: { url: true } },
+      },
+    }),
   ]);
 
   // The welcome offer comes from the real coupon record, so its terms (and
@@ -132,38 +149,22 @@ export default async function HomePage() {
       })
     : null;
 
-  // Most imported reviews share the same template wording (Nov 2026: 951
-  // reviews, 72 distinct texts, 718 opening with the same sentence). Show one
-  // card per opening phrase and say how many others said the same, rather
-  // than repeating the text.
-  const byOpening = new Map<string, { review: (typeof reviewPool)[number]; similar: number }>();
-  for (const r of reviewPool) {
-    const body = r.body.trim();
-    if (body.length < 30 || body.length > 320) continue;
-    const key = body.toLowerCase().replace(/[^a-z ]/g, "").slice(0, 40);
-    const hit = byOpening.get(key);
-    if (hit) hit.similar += 1;
-    else byOpening.set(key, { review: r, similar: 0 });
-  }
-  const homeReviews: HomeReview[] = [...byOpening.values()]
-    // Feature a review that has a product photo first, then the rest.
-    .sort((a, b) => Number(!!b.review.product?.images[0]) - Number(!!a.review.product?.images[0]))
-    .slice(0, 4)
-    .map(({ review: r, similar }) => ({
-      id: r.id,
-      name: r.customerName,
-      rating: r.rating,
-      body: r.body.trim(),
-      verified: r.verified,
-      similar,
-      product:
-        r.product && r.product.isActive
-          ? { name: r.product.name, slug: r.product.slug, image: r.product.images[0]?.url ?? null }
-          : null,
-    }));
-  const clips = parseVideoCarouselItems(settings.videoCarouselItems)
-    .filter((c) => c.poster)
-    .map((c) => ({ poster: c.poster!, href: c.href ?? null, caption: c.caption ?? null }));
+  // No two cards show the same text (see review-selection.ts). Reviews are shown
+  // whole or not at all; the text is never edited.
+  const homeReviews: HomeReview[] = selectDistinctReviews(
+    reviewPool.filter((r) => {
+      const len = r.body.trim().length;
+      return len >= 30 && len <= 260 && r.product?.isActive;
+    }),
+    9
+  ).map((r) => ({
+    id: r.id,
+    name: r.customerName,
+    rating: r.rating,
+    body: r.body.trim(),
+    verified: r.verified,
+    product: r.product ? { name: r.product.name, slug: r.product.slug, image: r.product.images[0]?.url ?? null } : null,
+  }));
 
   const toCard = (p: (typeof giftPicks)[number]): ProductCardData => ({
     id: p.id,
@@ -181,7 +182,32 @@ export default async function HomePage() {
     isFeatured: p.isFeatured,
   });
 
-  // Build hero slides from settings
+  const countOf = (id: string): number => {
+    const c = categoriesWithCount.find((x) => x.id === id);
+    if (!c) return 0;
+    const own = c._count.products + c._count.extraProducts;
+    return own + categoriesWithCount.filter((x) => x.parentId === id).reduce((n, x) => n + countOf(x.id), 0);
+  };
+  const gridCollections = categoriesWithCount
+    .filter((c) => c.slug !== "bestsellers" && c.image)
+    .map((c) => ({
+      // Some category names in the database are slugs ("couple-rings").
+      name: COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
+      slug: c.slug,
+      image: c.image ?? "",
+      productCount: countOf(c.id),
+    }))
+    .filter((c) => c.productCount > 0)
+    .sort((a, b) => b.productCount - a.productCount);
+  // Keep the grid even at 4 / 3 / 2 columns (12 divides by all three).
+  const collections = gridCollections.slice(0, gridCollections.length >= 12 ? 12 : gridCollections.length >= 8 ? 8 : gridCollections.length);
+
+  const catImage = (slug: string) => introCats.find((c) => c.slug === slug)?.image ?? null;
+  const pick = (k: keyof typeof PHOTO_PICKS) => {
+    const product = pickProducts.find((x) => x.slug === PHOTO_PICKS[k].slug);
+    return product ? { product, url: product.images[PHOTO_PICKS[k].image]?.url ?? product.images[0]?.url } : null;
+  };
+  // Slides come from Admin -> Site content.
   const heroSlides: HeroSlide[] = [
     {
       eyebrow: settings.hero1Eyebrow,
@@ -208,31 +234,10 @@ export default async function HomePage() {
       image: settings.hero3Image,
     },
   ].filter((s) => s.image && s.title);
-
-  const countOf = (id: string): number => {
-    const c = categoriesWithCount.find((x) => x.id === id);
-    if (!c) return 0;
-    const own = c._count.products + c._count.extraProducts;
-    return own + categoriesWithCount.filter((x) => x.parentId === id).reduce((n, x) => n + countOf(x.id), 0);
-  };
-  const gridCollections = categoriesWithCount
-    .filter((c) => c.slug !== "bestsellers" && c.image)
-    .map((c) => ({
-      // Some category names in the database are slugs ("couple-rings").
-      name: COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim(),
-      slug: c.slug,
-      image: c.image ?? "",
-      productCount: countOf(c.id),
-    }))
-    .filter((c) => c.productCount > 0)
-    .sort((a, b) => b.productCount - a.productCount);
-  // Keep the grid even at 4 / 3 / 2 columns (12 divides by all three).
-  const collections = gridCollections.slice(0, gridCollections.length >= 12 ? 12 : gridCollections.length >= 8 ? 8 : gridCollections.length);
-
-  const introPhotos = bestsellers
-    .filter((p) => p.images[0])
-    .slice(0, 3)
-    .map((p) => ({ src: p.images[0].url, alt: p.name.trim(), href: `/products/${p.slug}` }));
+  const storeFacts = [
+    `Gold and silver tone${cheapest ? `, from ${formatPrice(cheapest.price)}` : ""}.`,
+    policy.codEnabled ? "Cash on delivery across Pakistan." : "Delivered across Pakistan.",
+  ].join(" ");
   const introCollections = INTRO_LINKS.map((l) => ({
     href: `/category/${l.slug}`,
     label: l.label,
@@ -269,16 +274,9 @@ export default async function HomePage() {
           .map((p) => syncDeliveryAmount(p.trim(), policy.freeShippingThreshold))
           .filter(Boolean)}
       />
+      <CollectionRail collections={introCollections} facts={storeFacts} policy={policy} />
 
       <SectionSlot page="home" slot="hero" />
-
-      {/* INTRO: editorial split + collection photo tiles + slim trust line */}
-      <HomeIntro
-        fromPrice={cheapest ? formatPrice(cheapest.price) : null}
-        photos={introPhotos}
-        collections={introCollections}
-        policy={policy}
-      />
 
       <SectionSlot page="home" slot="pillars" />
 
@@ -398,18 +396,18 @@ export default async function HomePage() {
           {
             eyebrow: "Gift sets",
             title: "Sets that are ready to gift",
-            line: "3-piece and 6-piece necklace and earring sets in gold and silver tones.",
+            line: "Necklace and earring sets in gold and silver tones.",
             cta: "Shop gift sets",
             href: "/category/pendant",
-            image: settings.bannerDualLeftImage,
+            image: catImage("pendant") ?? "",
           },
           {
             eyebrow: "Everyday",
-            title: "Pieces you'll never take off",
-            line: "Adjustable rings, stud sets and handcuffs made for daily wear.",
+            title: "Rings for every day",
+            line: "Zircon, enamel and charm rings, most of them adjustable.",
             cta: "Shop rings",
             href: "/category/rings",
-            image: settings.bannerDualRightImage,
+            image: pick("rings")?.url ?? catImage("rings") ?? "",
           },
           {
             eyebrow: "For two",
@@ -417,7 +415,7 @@ export default async function HomePage() {
             line: "Matching sets for promises, nikkahs and anniversaries.",
             cta: "Shop couple rings",
             href: "/category/couple-rings",
-            image: settings.bannerBridalImage,
+            image: pick("couple")?.url ?? catImage("couple-rings") ?? "",
           },
         ].filter((t) => t.image)}
       />
@@ -481,8 +479,8 @@ export default async function HomePage() {
 
       <SectionSlot page="home" slot="promise" />
 
-      {/* REVIEWS: featured + de-duplicated others + "Seen on you" clips */}
-      <HomeReviews reviews={homeReviews} clips={clips} />
+      {/* REVIEWS: equal cards, no two with the same text */}
+      <HomeReviews reviews={homeReviews} />
 
       <SectionSlot page="home" slot="testimonials" />
 

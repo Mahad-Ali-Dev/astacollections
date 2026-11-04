@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/shop/product-card";
-import { ProductFilters, ActiveFilterChips } from "@/components/shop/product-filters";
+import { CatalogToolbar } from "@/components/shop/catalog-toolbar";
+import { applyCatalog, facetCounts } from "@/lib/product-facets";
+import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { BundleStrip } from "@/components/shop/bundle-strip";
 import { Reveal } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
@@ -17,10 +19,10 @@ type SearchParams = Promise<{
   q?: string;
   sort?: string;
   category?: string;
+  tone?: string;
+  stone?: string;
   price?: string;
-  material?: string;
   inStock?: string;
-  onSale?: string;
 }>;
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }) {
@@ -28,7 +30,7 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   // Search results and filter combinations are thin near-duplicates of this
   // page: keep them out of the index but let crawlers follow product links.
   const filtered = Boolean(
-    params.q || params.category || params.price || params.material || params.inStock || params.onSale || params.sort
+    params.q || params.category || params.tone || params.stone || params.price || params.inStock || params.sort
   );
   return pageMeta({
     title: "Stainless Steel Jewellery Online in Pakistan: Shop All",
@@ -46,60 +48,36 @@ export default async function ProductsPage({
 }) {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
-  const sort = params.sort ?? "newest";
-  const categorySlug = params.category;
-  const price = params.price; // "min-max"
-  const material = params.material;
-  const inStock = params.inStock === "1";
-  const onSale = params.onSale === "1";
+  const categorySlug = params.category ?? "";
 
+  // Search narrows the query; every other filter runs on this list in memory
+  // (tone and stone are derived from text, see src/lib/product-facets.ts).
   const where: Prisma.ProductWhereInput = { isActive: true };
-  const ANDs: Prisma.ProductWhereInput[] = [];
-
   if (q) {
-    ANDs.push({
-      OR: [
-        // Postgres `contains` is case-sensitive; "ring" must find "Ring".
-        { name: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-        { material: { contains: q, mode: "insensitive" } },
-        { tags: { contains: q, mode: "insensitive" } },
-      ],
-    });
+    where.OR = [
+      // Postgres `contains` is case-sensitive; "ring" must find "Ring".
+      { name: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+      { material: { contains: q, mode: "insensitive" } },
+      { tags: { contains: q, mode: "insensitive" } },
+    ];
   }
-  if (categorySlug) ANDs.push({ category: { slug: categorySlug } });
-  if (price) {
-    const [min, max] = price.split("-").map(Number);
-    if (!isNaN(min) && !isNaN(max)) {
-      ANDs.push({ price: { gte: min, lte: max } });
-    }
-  }
-  if (material) ANDs.push({ material: { contains: material, mode: "insensitive" } });
-  if (inStock) ANDs.push({ stock: { gt: 0 } });
-  if (onSale) ANDs.push({ comparePrice: { not: null } });
 
-  if (ANDs.length > 0) where.AND = ANDs;
-
-  const orderBy: Prisma.ProductOrderByWithRelationInput =
-    sort === "price-low"
-      ? { price: "asc" }
-      : sort === "price-high"
-        ? { price: "desc" }
-        : sort === "name"
-          ? { name: "asc" }
-          : { createdAt: "desc" };
-
-  const [products, categories, allMaterials, bundles, newArrivals, policy] = await Promise.all([
+  const [rows, categories, bundles, newArrivals, policy] = await Promise.all([
     prisma.product.findMany({
       where,
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 2 }, _count: { select: { attributes: true } }, category: true },
-      orderBy,
+      include: {
+        images: { orderBy: { sortOrder: "asc" }, take: 2 },
+        _count: { select: { attributes: true } },
+        category: { select: { slug: true } },
+        extraCategories: { select: { id: true } },
+      },
+      orderBy: { createdAt: "desc" },
     }),
-    prisma.category.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
-    prisma.product.findMany({
-      where: { isActive: true, material: { not: null } },
-      select: { material: true },
-      distinct: ["material"],
+    prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, slug: true, name: true, parentId: true },
     }),
     prisma.bundle.findMany({
       where: { isActive: true },
@@ -123,43 +101,61 @@ export default async function ProductsPage({
     getStorePolicy(),
   ]);
 
-  const materials = allMaterials
-    .map((p) => p.material)
-    .filter((m): m is string => Boolean(m))
-    .sort();
+  const products = rows.map((p) => ({ ...p, categorySlug: p.category.slug }));
 
-  const selectedCategoryName = categories.find((c) => c.slug === categorySlug)?.name;
+  // Category tree: a parent includes its children; extra-category links count.
+  const nameOf = (c: { slug: string; name: string }) => COLLECTION_COPY[c.slug]?.h1 ?? c.name.trim();
+  const inCategory = (p: (typeof products)[number], id: string) =>
+    p.categoryId === id || p.extraCategories.some((e) => e.id === id);
+  const idsFor = (id: string) => [id, ...categories.filter((c) => c.parentId === id).map((c) => c.id)];
+  const countFor = (id: string, list: typeof products) => list.filter((p) => idsFor(id).some((i) => inCategory(p, i))).length;
+
+  const selectedCategory = categories.find((c) => c.slug === categorySlug);
+  const filters = {
+    tone: params.tone,
+    stone: params.stone,
+    price: params.price,
+    inStock: params.inStock,
+    sort: params.sort,
+  };
+  const inScope = selectedCategory
+    ? products.filter((p) => idsFor(selectedCategory.id).some((i) => inCategory(p, i)))
+    : products;
+  const shown = applyCatalog(inScope, filters);
+  const facets = facetCounts(inScope, filters);
+
+  // Grouped for the Category filter: Rings (with its styles), Pendants, Earrings...
+  const forCounts = products.filter((p) => applyCatalog([p], { ...filters, sort: undefined }).length > 0);
+  const categoryOptions = categories
+    .filter((c) => !c.parentId)
+    .map((c) => ({
+      slug: c.slug,
+      label: nameOf(c),
+      count: countFor(c.id, forCounts),
+      children: categories
+        .filter((x) => x.parentId === c.id)
+        .map((x) => ({ slug: x.slug, label: nameOf(x), count: countFor(x.id, forCounts) }))
+        .filter((x) => x.count > 0),
+    }))
+    .filter((c) => c.count > 0);
+
+  const heading = selectedCategory ? nameOf(selectedCategory) : "All jewellery";
 
   return (
     <div>
-      {/* Page banner */}
-      <section className="bg-gradient-to-br from-secondary via-background to-secondary/40 border-b">
-        <div className="container py-12 md:py-16">
-          <p className="text-xs uppercase tracking-[0.3em] text-accent font-medium mb-3">
-            {q ? "Search results" : selectedCategoryName ?? "The Shop"}
-          </p>
-          <h1 className="text-4xl md:text-6xl font-serif text-balance">
+      {/* Short header, so products start high on the page */}
+      <section className="border-b border-border/70 bg-secondary/40">
+        <div className="container py-6 md:py-8">
+          <h1 className="font-serif text-3xl leading-tight text-balance md:text-5xl">
             {q ? (
               <>
-                Results for <span className="italic gold-text">&ldquo;{q}&rdquo;</span>
+                Results for <span className="italic">&ldquo;{q}&rdquo;</span>
               </>
-            ) : selectedCategoryName ? (
-              selectedCategoryName
             ) : (
-              "Stainless Steel Jewellery"
+              heading
             )}
           </h1>
-          {!q && !selectedCategoryName && (
-            <p className="text-muted-foreground mt-3 max-w-xl text-sm md:text-base text-pretty">
-              Rings, pendant sets, stud earrings, bracelets and handcuffs in gold-tone and
-              silver-tone stainless steel, made for everyday wear.
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground mt-3">
-            {products.length} {products.length === 1 ? "piece" : "pieces"}
-            {selectedCategoryName ? ` in ${selectedCategoryName}` : ""}
-          </p>
-          <div className="mt-3">
+          <div className="mt-2">
             <TrustLine policy={policy} />
           </div>
         </div>
@@ -167,59 +163,39 @@ export default async function ProductsPage({
 
       <SectionSlot page="products" slot="top" />
 
-      <div className="container py-8 md:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 lg:gap-12">
-          <ProductFilters
-            categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
-            materials={materials}
-          />
-
-          <div>
-            <ActiveFilterChips
-              categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
-            />
-
-            {/* Desktop result count + sort already shown in sidebar */}
-            <div className="hidden md:flex items-center justify-between mb-6">
-              <p className="text-sm text-muted-foreground">
-                Showing <strong className="text-foreground">{products.length}</strong>{" "}
-                {products.length === 1 ? "piece" : "pieces"}
-              </p>
-            </div>
-
-            {products.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <div className="product-grid">
-                {products.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={{
-                      id: p.id,
-                      name: p.name,
-                      slug: p.slug,
-                      price: p.price,
-                      comparePrice: p.comparePrice,
-                      sku: p.sku,
-                      stock: p.stock,
-                      image: p.images[0]?.url,
-                      hoverImage: p.images[1]?.url,
-                      hasOptions: p._count.attributes > 0,
-                      video: p.videoUrl,
-                      videoPoster: p.videoPoster,
-                      isFeatured: p.isFeatured,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+      <div className="container py-5 md:py-8">
+        <div className="mb-6 border-b border-border/70 pb-4 md:mb-8">
+          <CatalogToolbar count={shown.length} facets={facets} categories={categoryOptions} />
         </div>
+
+        {shown.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="product-grid">
+            {shown.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={{
+                  id: p.id,
+                  name: p.name,
+                  slug: p.slug,
+                  price: p.price,
+                  comparePrice: p.comparePrice,
+                  sku: p.sku,
+                  stock: p.stock,
+                  image: p.images[0]?.url,
+                  hoverImage: p.images[1]?.url,
+                  hasOptions: p._count.attributes > 0,
+                  video: p.videoUrl,
+                  videoPoster: p.videoPoster,
+                  isFeatured: p.isFeatured,
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* (The rolling "offer ends in 2 days" timer that used to sit here reset
-          itself on every visit, so it was removed. The home page shows the
-          welcome offer from the real coupon record.) */}
 
       {/* BUNDLES */}
       {bundles.length > 0 && (

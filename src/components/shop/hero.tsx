@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
@@ -31,28 +31,10 @@ const FALLBACK_SLIDES: HeroSlide[] = [
 export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
   const slides = slidesProp && slidesProp.length > 0 ? slidesProp : FALLBACK_SLIDES;
   const [active, setActive] = useState(0);
-  const root = useRef<HTMLElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [paused, setPaused] = useState(false);
+  const touchX = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    intervalRef.current = setInterval(() => {
-      setActive((a) => (a + 1) % slides.length);
-    }, 6000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [slides.length]);
-
-  const goTo = (i: number) => {
-    setActive(((i % slides.length) + slides.length) % slides.length);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    if (slides.length > 1) {
-      intervalRef.current = setInterval(() => {
-        setActive((a) => (a + 1) % slides.length);
-      }, 6000);
-    }
-  };
+  const goTo = (i: number) => setActive(((i % slides.length) + slides.length) % slides.length);
 
   // Slide text enters with CSS keyframes (see tailwind `animate-fade-rise`),
   // restarted per slide by keying the text block. This used to be a GSAP
@@ -66,11 +48,29 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
     slide.cta.href && slide.cta.href.trim().length > 0 ? slide.cta.href : "/products";
 
   return (
-    <section ref={root} className="relative overflow-hidden bg-foreground">
+    <section
+      className="relative overflow-hidden bg-foreground"
+      aria-roledescription="carousel"
+      aria-label="Featured collections"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      onTouchStart={(e) => {
+        touchX.current = e.touches[0].clientX;
+      }}
+      onTouchEnd={(e) => {
+        if (touchX.current === null || slides.length <= 1) return;
+        const dx = e.changedTouches[0].clientX - touchX.current;
+        touchX.current = null;
+        if (Math.abs(dx) > 40) goTo(active + (dx < 0 ? 1 : -1));
+      }}
+    >
       <div className="absolute inset-0">
         {slides.map((s, i) => (
           <div
             key={i}
+            aria-hidden={i !== active}
             className={`absolute inset-0 transition-opacity duration-1000 ${
               i === active ? "opacity-100" : "opacity-0"
             }`}
@@ -84,27 +84,31 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
               alt=""
               fill
               priority={i === 0}
-              sizes="100vw"
+              // On phones the wide photo is cropped to a tall frame, so it renders
+              // about 2.5 screen widths wide and needs that many pixels to stay sharp.
+              sizes="(max-width:768px) 260vw, 100vw"
               className={`object-cover ${
                 i === active ? "animate-kenburns motion-reduce:animate-none" : "scale-[1.08] motion-reduce:scale-100"
               }`}
             />
           </div>
         ))}
-        <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/40 to-foreground/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 via-transparent to-foreground/20" />
+        {/* Shade only behind the text (below it on phones, left of it on desktop)
+            so the jewellery keeps its true colour. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/90 from-20% via-foreground/65 via-55% to-transparent to-85% md:bg-gradient-to-r md:from-foreground/75 md:from-0% md:via-foreground/30 md:via-40% md:to-transparent md:to-70%" />
+        <div className="absolute inset-x-0 bottom-0 hidden h-32 bg-gradient-to-t from-foreground/40 to-transparent md:block" />
       </div>
 
-      <div className="container relative min-h-[560px] sm:min-h-[640px] md:min-h-[720px] lg:min-h-[820px] flex items-center py-16 sm:py-20 md:py-24">
-        <div key={active} className="max-w-2xl text-background space-y-5 sm:space-y-7 w-full">
-          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[11px] sm:text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
+      <div className="container relative flex min-h-[560px] items-end pb-20 pt-16 md:min-h-[600px] md:items-center md:py-24 lg:min-h-[calc(100svh-11rem)]">
+        <div key={active} className="w-full max-w-xl space-y-4 text-background md:space-y-6">
+          <p className="animate-fade-rise motion-reduce:animate-none inline-flex items-center gap-2 sm:gap-3 text-[11px] uppercase tracking-[0.28em] sm:tracking-[0.32em] text-rose-200 font-medium">
             <span className="h-px w-6 sm:w-8 bg-rose-300" />
             {slide.eyebrow}
           </p>
 
           {/* h2, not h1: slide titles rotate and are campaign copy. The home
               page carries one stable, descriptive H1 below the hero. */}
-          <h2 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[7.5rem] leading-[0.98] text-balance">
+          <h2 className="font-serif text-[2.6rem] leading-[1.02] text-balance sm:text-6xl lg:text-7xl xl:text-[5.5rem]">
             {/* No overflow masks: the lines fade and rise whole, so italics and
                 descenders are never cut off mid-animation. */}
             <span className="block animate-fade-rise [animation-delay:120ms] motion-reduce:animate-none">{slide.title}</span>
@@ -113,21 +117,21 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
             </span>
           </h2>
 
-          <p className="animate-fade-rise [animation-delay:380ms] motion-reduce:animate-none text-base md:text-lg text-background/85 max-w-md leading-relaxed">
+          <p className="animate-fade-rise [animation-delay:380ms] motion-reduce:animate-none max-w-md text-sm leading-relaxed text-background/90 md:text-lg">
             {slide.description}
           </p>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <Link
               href={primaryHref}
-              className="animate-fade-rise [animation-delay:500ms] motion-reduce:animate-none group inline-flex items-center gap-2 bg-white text-foreground px-7 h-13 py-4 rounded-full text-xs uppercase tracking-[0.2em] font-semibold hover:bg-accent hover:text-accent-foreground transition-all"
+              className="press animate-fade-rise [animation-delay:500ms] motion-reduce:animate-none group inline-flex h-12 items-center gap-2 rounded-full bg-white px-7 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               {slide.cta.label || "Shop Now"}
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
               href="/products"
-              className="animate-fade-rise [animation-delay:560ms] motion-reduce:animate-none inline-flex items-center gap-2 px-6 h-12 rounded-full text-xs uppercase tracking-[0.2em] font-semibold border border-background/40 text-background hover:bg-background/10 transition-colors"
+              className="press animate-fade-rise [animation-delay:560ms] motion-reduce:animate-none inline-flex h-12 items-center gap-2 rounded-full border border-background/50 px-6 text-xs font-semibold uppercase tracking-[0.2em] text-background transition-colors hover:bg-background/10"
             >
               View All
             </Link>
@@ -136,43 +140,60 @@ export function Hero({ slides: slidesProp }: { slides?: HeroSlide[] }) {
       </div>
 
       {slides.length > 1 && (
-        <div className="absolute bottom-6 md:bottom-10 left-0 right-0 z-10">
-          <div className="container flex items-center justify-between gap-4">
+        <div className="absolute bottom-3 left-0 right-0 z-10 md:bottom-8">
+          <div className="container flex items-center gap-6">
             <div className="flex items-center gap-2">
               {slides.map((_, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => goTo(i)}
                   aria-label={`Go to slide ${i + 1}`}
                   aria-current={i === active ? "true" : undefined}
-                  // The visible bar is 1px; the button itself is a 24px-tall
+                  // The visible bar is thin; the button itself is a 44px-tall
                   // target so it can actually be tapped.
-                  className="group/dot h-6 flex items-center"
+                  className="group/dot flex h-11 items-center"
                 >
                   <span
-                    className={`block h-px transition-all duration-500 ${
-                      i === active ? "w-12 md:w-16 bg-rose-300" : "w-6 md:w-9 bg-background/40 group-hover/dot:bg-background/70"
+                    className={`block h-0.5 overflow-hidden rounded-full transition-all duration-500 ${
+                      i === active ? "w-12 bg-background/35 md:w-16" : "w-6 bg-background/40 group-hover/dot:bg-background/70 md:w-9"
                     }`}
-                  />
+                  >
+                    {/* The filling bar is the slide timer: when it ends the next
+                        slide shows, so pausing it (hover, focus) pauses the slider
+                        and with reduced motion nothing advances on its own. */}
+                    {i === active && (
+                      <span
+                        key={active}
+                        className="block h-full origin-left animate-hero-progress bg-rose-300 motion-reduce:animate-none"
+                        style={{ animationPlayState: paused ? "paused" : "running" }}
+                        onAnimationEnd={() => goTo(active + 1)}
+                      />
+                    )}
+                  </span>
                 </button>
               ))}
-              <span className="ml-3 text-[11px] uppercase tracking-[0.3em] text-background/70 font-mono">
+              <span className="ml-3 text-[11px] uppercase tracking-[0.3em] text-background/80 font-mono">
                 {String(active + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
               </span>
             </div>
 
-            <div className="flex gap-2">
+            {/* Beside the counter: the WhatsApp button owns the bottom-right corner.
+                Phones swipe instead. */}
+            <div className="hidden gap-2 md:flex">
               <button
+                type="button"
                 onClick={() => goTo(active - 1)}
                 aria-label="Previous slide"
-                className="w-11 h-11 rounded-full border border-background/40 text-background hover:bg-white hover:text-foreground hover:border-white transition-all flex items-center justify-center"
+                className="w-11 h-11 rounded-full border border-background/50 text-background hover:bg-white hover:text-foreground hover:border-white transition-all flex items-center justify-center"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button
+                type="button"
                 onClick={() => goTo(active + 1)}
                 aria-label="Next slide"
-                className="w-11 h-11 rounded-full border border-background/40 text-background hover:bg-white hover:text-foreground hover:border-white transition-all flex items-center justify-center"
+                className="w-11 h-11 rounded-full border border-background/50 text-background hover:bg-white hover:text-foreground hover:border-white transition-all flex items-center justify-center"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>

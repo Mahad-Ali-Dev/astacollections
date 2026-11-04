@@ -142,16 +142,19 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             </span>
           )}
 
-          {/* Top-left badge */}
-          {discount > 0 && !outOfStock && (
-            <span className="absolute top-3 left-3 bg-white/95 text-accent text-[11px] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full shadow-sm">
-              −{discount}%
+          {/* Almost every piece is on sale, so the saving sits quietly beside the
+              price below rather than as a big badge on each photo. */}
+          {outOfStock ? (
+            <span className="absolute left-3 top-3 rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background">
+              Sold out
             </span>
-          )}
-          {product.isFeatured && !discount && !outOfStock && (
-            <span className="absolute top-3 left-3 bg-foreground text-background text-[11px] uppercase tracking-[0.14em] font-semibold px-3 py-1 rounded-full">
-              Bestseller
-            </span>
+          ) : (
+            product.isFeatured &&
+            !discount && (
+              <span className="absolute left-3 top-3 rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background">
+                Bestseller
+              </span>
+            )
           )}
 
           {/* Wishlist heart */}
@@ -173,14 +176,6 @@ export function ProductCard({ product }: { product: ProductCardData }) {
               strokeWidth={1.6}
             />
           </button>
-
-          {outOfStock && (
-            <div className="absolute inset-0 bg-white/85 backdrop-blur-[2px] flex items-center justify-center">
-              <span className="text-[11px] uppercase tracking-[0.32em] text-foreground bg-white px-4 py-2 rounded-full shadow-sm">
-                Sold Out
-              </span>
-            </div>
-          )}
 
           {!outOfStock && (
             <>
@@ -212,22 +207,21 @@ export function ProductCard({ product }: { product: ProductCardData }) {
         </div>
       </Link>
 
-      <div className="mt-3.5 px-1 space-y-1.5">
+      <div className="mt-3 px-0.5">
         <Link href={href}>
-          <h3 className="text-sm md:text-[15px] font-medium leading-snug line-clamp-2 hover:text-accent transition-colors">
+          <h3 className="font-sans text-sm font-normal leading-snug tracking-normal text-foreground/90 line-clamp-3 transition-colors hover:text-accent md:line-clamp-2 md:text-[15px]">
             {product.name}
           </h3>
         </Link>
-        <div className="flex items-baseline flex-wrap gap-x-2">
-          <span className="text-sm md:text-[15px] font-semibold tabular-nums">
-            {formatPrice(product.price)}
-          </span>
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
+          <span className="text-base font-semibold tabular-nums md:text-lg">{formatPrice(product.price)}</span>
           {product.comparePrice && product.comparePrice > product.price && (
-            <span className="text-xs text-muted-foreground line-through tabular-nums">
-              {formatPrice(product.comparePrice)}
-            </span>
+            <>
+              <span className="text-xs tabular-nums text-muted-foreground line-through">{formatPrice(product.comparePrice)}</span>
+              <span className="text-xs font-medium text-accent">{discount}% off</span>
+            </>
           )}
-        </div>
+        </p>
       </div>
     </article>
   );

@@ -94,6 +94,11 @@ const config: Config = {
           from: { transform: "scale(1)" },
           to: { transform: "scale(1.08)" },
         },
+        // Hero slide timer: the bar fills, then the slider moves on.
+        "hero-progress": {
+          from: { transform: "scaleX(0)" },
+          to: { transform: "scaleX(1)" },
+        },
         // Infinite review marquee: the track holds the cards twice plus a trailing
         // gap (pr), so shifting by exactly half lands the copy where the original began.
         marquee: {
@@ -108,8 +113,8 @@ const config: Config = {
         shimmer: "shimmer 1.5s infinite",
         "fade-rise": "fade-rise 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both",
         kenburns: "kenburns 9s ease-out forwards",
+        "hero-progress": "hero-progress 6s linear forwards",
         marquee: "marquee var(--duration, 60s) linear infinite",
-        "marquee-reverse": "marquee var(--duration, 60s) linear infinite reverse",
       },
     },
   },

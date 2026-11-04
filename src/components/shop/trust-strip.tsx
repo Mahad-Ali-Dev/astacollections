@@ -72,17 +72,19 @@ export function TrustStrip({
 
 /** One-line version for the top of listing pages. */
 export function TrustLine({ policy, className }: { policy: StorePolicy; className?: string }) {
-  // Separators are drawn as a ::before on every item but the first, so a
-  // wrapped line never ends with a dangling "·".
-  const item = "[&:not(:first-child)]:before:content-['·'] [&:not(:first-child)]:before:mr-3";
+  // Every item draws its "·" in its left padding and the row is pulled left by
+  // that padding, so the first item on each wrapped line has its dot clipped.
+  const item = "relative pl-6 before:absolute before:left-[0.6rem] before:content-['·']";
   return (
-    <p className={cn("text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1", className)}>
-      <span className={item}>{codLine(policy)}</span>
-      <span className={item}>{deliveryLine(policy)}</span>
-      <span className={item}>
-        <Link href="/shipping" className="underline underline-offset-2 hover:text-foreground">
-          {policy.returnDays}-day returns
-        </Link>
+    <p className={cn("overflow-hidden text-xs text-muted-foreground", className)}>
+      <span className="-ml-6 flex flex-wrap gap-y-1">
+        <span className={item}>{codLine(policy)}</span>
+        <span className={item}>{deliveryLine(policy)}</span>
+        <span className={item}>
+          <Link href="/shipping" className="underline underline-offset-2 hover:text-foreground">
+            {policy.returnDays}-day returns
+          </Link>
+        </span>
       </span>
     </p>
   );

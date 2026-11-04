@@ -12,5 +12,5 @@ One timing language: **450 ms, ease-out `cubic-bezier(0.22, 0.61, 0.36, 1)`, opa
 | Carousels | `src/components/shop/product-carousel.tsx` | Native scroll-snap (momentum on phones), peek of the next card, dots on phones, arrows on desktop. |
 | Page transitions | `src/app/(shop)/template.tsx` + `.page-in` | 260 ms opacity fade on client navigation (`backwards` fill so no stacking context lingers). |
 | Accordions | `details::details-content` + `interpolate-size` | Height + opacity transition where the browser supports it; instant elsewhere. |
-| Hero | `src/components/shop/hero.tsx` | CSS fade-rise per slide; slow Ken Burns zoom on the active photo. |
+| Hero | `src/components/shop/hero.tsx` | Admin slides cross-fade; text enters with CSS fade-rise; slow Ken Burns zoom. A filling bar times each slide, pauses on hover or focus, and under reduced motion nothing advances on its own. Phones swipe. |
 | Marquees | `animate-marquee` (tailwind) | CSS-only tickers; pause on hover; static and scrollable under reduced motion. |
