@@ -366,19 +366,23 @@ export function videoCarouselSlotFor(s: StoreSettings, page: string): string | n
 
 export async function getSettings(): Promise<StoreSettings> {
   const rows = await prisma.setting.findMany();
-  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  // Keys starting with "_" are internal records (e.g. the store sale's saved
+  // prices, src/lib/store-sale.ts), not settings: never sent to the admin form.
+  const map = Object.fromEntries(rows.filter((r) => !r.key.startsWith("_")).map((r) => [r.key, r.value]));
   return { ...DEFAULTS, ...map } as StoreSettings;
 }
 
 export async function updateSettings(updates: Partial<StoreSettings>): Promise<void> {
   await Promise.all(
-    Object.entries(updates).map(([key, value]) =>
-      prisma.setting.upsert({
-        where: { key },
-        update: { value: String(value ?? "") },
-        create: { key, value: String(value ?? "") },
-      })
-    )
+    Object.entries(updates)
+      .filter(([key]) => !key.startsWith("_"))
+      .map(([key, value]) =>
+        prisma.setting.upsert({
+          where: { key },
+          update: { value: String(value ?? "") },
+          create: { key, value: String(value ?? "") },
+        })
+      )
   );
 }
 
