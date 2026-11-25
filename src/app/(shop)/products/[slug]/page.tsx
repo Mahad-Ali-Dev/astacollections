@@ -7,7 +7,6 @@ import { ProductCard } from "@/components/shop/product-card";
 import { ReviewsSection } from "@/components/shop/reviews-section";
 import { Reveal } from "@/components/motion/reveal";
 import { parseTags } from "@/lib/tags";
-import { getCustomerFromCookie } from "@/lib/auth";
 import { getSettings, settingsToNumbers } from "@/lib/settings";
 import { getStorePolicy } from "@/lib/store-policy";
 import { productJsonLd, breadcrumbJsonLd, pageMeta, clip, jsonLdString } from "@/lib/seo";
@@ -15,7 +14,15 @@ import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { formatPrice } from "@/lib/utils";
 import { SectionSlot } from "@/components/shop/section-slot";
 
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
+
+// Nothing is built at deploy time: each page is built on its first visit,
+// then reused until the storefront is refreshed.
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({
   params,
@@ -164,7 +171,6 @@ export default async function ProductDetailPage({
     product: "product" in r ? (r as { product: { name: string; slug: string } | null }).product : null,
   }));
 
-  const customer = await getCustomerFromCookie();
 
   const jsonLd = productJsonLd({
     name: product.name.trim(),
@@ -230,7 +236,6 @@ export default async function ProductDetailPage({
       <ReviewsSection
         productId={product.id}
         initialReviews={shownReviews}
-        customer={customer ? { id: customer.id, name: customer.name, email: customer.email } : null}
         totalCount={shownCount}
         averageRating={shownAvg}
         distribution={ratingDistribution}

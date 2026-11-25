@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 /**
  * Bulk-create reviews from the admin panel.
@@ -26,7 +27,7 @@ type IncomingRow = {
   createdAt?: string;
 };
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -133,7 +134,7 @@ const STATUSES = ["PENDING", "APPROVED", "REJECTED"] as const;
  * rendered (a customer left a review in the meantime), the request is
  * rejected rather than deleting more than the admin agreed to.
  */
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -169,3 +170,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Delete failed" }, { status: 500 });
   }
 }
+
+export const POST = refreshesStorefront(handlePOST);
+export const DELETE = refreshesStorefront(handleDELETE);

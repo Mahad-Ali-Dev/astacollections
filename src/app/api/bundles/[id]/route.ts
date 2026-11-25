@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
 import { z } from "zod";
+import { refreshesStorefront } from "@/lib/storefront";
 
 const bundleSchema = z.object({
   name: z.string().min(1),
@@ -21,7 +22,7 @@ const bundleSchema = z.object({
     .min(2),
 });
 
-export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
@@ -62,10 +63,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
 }
 
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   await prisma.bundle.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
+
+export const PUT = refreshesStorefront(handlePUT);
+export const DELETE = refreshesStorefront(handleDELETE);

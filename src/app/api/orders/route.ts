@@ -7,8 +7,9 @@ import { resolvePaymentConfig } from "@/lib/payment";
 import { getAdminFromRequest, getCustomerFromRequest } from "@/lib/auth";
 import { sendOrderConfirmation } from "@/lib/email";
 import { NextRequest } from "next/server";
+import { refreshesStorefront } from "@/lib/storefront";
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   try {
     const body = await req.json();
     const parsed = checkoutSchema.safeParse(body);
@@ -290,3 +291,5 @@ export async function GET(req: NextRequest) {
   });
   return NextResponse.json({ orders });
 }
+
+export const POST = refreshesStorefront(handlePOST);

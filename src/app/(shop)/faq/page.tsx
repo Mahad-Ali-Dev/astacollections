@@ -4,7 +4,9 @@ import { faqJsonLd, jsonLdString, pageMeta } from "@/lib/seo";
 import { getStorePolicy, type StorePolicy } from "@/lib/store-policy";
 import { formatPrice } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
 
 export const metadata = pageMeta({
   title: "FAQ: Cash on Delivery, Delivery Charges, Returns and Ring Sizes",

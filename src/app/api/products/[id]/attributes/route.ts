@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 const optionSchema = z.object({
   id: z.string().optional(),
@@ -39,7 +40,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
 // PUT — replace all attributes + options for a product (admin only)
 // Uses a transaction: delete existing, recreate from payload.
-export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -92,3 +93,5 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     return NextResponse.json({ error: e.message ?? "Save failed" }, { status: 500 });
   }
 }
+
+export const PUT = refreshesStorefront(handlePUT);

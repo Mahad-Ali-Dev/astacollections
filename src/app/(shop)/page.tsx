@@ -25,7 +25,9 @@ import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { pageMeta, SITE } from "@/lib/seo";
 import { formatPrice } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
 
 export const metadata = pageMeta({
   title: "Asta Collections: Stainless Steel Jewellery Online in Pakistan",

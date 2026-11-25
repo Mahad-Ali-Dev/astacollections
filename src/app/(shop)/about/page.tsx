@@ -9,7 +9,9 @@ import { pageMeta } from "@/lib/seo";
 import { LifestylePhoto } from "@/components/shop/lifestyle-photo";
 import { LIFESTYLE } from "@/lib/lifestyle-images";
 
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
 
 export const metadata = pageMeta({
   title: "About Asta Collections: Stainless Steel Jewellery from Lahore",

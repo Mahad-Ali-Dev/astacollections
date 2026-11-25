@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 /**
  * Read and set which products appear in a category *in addition* to the ones
@@ -71,7 +72,7 @@ export async function GET(
   });
 }
 
-export async function PUT(
+async function handlePUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -110,3 +111,5 @@ export async function PUT(
     return NextResponse.json({ error: e.message ?? "Save failed" }, { status: 500 });
   }
 }
+
+export const PUT = refreshesStorefront(handlePUT);

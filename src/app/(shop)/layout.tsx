@@ -9,7 +9,9 @@ import { MobileTabBar } from "@/components/shop/mobile-tab-bar";
 import { COLLECTION_COPY } from "@/lib/collection-copy";
 import { codLine, getStorePolicy, syncDeliveryAmount } from "@/lib/store-policy";
 
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
 
 export default async function ShopLayout({ children }: { children: React.ReactNode }) {
   const [settings, navItems, categories, policy] = await Promise.all([

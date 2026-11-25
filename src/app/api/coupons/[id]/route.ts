@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { couponSchema } from "@/lib/validators";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
-export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -35,10 +36,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
 }
 
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   await prisma.coupon.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
+
+export const PUT = refreshesStorefront(handlePUT);
+export const DELETE = refreshesStorefront(handleDELETE);

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { productSchema } from "@/lib/validators";
 import { getAdminFromRequest } from "@/lib/auth";
 import { toPublicProduct } from "@/lib/public-fields";
+import { refreshesStorefront } from "@/lib/storefront";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ products: admin ? products : products.map(toPublicProduct) });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -72,3 +73,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Create failed" }, { status: 500 });
   }
 }
+
+export const POST = refreshesStorefront(handlePOST);

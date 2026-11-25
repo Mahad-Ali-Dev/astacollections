@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
 import { sendShippingUpdate } from "@/lib/email";
+import { refreshesStorefront } from "@/lib/storefront";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return NextResponse.json({ order });
 }
 
-export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -92,7 +93,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   return NextResponse.json({ order: updated });
 }
 
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -132,3 +133,6 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
 
   return NextResponse.json({ success: true });
 }
+
+export const PATCH = refreshesStorefront(handlePATCH);
+export const DELETE = refreshesStorefront(handleDELETE);

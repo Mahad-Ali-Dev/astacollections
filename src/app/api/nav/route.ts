@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 const itemSchema = z.object({
   label: z.string().min(1),
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
 }
 
 /** POST — admin only. Create a nav item. */
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -66,3 +67,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Create failed" }, { status: 500 });
   }
 }
+
+export const POST = refreshesStorefront(handlePOST);

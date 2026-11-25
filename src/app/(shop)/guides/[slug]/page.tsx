@@ -18,7 +18,15 @@ import {
 import { formatDate } from "@/lib/utils";
 
 // Prices in the copy and the product grid are live.
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
+
+// Nothing is built at deploy time: each page is built on its first visit,
+// then reused until the storefront is refreshed.
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 export async function GET(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings });
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -37,3 +38,5 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Update failed" }, { status: 500 });
   }
 }
+
+export const PUT = refreshesStorefront(handlePUT);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromRequest, getAdminFromRequest } from "@/lib/auth";
 import { PUBLIC_REVIEW_SELECT } from "@/lib/public-fields";
+import { refreshesStorefront } from "@/lib/storefront";
 
 const reviewSchema = z.object({
   productId: z.string().min(1),
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ reviews, total, skip, take });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const body = await req.json();
     const customer = await getCustomerFromRequest(req);
@@ -97,3 +98,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Failed to submit review" }, { status: 500 });
   }
 }
+
+export const POST = refreshesStorefront(handlePOST);

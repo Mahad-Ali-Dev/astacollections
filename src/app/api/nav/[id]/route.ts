@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 const updateSchema = z.object({
   label: z.string().min(1).optional(),
@@ -13,7 +14,7 @@ const updateSchema = z.object({
   openInNewTab: z.boolean().optional(),
 });
 
-export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -43,7 +44,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
 }
 
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -52,3 +53,6 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   await prisma.navItem.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
+
+export const PUT = refreshesStorefront(handlePUT);
+export const DELETE = refreshesStorefront(handleDELETE);

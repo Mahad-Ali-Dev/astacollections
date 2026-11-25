@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Star, Loader2, MessageSquare, X, Check, BadgeCheck, PenLine } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
@@ -55,7 +55,8 @@ export function ReviewsSection({
 }: {
   productId: string;
   initialReviews: Review[];
-  customer: Customer;
+  /** Omit on cached pages: the signed-in shopper is then fetched in the browser. */
+  customer?: Customer;
   /** Every approved review in scope, not just the ones rendered below. */
   totalCount?: number;
   averageRating?: number;
@@ -68,6 +69,20 @@ export function ReviewsSection({
   scope?: "product" | "all";
 }) {
   const [reviews, setReviews] = useState(initialReviews);
+  // Product pages are cached for everyone, so the signed-in shopper (used only to
+  // pre-fill the review form) is looked up in the browser instead of on the server.
+  const [me, setMe] = useState<Customer>(customer ?? null);
+  useEffect(() => {
+    if (customer !== undefined) return;
+    let live = true;
+    fetch("/api/customer/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => live && d?.customer && setMe(d.customer))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [customer]);
   const [showForm, setShowForm] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
@@ -272,7 +287,7 @@ export function ReviewsSection({
       </div>
 
       {showForm && (
-        <ReviewFormModal productId={productId} customer={customer} onClose={() => setShowForm(false)} />
+        <ReviewFormModal productId={productId} customer={me} onClose={() => setShowForm(false)} />
       )}
     </section>
   );

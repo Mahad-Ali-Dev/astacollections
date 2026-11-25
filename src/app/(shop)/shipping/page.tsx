@@ -4,7 +4,9 @@ import { pageMeta } from "@/lib/seo";
 import { getStorePolicy } from "@/lib/store-policy";
 import { formatPrice } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
+// Built once and reused; admin saves and orders expire it at once
+// (src/lib/storefront.ts). This is only the daily backstop.
+export const revalidate = 86400;
 
 export const metadata = pageMeta({
   title: "Shipping, Cash on Delivery and Returns",

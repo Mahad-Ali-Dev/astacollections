@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { productSchema } from "@/lib/validators";
 import { getAdminFromRequest } from "@/lib/auth";
 import { toPublicProduct } from "@/lib/public-fields";
+import { refreshesStorefront } from "@/lib/storefront";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return NextResponse.json({ product: admin ? product : toPublicProduct(product) });
 }
 
-export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handlePUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -64,10 +65,13 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   }
 }
 
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+async function handleDELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   await prisma.product.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }
+
+export const PUT = refreshesStorefront(handlePUT);
+export const DELETE = refreshesStorefront(handleDELETE);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { categorySchema } from "@/lib/validators";
 import { getAdminFromRequest } from "@/lib/auth";
+import { refreshesStorefront } from "@/lib/storefront";
 
 export async function GET() {
   const categories = await prisma.category.findMany({
@@ -11,7 +12,7 @@ export async function GET() {
   return NextResponse.json({ categories });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const admin = await getAdminFromRequest(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -33,3 +34,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e.message ?? "Create failed" }, { status: 500 });
   }
 }
+
+export const POST = refreshesStorefront(handlePOST);
